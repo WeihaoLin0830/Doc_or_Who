@@ -183,10 +183,15 @@ def get_table_list() -> list[dict]:
     return tables
 
 
-def natural_language_to_sql(question: str) -> str | None:
+def natural_language_to_sql(question: str, error_feedback: str = "") -> str | None:
     """
     Usa Groq LLM para convertir una pregunta en lenguaje natural
     a una consulta SQL sobre las tablas disponibles.
+
+    Args:
+        question: Pregunta del usuario.
+        error_feedback: Si un intento anterior falló, el mensaje de error
+                        se pasa aquí para que el LLM se autocorrija.
     """
     from backend.config import GROQ_API_KEY, GROQ_MODEL
 
@@ -215,9 +220,12 @@ SOLO devuelve la consulta SQL, sin explicaciones ni markdown.
 Esquema de tablas disponibles:
 {schema_text}
 
-Pregunta: {question}
+Pregunta: {question}"""
 
-SQL:"""
+    if error_feedback:
+        prompt += f"\n\nINTENTO ANTERIOR FALLÓ con error: {error_feedback}\nCorrige la consulta."
+
+    prompt += "\n\nSQL:"
 
     try:
         response = client.chat.completions.create(

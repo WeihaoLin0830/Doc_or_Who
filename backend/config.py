@@ -46,7 +46,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv(ROOT_DIR / ".env")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL = "llama-3.1-8b-instant"            # Modelo rápido (subtareas)
+AGENT_MODEL = "llama-3.3-70b-versatile"         # Modelo orquestador (tool-calling)
 
 # ─── DuckDB ───────────────────────────────────────────────────────
 DUCKDB_PATH = DATA_DIR / "tables.duckdb"

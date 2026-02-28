@@ -71,6 +71,10 @@ class AskRequest(BaseModel):
     doc_type: Optional[str] = None
     top_k: int = 8
 
+class AgentRequest(BaseModel):
+    question: str
+    session_id: Optional[str] = None
+
 class SqlQueryRequest(BaseModel):
     query: str
 
@@ -142,6 +146,18 @@ def ask_question(req: AskRequest):
     from backend.ai.llm import ask
     result = ask(question=req.question, doc_type=req.doc_type, top_k=req.top_k)
     return result
+
+
+@app.post("/api/agent/ask")
+def agent_ask(req: AgentRequest):
+    """
+    Agente orquestador: decide qué herramientas usar (búsqueda textual,
+    SQL sobre datos tabulares, grafo de entidades) y combina los resultados
+    para generar una respuesta completa.
+    """
+    from backend.ai.agent import run_agent
+    result = run_agent(question=req.question, session_id=req.session_id)
+    return result.to_dict()
 
 
 # ─── Documentos ──────────────────────────────────────────────────
