@@ -57,7 +57,9 @@ YAKE_LANGUAGE = "es"
 
 # ─── LLM (Groq) ───────────────────────────────────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL = "llama-3.1-8b-instant"            # Modelo rápido (subtareas)
+AGENT_MODEL = "llama-3.3-70b-versatile"         # Modelo orquestador (tool-calling)
+
 LEXICAL_STRICT = os.getenv("LEXICAL_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
 FUZZY = os.getenv("FUZZY", "false").strip().lower() in {"1", "true", "yes", "on"}
 FUSION_MODE = os.getenv("FUSION_MODE", "weighted").strip().lower()

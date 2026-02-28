@@ -227,8 +227,19 @@ def summarize_document(doc_id: str) -> dict:
     full_text = "\n\n".join(results["documents"][:10])  # Limite 10 chunks
     title = results["metadatas"][0].get("title", "") if results["metadatas"] else ""
 
-    prompt = f"""Resume el siguiente documento corporativo de forma profesional y concisa
-(máximo 5 frases). Extrae los puntos clave.
+    prompt = f"""Analiza el siguiente documento y devuelve un resumen breve y legible.
+
+Usa exactamente este formato Markdown (sin texto extra antes ni después):
+
+**Tipo:** [tipo de documento: acta, email, memo, listado, informe, etc.]
+**Período/Fecha:** [fecha o rango si aparece, si no: "No especificado"]
+**Objetivo:** [una sola frase: de qué trata este documento]
+
+**Puntos clave:**
+- [punto 1]
+- [punto 2]
+- [punto 3]
+- [punto 4 si aplica]
 
 Título: {title}
 
@@ -239,11 +250,11 @@ Contenido:
         response = client.chat.completions.create(
             model=GROQ_MODEL,
             messages=[
-                {"role": "system", "content": "Eres un asistente que resume documentos corporativos de forma concisa y profesional. Responde en español."},
+                {"role": "system", "content": "Eres un asistente que extrae información clave de documentos corporativos. Responde en español, con formato Markdown limpio, sin introducción ni conclusión."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.1,
-            max_tokens=500,
+            max_tokens=400,
         )
         summary = response.choices[0].message.content
     except Exception as e:

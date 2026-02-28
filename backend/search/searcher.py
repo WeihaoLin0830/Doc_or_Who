@@ -35,40 +35,20 @@ def _folded_query(text: str) -> str:
     return fold_text(text)
 
 
-# ─── Sinónimos corporativos español ─────────────────────────────
-# Sólo para el fallback Or: si BM25-And no encuentra nada,
-# se expande la query con estos términos para mejorar el recall.
-_SYNONYMS: dict[str, list[str]] = {
-    "reunion":     ["junta", "asamblea", "sesion", "meeting"],
-    "informe":     ["reporte", "memoria", "nota", "resumen"],
-    "contrato":    ["acuerdo", "convenio", "pacto"],
-    "proveedor":   ["suministrador", "vendedor", "partner"],
-    "incidencia":  ["problema", "averia", "error", "fallo", "ticket"],
-    "empleado":    ["trabajador", "personal", "colaborador"],
-    "presupuesto": ["coste", "precio", "importe"],
-    "servidor":    ["maquina", "sistema", "equipo", "host"],
-    "proyecto":    ["iniciativa", "plan", "programa"],
-    "cliente":     ["usuario", "consumidor"],
-}
+# ─── Sinónimos basados en corpus ────────────────────────────────
+# El expansor se inicializa al arrancar el servidor (api.py startup).
+# Aquí sólo importamos la referencia al objeto global.
+from backend.search.synonyms import get_expander as _get_synonym_expander  # noqa: E402
 
 
 def _expand_with_synonyms(query: str) -> str:
     """
-    Expande la query con sinónimos del diccionario corporativo.
-    Usa claves normalizadas (sin acentos, minúsculas) para el matching.
-    Devuelve la query original si no hay sinónimos aplicables.
+    Expande la query con sinónimos inferidos del corpus.
+    Delega en CorpusSynonymExpander (backend/search/synonyms.py).
+    Devuelve la query original si el expansor aún no está listo o
+    no encuentra términos suficientemente similares en el corpus.
     """
-    words = _folded_query(query).split()
-    extra: list[str] = []
-    for word in words:
-        if word in _SYNONYMS:
-            extra.extend(_SYNONYMS[word])
-    if not extra:
-        return query
-    # Deduplicar manteniendo orden
-    seen: set[str] = set(_folded_query(query).split())
-    unique_extra = [w for w in extra if w not in seen and not seen.add(w)]
-    return query + (" " + " ".join(unique_extra) if unique_extra else "")
+    return _get_synonym_expander().expand_query(query)
 
 
 def _whoosh_supports_folded_fields(ix) -> bool:
