@@ -204,12 +204,20 @@ def natural_language_to_sql(question: str, error_feedback: str = "") -> str | No
     except ImportError:
         return None
 
-    # Obtener esquema de tablas
+    # Obtener esquema de tablas con muestra de valores para columnas de texto
     tables = get_table_list()
     schema_text = ""
     for t in tables:
         cols = ", ".join([f"{c['name']} ({c['type']})" for c in t["columns"]])
         schema_text += f"  Tabla '{t['name']}' ({t['row_count']} filas): {cols}\n"
+        # Añadir muestra de valores para detectar formato de fechas/columnas clave
+        try:
+            con = _get_connection()
+            sample_row = con.execute(f'SELECT * FROM "{t["name"]}" LIMIT 1').fetchone()
+            if sample_row:
+                schema_text += f"    Ejemplo de fila: {sample_row}\n"
+        except Exception:
+            pass
 
     if not schema_text:
         return None
@@ -228,18 +236,74 @@ Pregunta: {question}"""
     prompt += "\n\nSQL:"
 
     try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": "Eres un experto en SQL. Genera consultas DuckDB correctas y concisas. Devuelve SOLO la consulta SQL."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.0,
-            max_tokens=300,
-        )
+        for _attempt in range(2):
+            try:
+                response = client.chat.completions.create(
+                    model=GROQ_MODEL,  # 8b rápido para SQL (el agente 70b orquesta)
+                    messages=[
+                        {"role": "system", "content": (
+                            "Eres un experto en SQL y DuckDB. "
+                            "Genera consultas DuckDB correctas y concisas. "
+                            "Devuelve SOLO la consulta SQL, sin explicaciones, sin markdown, sin ```sql. "
+                            "Usa los nombres exactos de tabla y columna del esquema. "
+                            "REGLAS DuckDB importantes: "
+                            "- Para diferencia de fechas usa date_diff('day', fecha_inicio, fecha_fin) con 3 args. "
+                            "  NUNCA uses datediff(f1, f2) con 2 argumentos, eso NO existe en DuckDB. "
+                            "- Si la pregunta pide CONTAR (cuántas, número de, total de registros), "
+                            "  incluye COUNT(*) AS total junto con las demás métricas. "
+                            "- Para decimales con coma (ej '895,00') usa REPLACE(col, ',', '.') y CAST a DOUBLE. "
+                            "- Para filtrar fechas VARCHAR usa LIKE o CAST; para DATE usa comparaciones directas. "
+                            "- Si calculas diferencia de fechas y puede haber NULLs, filtra con WHERE fecha IS NOT NULL."
+                        )},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.0,
+                    max_tokens=400,
+                )
+                break
+            except Exception as retry_err:
+                if "429" in str(retry_err) or "rate_limit" in str(retry_err):
+                    import time; time.sleep(3 * (_attempt + 1))
+                    continue
+                raise
         sql = response.choices[0].message.content.strip()
         # Limpiar posible markdown
         sql = sql.replace("```sql", "").replace("```", "").strip()
+        # Post-proceso: si la pregunta pide conteo y el SQL tiene GROUP BY pero
+        # no COUNT, inyectar COUNT(*) AS total automáticamente.
+        sql = _inject_count_if_needed(sql, question)
         return sql
     except Exception:
         return None
+
+
+def _inject_count_if_needed(sql: str, question: str) -> str:
+    """Inyecta COUNT(*) AS total si la pregunta pide contar y el SQL no lo tiene."""
+    import unicodedata
+
+    def _strip_accents(s: str) -> str:
+        return "".join(
+            c for c in unicodedata.normalize("NFD", s)
+            if unicodedata.category(c) != "Mn"
+        )
+
+    # Normalizar pregunta (minúsculas, sin tildes) para detección robusta
+    q_norm = _strip_accents(question.lower())
+    count_words = (
+        "cuantas", "cuantos", "numero de", "total de",
+        "conteo", "count", "cuanto hay", "cuantos hay",
+    )
+    has_count_intent = any(w in q_norm for w in count_words)
+    sql_upper = sql.upper()
+    has_group_by = "GROUP BY" in sql_upper
+    has_count = "COUNT(" in sql_upper
+
+    if has_count_intent and has_group_by and not has_count:
+        # Insertar COUNT(*) AS total justo después del SELECT
+        sql = re.sub(
+            r'(?i)^(SELECT\s+)',
+            r'\1COUNT(*) AS total, ',
+            sql,
+            count=1,
+        )
+    return sql

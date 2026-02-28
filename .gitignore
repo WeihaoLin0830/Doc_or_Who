@@ -205,3 +205,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# fastText word vectors cache (96MB — se descarga automáticamente)
+data/fasttext_es.npz

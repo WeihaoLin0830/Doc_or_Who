@@ -107,6 +107,13 @@ def startup():
     except Exception as e:
         print(f"⚠️  Error cargando tablas SQL: {e}")
 
+    # Inicializar expansor de sinónimos basado en corpus
+    try:
+        from backend.search.synonyms import initialize_synonyms
+        initialize_synonyms()
+    except Exception as e:
+        print(f"⚠️  Error inicializando sinónimos: {e}")
+
 
 # ─── Búsqueda ────────────────────────────────────────────────────
 @app.get("/api/search")
@@ -149,14 +156,19 @@ def ask_question(req: AskRequest):
 
 
 @app.post("/api/agent/ask")
-def agent_ask(req: AgentRequest):
+async def agent_ask(req: AgentRequest):
     """
     Agente orquestador: decide qué herramientas usar (búsqueda textual,
     SQL sobre datos tabulares, grafo de entidades) y combina los resultados
     para generar una respuesta completa.
     """
+    import asyncio
+    from functools import partial
     from backend.ai.agent import run_agent
-    result = run_agent(question=req.question, session_id=req.session_id)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None, partial(run_agent, question=req.question, session_id=req.session_id)
+    )
     return result.to_dict()
 
 
@@ -487,6 +499,11 @@ def ingest():
     """Re-ejecuta el pipeline completo de ingestión."""
     from backend.ingestion.ingest import run_full_pipeline
     docs = run_full_pipeline()
+    # Invalidar cache de schema para el agente
+    try:
+        import backend.ai.agent as _ag; _ag._schema_cache_time = 0
+    except Exception:
+        pass
     return {"status": "ok", "documents_processed": len(docs)}
 
 
@@ -514,6 +531,11 @@ async def upload(file: UploadFile = File(...)):
     from backend.graph import build_graph as _bg
     # Simple approach: return success, graph updates on next full ingest
     load_graph()
+    # Invalidar cache de schema (puede haber nuevas tablas CSV)
+    try:
+        import backend.ai.agent as _ag; _ag._schema_cache_time = 0
+    except Exception:
+        pass
 
     return {
         "status": "ok",

@@ -10,6 +10,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
+# Pregunta actual del usuario (establecida por run_agent antes del loop)
+_current_question: str = ""
+
 
 # ─── Definiciones de herramientas (OpenAI function-calling format) ─
 TOOLS = [
@@ -52,7 +55,10 @@ TOOLS = [
                 "Consulta datos numéricos y tabulares (ventas, inventarios, "
                 "nóminas, incidencias, presupuestos) ejecutando SQL sobre "
                 "CSV/XLSX cargados en DuckDB. Úsala SOLO para cifras, "
-                "totales, conteos, comparativas o listados filtrados."
+                "totales, conteos, comparativas o listados filtrados. "
+                "Puedes pasar 'question' (lenguaje natural, se genera SQL automáticamente) "
+                "O 'sql' (consulta DuckDB directa, más precisa si ya viste las columnas con peek_table). "
+                "IMPORTANTE para DuckDB: date_diff('day', fecha_inicio, fecha_fin) usa 3 argumentos."
             ),
             "parameters": {
                 "type": "object",
@@ -61,8 +67,16 @@ TOOLS = [
                         "type": "string",
                         "description": "Pregunta en lenguaje natural sobre datos tabulares",
                     },
+                    "sql": {
+                        "type": "string",
+                        "description": (
+                            "Consulta SQL DuckDB directa. Usa nombres exactos de tabla y columna. "
+                            "Para decimales con coma usar REPLACE(col,',','.') y CAST a DOUBLE. "
+                            "Para diff de fechas: date_diff('day', fecha1, fecha2)."
+                        ),
+                    },
                 },
-                "required": ["question"],
+                "required": [],
             },
         },
     },
@@ -194,11 +208,41 @@ def _tool_search_documents(query: str, doc_type: str = "") -> str:
     )
 
 
-def _tool_query_data(question: str) -> str:
-    """Text-to-SQL con loop de auto-corrección (hasta 3 intentos)."""
+def _tool_query_data(question: str = "", sql: str = "") -> str:
+    """Text-to-SQL con loop de auto-corrección, o ejecución directa si se pasa SQL."""
     from backend.ai.sql_engine import natural_language_to_sql, execute_sql, load_tables
 
     load_tables()
+
+    # Si el agente pasa SQL directo, ejecutarlo tal cual (con 1 reintento de limpieza)
+    if sql and sql.strip():
+        from backend.ai.sql_engine import _inject_count_if_needed
+        raw_sql = sql.strip().replace("```sql", "").replace("```", "").strip()
+        # Aplicar inyección de COUNT si la pregunta lo requiere
+        effective_question = question or _current_question
+        raw_sql = _inject_count_if_needed(raw_sql, effective_question)
+        result = execute_sql(raw_sql)
+        if not result.get("error"):
+            return json.dumps(
+                {
+                    "sql": raw_sql,
+                    "columns": result["columns"],
+                    "rows": result["rows"][:30],
+                    "total_rows": result["row_count"],
+                },
+                ensure_ascii=False,
+                default=str,
+            )
+        # Si falló, devolver error con contexto
+        return json.dumps({
+            "error": f"SQL erróneo: {result['error']}",
+            "sql_intentado": raw_sql,
+            "hint": "Revisa nombres de tabla/columna con peek_table.",
+        }, ensure_ascii=False)
+
+    # Modo lenguaje natural: text-to-SQL con auto-corrección
+    if not question:
+        return json.dumps({"error": "Debes pasar 'question' o 'sql'."})
     error_feedback = ""
     sql = None
     result = None
@@ -215,7 +259,18 @@ def _tool_query_data(question: str) -> str:
         sql = None
 
     if not sql or (result and result.get("error")):
-        return json.dumps({"error": f"SQL inválido tras 3 intentos: {error_feedback}"})
+        # Incluir schema de tablas en el error para que el agente pueda reformular
+        from backend.ai.sql_engine import get_table_list
+        tables = get_table_list()
+        schema_info = []
+        for t in tables:
+            cols = ", ".join([f"{c['name']} ({c['type']})" for c in t["columns"]])
+            schema_info.append(f"{t['name']}: {cols}")
+        return json.dumps({
+            "error": f"SQL inválido tras 3 intentos: {error_feedback}",
+            "hint": "Usa peek_table para ver datos de ejemplo antes de reformular",
+            "available_tables": schema_info,
+        }, ensure_ascii=False)
 
     return json.dumps(
         {
