@@ -83,6 +83,52 @@ def build_graph(documents: list[Document]) -> None:
           f"{sum(sum(v.values()) for v in _edges.values()) // 2} aristas.")
 
 
+def add_document_to_graph(doc: Document) -> None:
+    """
+    Añade un único documento al grafo existente de forma incremental.
+    No reconstruye el grafo entero — solo agrega las entidades nuevas y aristas
+    del documento. Persiste el resultado en disco.
+    Usar tras subir un fichero vía /api/upload.
+    """
+    # Registrar el documento
+    _documents[doc.doc_id] = {
+        "doc_id": doc.doc_id,
+        "title": doc.title,
+        "filename": doc.filename,
+        "doc_type": doc.doc_type,
+        "category": getattr(doc, "category", ""),
+    }
+
+    entities: list[tuple[str, str]] = []
+    for person in (doc.persons or []):
+        entities.append((person, "person"))
+    for org in (doc.organizations or []):
+        entities.append((org, "organization"))
+
+    # Crear/actualizar nodos
+    for name, etype in entities:
+        key = _normalize_key(name)
+        if key not in _entity_nodes:
+            _entity_nodes[key] = EntityNode(name=name, entity_type=etype)
+        node = _entity_nodes[key]
+        if doc.doc_id not in node.doc_ids:
+            node.doc_ids.append(doc.doc_id)
+        node.mentions += 1
+
+    # Crear aristas por co-ocurrencia dentro del documento
+    for i, (name_a, _) in enumerate(entities):
+        for name_b, _ in entities[i + 1:]:
+            key_a = _normalize_key(name_a)
+            key_b = _normalize_key(name_b)
+            if key_a != key_b:
+                _edges[key_a][key_b] += 1
+                _edges[key_b][key_a] += 1
+
+    _save_graph()
+    print(f"📄 Documento añadido al grafo: {doc.filename} "
+          f"({len(entities)} entidades). Total nodos: {len(_entity_nodes)}.")
+
+
 def get_entity(name: str) -> EntityNode | None:
     """Busca una entidad por nombre (case-insensitive)."""
     key = _normalize_key(name)

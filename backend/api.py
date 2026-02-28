@@ -46,6 +46,7 @@ from backend.graph import (
     get_communities,
     get_top_brokers,
     load_graph,
+    add_document_to_graph,
 )
 from backend.search.indexer import find_duplicates
 
@@ -700,7 +701,8 @@ async def upload(file: UploadFile = File(...)):
         dest.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail="Sin contenido útil o formato no procesable")
 
-    load_graph()
+    # Añadir el documento al grafo de forma incremental (sin reconstruir todo)
+    add_document_to_graph(doc)
     try:
         import backend.ai.agent as _ag; _ag._schema_cache_time = 0
     except Exception:

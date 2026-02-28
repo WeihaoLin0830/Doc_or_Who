@@ -23,4 +23,5 @@ from backend.graph.graph import (  # noqa: F401
     get_communities,
     get_top_brokers,
     load_graph,
+    add_document_to_graph,
 )
