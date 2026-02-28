@@ -37,6 +37,48 @@ def _folded_query(text: str) -> str:
     return fold_text(text)
 
 
+# ─── Stopwords en español ───────────────────────────────────────
+# Palabras funcionales que no aportan significado semántico.
+# Se filtran de las queries antes de buscar y de los highlights.
+_STOPWORDS: frozenset[str] = frozenset({
+    # Artículos
+    "el", "la", "los", "las", "un", "una", "unos", "unas",
+    # Preposiciones
+    "a", "ante", "bajo", "con", "contra", "de", "desde", "en",
+    "entre", "hacia", "hasta", "para", "por", "segun", "sin",
+    "sobre", "tras", "durante", "mediante", "via",
+    # Conjunciones
+    "y", "e", "ni", "o", "u", "pero", "sino", "aunque", "si",
+    "que", "como", "cuando", "donde", "pues", "ya", "porque",
+    # Pronombres comunes
+    "yo", "tu", "el", "ella", "nosotros", "vosotros", "ellos",
+    "me", "te", "se", "nos", "os", "le", "les", "lo", "les",
+    "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas",
+    # Verbos auxiliares / muy comunes
+    "es", "son", "era", "fue", "ser", "estar", "estar", "hay",
+    "ha", "han", "he", "hemos", "fue", "sido", "tiene", "tienen",
+    # Otros funcionales
+    "al", "del", "no", "mas", "muy", "mas", "tan", "tanto",
+    "cada", "todo", "toda", "todos", "todas", "otro", "otra",
+    "sus", "su", "mi", "mis", "tu", "tus", "su", "nuestro",
+})
+
+
+def _strip_stopwords(query: str) -> str:
+    """
+    Elimina stopwords de la query. Si todos los tokens son stopwords
+    (p.ej. solo "por"), devuelve la query original para no quedar vacía.
+    Las stopwords se comparan en su forma plegada (sin acentos, minúsculas).
+    """
+    tokens = query.split()
+    filtered = [t for t in tokens if fold_text(t).casefold() not in _STOPWORDS]
+    # Si quedan ≥1 tokens significativos, devolver la query filtrada
+    if filtered:
+        return " ".join(filtered)
+    # Si todo son stopwords, devolver query original (se evitará buscar solo "por")
+    return ""  # Señal para que el caller retorne vacío
+
+
 # ─── Sinónimos basados en corpus ────────────────────────────────
 # El expansor se inicializa al arrancar el servidor (api.py startup).
 # Aquí sólo importamos la referencia al objeto global.
@@ -309,6 +351,11 @@ def hybrid_search(
         "organization": organization,
         "date": date,
     }.items() if v}
+
+    # Si la query entera son stopwords (ej: "por", "de", "y") devuelve vacío.
+    # Evita que palabras funcionales sin significado semántico devuelvan resultados.
+    if not _strip_stopwords(_folded_query(query)):
+        return []
 
     bm25_results, whoosh_trace = _search_whoosh(
         query,
@@ -630,6 +677,16 @@ def _search_whoosh(
     # accents and casing. If the index is still on the old schema, we fall
     # back to raw fields and keep the original query text.
     normalized_query = _folded_query(query) if not LEXICAL_STRICT and has_folded_fields else query
+
+    # Filter stopwords from the query so that common words like "por" don't
+    # pollute the results. We strip stopwords from the folded query. If the
+    # result is empty (all tokens were stopwords), bail out early.
+    filtered_query = _strip_stopwords(normalized_query)
+    if not filtered_query:
+        empty: list[SearchResult] = []
+        return (empty, trace) if return_trace else empty
+    normalized_query = filtered_query
+
     normalized_numeric_query = normalize_numbers_in_text(
         query,
         language=None,
@@ -1198,7 +1255,10 @@ def _generate_highlight(text: str, query: str, context_chars: int = 200) -> str:
     if not text:
         return ""
 
-    query_terms = [t.casefold() for t in query.split() if len(t) > 2]
+    query_terms = [
+        t.casefold() for t in query.split()
+        if len(t) > 2 and fold_text(t).casefold() not in _STOPWORDS
+    ]
 
     if not query_terms:
         return text[:context_chars] + ("..." if len(text) > context_chars else "")

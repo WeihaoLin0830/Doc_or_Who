@@ -42,6 +42,9 @@ def build_graph(documents: list[Document]) -> None:
             "filename": doc.filename,
             "doc_type": doc.doc_type,
             "category": doc.category,
+            "persons": list(doc.persons or []),
+            "organizations": list(doc.organizations or []),
+            "dates": list(doc.dates or []),
         }
 
         # Recoger todas las entidades del documento
@@ -97,6 +100,9 @@ def add_document_to_graph(doc: Document) -> None:
         "filename": doc.filename,
         "doc_type": doc.doc_type,
         "category": getattr(doc, "category", ""),
+        "persons": list(doc.persons or []),
+        "organizations": list(doc.organizations or []),
+        "dates": list(doc.dates or []),
     }
 
     entities: list[tuple[str, str]] = []

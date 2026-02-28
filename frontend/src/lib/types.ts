@@ -50,6 +50,9 @@ export interface DocListItem {
     filename: string;
     doc_type: string;
     category: string;
+    persons?: string[];
+    organizations?: string[];
+    dates?: string[];
 }
 
 export interface DocDetail {

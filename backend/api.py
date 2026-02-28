@@ -183,6 +183,7 @@ def _list_documents_from_whoosh() -> list[dict]:
         return []
 
     ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+    from backend.search.searcher import _split_meta
     documents: dict[str, dict] = {}
     with ix.searcher() as searcher:
         for stored in searcher.all_stored_fields():
@@ -195,6 +196,9 @@ def _list_documents_from_whoosh() -> list[dict]:
                 "filename": stored.get("filename", ""),
                 "doc_type": stored.get("doc_type", ""),
                 "category": "",
+                "persons": _split_meta(stored.get("persons", "")),
+                "organizations": _split_meta(stored.get("organizations", "")),
+                "dates": _split_meta(stored.get("dates", "")),
             }
     return list(documents.values())
 

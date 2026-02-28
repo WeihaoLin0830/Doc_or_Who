@@ -138,7 +138,8 @@ export function DocumentsTab({ documents }: Props) {
         try {
             const docNames = cluster.documents.map((d) => d.title || d.filename).join(", ");
             const kwList = cluster.keywords?.join(", ") || "";
-            const prompt = `Genera un resumen breve (2-3 oraciones) del siguiente grupo de documentos llamado "${cluster.label}". Documentos: ${docNames}. Palabras clave del grupo: ${kwList}. Describe de qué trata este grupo temáticamente.`;
+            const docCount = cluster.documents.length;
+            const prompt = `Eres un asistente corporativo experto en gestión documental. Genera un resumen ejecutivo claro y profesional del siguiente grupo de documentos.\n\nTítulo del grupo: "${cluster.label}"\nNúmero de documentos: ${docCount}\nDocumentos incluidos: ${docNames}\nPalabras clave: ${kwList}\n\nEl resumen debe:\n- Empezar con una frase que explique el propósito principal del grupo\n- Indicar qué tipo de información o procesos cubre\n- Mencionar brevemente los temas o áreas más relevantes\n- Ser conciso (máximo 3 frases), claro y en español formal\n- NO listar documentos uno por uno; sintetiza de forma temática`;
             const res = await api.agentAsk(prompt, `cluster-summary-${key}`);
             setClusterSummaries((prev) => ({ ...prev, [key]: res.answer }));
         } catch {

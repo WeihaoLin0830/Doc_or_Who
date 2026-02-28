@@ -46,6 +46,9 @@ export function SearchTab({ documents }: Props) {
     // Document browser filters (always visible in sidebar)
     const [browseType, setBrowseType] = useState("");
     const [browseCategory, setBrowseCategory] = useState("");
+    const [browsePerson, setBrowsePerson] = useState("");
+    const [browseOrg, setBrowseOrg] = useState("");
+    const [browseDate, setBrowseDate] = useState("");
 
     // Quick text filter (client-side, no API)
     const [filterText, setFilterText] = useState("");
@@ -55,33 +58,87 @@ export function SearchTab({ documents }: Props) {
 
     const docTypes = useMemo(() => [...new Set(documents.map((d) => d.doc_type).filter(Boolean))].sort(), [documents]);
     const categories = useMemo(() => [...new Set(documents.map((d) => d.category).filter(Boolean))].sort(), [documents]);
+    const allPersons = useMemo(() => {
+        const s = new Set<string>();
+        documents.forEach((d) => d.persons?.forEach((p) => p && s.add(p)));
+        return [...s].sort();
+    }, [documents]);
+    const allOrgs = useMemo(() => {
+        const s = new Set<string>();
+        documents.forEach((d) => d.organizations?.forEach((o) => o && s.add(o)));
+        return [...s].sort();
+    }, [documents]);
+    const allDates = useMemo(() => {
+        const s = new Set<string>();
+        documents.forEach((d) => d.dates?.forEach((dt) => dt && s.add(dt)));
+        return [...s].sort().reverse();
+    }, [documents]);
 
     const isSearchMode = lastQuery.length > 0;
 
-    // Cascading filter counts: each group is computed FROM the OTHER active filter
-    // So selecting type "email" will hide categories that have no emails, and vice-versa
-    const typeCountsForCategory = useMemo(() => {
-        const base = browseCategory ? documents.filter((d) => d.category === browseCategory) : documents;
+    // Cascading filter helper: get the base set filtered by all active browse filters except one
+    function browseBase(except?: "type" | "category" | "person" | "org" | "date") {
+        let docs = [...documents];
+        if (except !== "type" && browseType) docs = docs.filter((d) => d.doc_type === browseType);
+        if (except !== "category" && browseCategory) docs = docs.filter((d) => d.category === browseCategory);
+        if (except !== "person" && browsePerson) docs = docs.filter((d) => d.persons?.includes(browsePerson));
+        if (except !== "org" && browseOrg) docs = docs.filter((d) => d.organizations?.includes(browseOrg));
+        if (except !== "date" && browseDate) docs = docs.filter((d) => d.dates?.includes(browseDate));
+        return docs;
+    }
+
+    // Cascading filter counts: computed from base excluding that group's own filter
+    const typeCountsForCascade = useMemo(() => {
+        const base = browseBase("type");
         const counts: Record<string, number> = {};
         for (const d of base) if (d.doc_type) counts[d.doc_type] = (counts[d.doc_type] || 0) + 1;
         return counts;
-    }, [documents, browseCategory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseCategory, browsePerson, browseOrg, browseDate]);
 
-    const categoryCountsForType = useMemo(() => {
-        const base = browseType ? documents.filter((d) => d.doc_type === browseType) : documents;
+    const categoryCountsForCascade = useMemo(() => {
+        const base = browseBase("category");
         const counts: Record<string, number> = {};
         for (const d of base) if (d.category) counts[d.category] = (counts[d.category] || 0) + 1;
         return counts;
-    }, [documents, browseType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browsePerson, browseOrg, browseDate]);
+
+    const personCountsForCascade = useMemo(() => {
+        const base = browseBase("person");
+        const counts: Record<string, number> = {};
+        base.forEach((d) => d.persons?.forEach((p) => p && (counts[p] = (counts[p] || 0) + 1)));
+        return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browseCategory, browseOrg, browseDate]);
+
+    const orgCountsForCascade = useMemo(() => {
+        const base = browseBase("org");
+        const counts: Record<string, number> = {};
+        base.forEach((d) => d.organizations?.forEach((o) => o && (counts[o] = (counts[o] || 0) + 1)));
+        return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browseCategory, browsePerson, browseDate]);
+
+    const dateCountsForCascade = useMemo(() => {
+        const base = browseBase("date");
+        const counts: Record<string, number> = {};
+        base.forEach((d) => d.dates?.forEach((dt) => dt && (counts[dt] = (counts[dt] || 0) + 1)));
+        return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browseCategory, browsePerson, browseOrg]);
 
     // Browsed docs when not searching (filtered by sidebar selections)
     const browsed = useMemo(() => {
         let docs = [...documents];
         if (browseType) docs = docs.filter((d) => d.doc_type === browseType);
         if (browseCategory) docs = docs.filter((d) => d.category === browseCategory);
+        if (browsePerson) docs = docs.filter((d) => d.persons?.includes(browsePerson));
+        if (browseOrg) docs = docs.filter((d) => d.organizations?.includes(browseOrg));
+        if (browseDate) docs = docs.filter((d) => d.dates?.includes(browseDate));
         docs.sort((a, b) => (a.title || a.filename).localeCompare(b.title || b.filename));
         return docs;
-    }, [documents, browseType, browseCategory]);
+    }, [documents, browseType, browseCategory, browsePerson, browseOrg, browseDate]);
 
     // Quick-filtered variants
     const filteredBrowsed = useMemo(() => {
@@ -198,7 +255,7 @@ export function SearchTab({ documents }: Props) {
                                     {grouped.length} resultado{grouped.length !== 1 ? "s" : ""} · {results.length} fragmento{results.length !== 1 ? "s" : ""}
                                 </div>
                             )}
-                            {!isSearchMode && (browseType || browseCategory) && (
+                            {!isSearchMode && (browseType || browseCategory || browsePerson || browseOrg || browseDate) && (
                                 <div className="text-xs text-ink-2 mt-1">Mostrando {browsed.length} de {documents.length}</div>
                             )}
                         </div>
@@ -238,11 +295,11 @@ export function SearchTab({ documents }: Props) {
                                 <div className="bg-white border border-surface-3 rounded-lg p-3">
                                     <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Tipo de documento</h4>
                                     <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                                        {docTypes.filter((t) => t === browseType || (typeCountsForCategory[t] || 0) > 0).map((t) => (
+                                        {docTypes.filter((t) => t === browseType || (typeCountsForCascade[t] || 0) > 0).map((t) => (
                                             <button key={t} onClick={() => setBrowseType(browseType === t ? "" : t)}
                                                 className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseType === t ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
                                                 <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(t)}`}>{t}</span>
-                                                <span className="text-xs text-ink-3 tabular-nums">{typeCountsForCategory[t] || 0}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{typeCountsForCascade[t] || 0}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -250,17 +307,59 @@ export function SearchTab({ documents }: Props) {
                                 <div className="bg-white border border-surface-3 rounded-lg p-3">
                                     <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Categoría</h4>
                                     <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                                        {categories.filter((c) => c === browseCategory || (categoryCountsForType[c] || 0) > 0).map((c) => (
+                                        {categories.filter((c) => c === browseCategory || (categoryCountsForCascade[c] || 0) > 0).map((c) => (
                                             <button key={c} onClick={() => setBrowseCategory(browseCategory === c ? "" : c)}
                                                 className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseCategory === c ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
                                                 <span className="truncate">{c}</span>
-                                                <span className="text-xs text-ink-3 tabular-nums">{categoryCountsForType[c] || 0}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{categoryCountsForCascade[c] || 0}</span>
                                             </button>
                                         ))}
                                     </div>
                                 </div>
-                                {(browseType || browseCategory) && (
-                                    <button onClick={() => { setBrowseType(""); setBrowseCategory(""); }}
+                                {allPersons.filter((p) => p === browsePerson || (personCountsForCascade[p] || 0) > 0).length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Personas</h4>
+                                        <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                            {allPersons.filter((p) => p === browsePerson || (personCountsForCascade[p] || 0) > 0).map((p) => (
+                                                <button key={p} onClick={() => setBrowsePerson(browsePerson === p ? "" : p)}
+                                                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browsePerson === p ? "bg-green-50 text-green-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                    <span className="truncate text-xs">{p}</span>
+                                                    <span className="text-xs text-ink-3 tabular-nums shrink-0 ml-1">{personCountsForCascade[p] || 0}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {allOrgs.filter((o) => o === browseOrg || (orgCountsForCascade[o] || 0) > 0).length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Organizaciones</h4>
+                                        <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                            {allOrgs.filter((o) => o === browseOrg || (orgCountsForCascade[o] || 0) > 0).map((o) => (
+                                                <button key={o} onClick={() => setBrowseOrg(browseOrg === o ? "" : o)}
+                                                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseOrg === o ? "bg-blue-50 text-blue-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                    <span className="truncate text-xs">{o}</span>
+                                                    <span className="text-xs text-ink-3 tabular-nums shrink-0 ml-1">{orgCountsForCascade[o] || 0}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {allDates.filter((dt) => dt === browseDate || (dateCountsForCascade[dt] || 0) > 0).length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Fechas</h4>
+                                        <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                            {allDates.filter((dt) => dt === browseDate || (dateCountsForCascade[dt] || 0) > 0).map((dt) => (
+                                                <button key={dt} onClick={() => setBrowseDate(browseDate === dt ? "" : dt)}
+                                                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseDate === dt ? "bg-amber-50 text-amber-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                    <span className="truncate text-xs">{formatDateFacet(dt)}</span>
+                                                    <span className="text-xs text-ink-3 tabular-nums shrink-0 ml-1">{dateCountsForCascade[dt] || 0}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {(browseType || browseCategory || browsePerson || browseOrg || browseDate) && (
+                                    <button onClick={() => { setBrowseType(""); setBrowseCategory(""); setBrowsePerson(""); setBrowseOrg(""); setBrowseDate(""); }}
                                         className="w-full text-xs text-red-500 hover:text-red-700 font-medium py-1 transition-colors">
                                         Limpiar filtros
                                     </button>
