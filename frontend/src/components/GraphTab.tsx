@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as api from "@/lib/api";
 import { typeColor } from "@/lib/utils";
+import { DocumentModal } from "@/components/DocumentModal";
 import type {
     DocListItem, EntityItem, EntityDetail,
     GraphData, Community, Broker, PathResult,
@@ -22,6 +23,7 @@ export function GraphTab({ entities, documents }: Props) {
     const [communities, setCommunities] = useState<Community[]>([]);
     const [brokers, setBrokers] = useState<Broker[]>([]);
     const [entityDetail, setEntityDetail] = useState<EntityDetail | null>(null);
+    const [modalDocId, setModalDocId] = useState<string | null>(null);
 
     // Path finder
     const [pathFrom, setPathFrom] = useState("");
@@ -316,14 +318,15 @@ export function GraphTab({ entities, documents }: Props) {
                             {entityDetail.documents.length > 0 && (
                                 <div>
                                     <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Documentos</h4>
-                                    <div className="space-y-1">
+                                    <div className="space-y-2">
                                         {entityDetail.documents.map((doc) => (
-                                            <div key={doc.doc_id} className="flex items-center gap-2 text-sm">
-                                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>
+                                            <button key={doc.doc_id} onClick={() => setModalDocId(doc.doc_id)}
+                                                className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-1 hover:bg-surface-2 transition-colors border border-surface-2 hover:border-brand-200">
+                                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${typeColor(doc.doc_type)}`}>
                                                     {doc.doc_type}
                                                 </span>
-                                                <span className="text-ink-1">{doc.title || doc.filename}</span>
-                                            </div>
+                                                <span className="text-sm text-ink-1 truncate">{doc.title || doc.filename}</span>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
@@ -331,6 +334,9 @@ export function GraphTab({ entities, documents }: Props) {
                         </div>
                     </div>
                 )}
+
+                {/* Document modal */}
+                <DocumentModal docId={modalDocId} onClose={() => setModalDocId(null)} />
             </div>
         </section>
     );
