@@ -65,6 +65,16 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def no_cache_api(request, call_next):
+    """Ensures API responses are never cached by the browser or any proxy."""
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 # ─── Request models ──────────────────────────────────────────────
 class AskRequest(BaseModel):
     question: str
