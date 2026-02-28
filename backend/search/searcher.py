@@ -34,9 +34,11 @@ def _strip_accents(text: str) -> str:
 # Sólo para el fallback Or: si BM25-And no encuentra nada,
 # se expande la query con estos términos para mejorar el recall.
 _SYNONYMS: dict[str, list[str]] = {
-    "reunion":     ["junta", "asamblea", "sesion", "meeting"],
+    "reunion":     ["junta", "asamblea", "sesion", "meeting", "acta"],
+    "acta":        ["reunion", "sesion", "asamblea", "junta", "meeting"],
+    "acuerdo":     ["decision", "compromiso", "resolucion", "conclusion"],
     "informe":     ["reporte", "memoria", "nota", "resumen"],
-    "contrato":    ["acuerdo", "convenio", "pacto"],
+    "contrato":    ["convenio", "pacto"],
     "proveedor":   ["suministrador", "vendedor", "partner"],
     "incidencia":  ["problema", "averia", "error", "fallo", "ticket"],
     "empleado":    ["trabajador", "personal", "colaborador"],
