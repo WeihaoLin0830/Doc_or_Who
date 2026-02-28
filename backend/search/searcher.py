@@ -30,7 +30,7 @@ from backend.config import (
     WHOOSH_DIR,
 )
 from backend.models import SearchResult
-from backend.text_normalize import _fold_with_mapping, char_ngrams, fold_text, normalize_numbers_in_text
+from backend.search.text_normalize import _fold_with_mapping, char_ngrams, fold_text, normalize_numbers_in_text
 
 
 def _folded_query(text: str) -> str:
@@ -237,7 +237,7 @@ def _apply_graph_boost(
         return results
     try:
         from backend.graph import search_entities
-        from backend.text_normalize import fold_text as _ft
+        from backend.search.text_normalize import fold_text as _ft
 
         query_folded = _ft(query)
         words = query.strip().split()

@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #eef3ff;
+  --color-brand-100: #dce7fd;
+  --color-brand-200: #b9d0fb;
+  --color-brand-300: #95b9f9;
+  --color-brand-400: #72a2f7;
+  --color-brand-500: #2b7de9;
+  --color-brand-600: #1f6bd6;
+  --color-brand-700: #195ac0;
+  --color-brand-800: #164fa8;
+  --color-brand-900: #133e8a;
+
+  --color-surface-0: #ffffff;
+  --color-surface-1: #f8fafc;
+  --color-surface-2: #f1f5f9;
+  --color-surface-3: #e2e8f0;
+
+  --color-ink-0: #0f172a;
+  --color-ink-1: #334155;
+  --color-ink-2: #64748b;
+  --color-ink-3: #94a3b8;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* Cloak for hydration */
+[x-cloak] { display: none !important; }
+
+/* Fade-in animation */
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }

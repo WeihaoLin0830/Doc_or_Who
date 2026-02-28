@@ -6,21 +6,26 @@ DocumentWho es una plataforma web que permite importar documentos empresariales 
 
 ---
 
-## Inicio rápido (3 pasos)
+## Inicio rápido
 
 ```bash
-# 1. Instalar dependencias
+# 1. Backend — instalar dependencias Python
 pip install -r requirements.txt
 python -m spacy download es_core_news_md
 
 # 2. Configurar API key de Groq (para funciones de IA)
 echo "GROQ_API_KEY=tu_clave_aquí" > .env
 
-# 3. Arrancar el servidor
+# 3. Arrancar el backend (FastAPI)
 uvicorn backend.api:app --host 0.0.0.0 --port 8000
+
+# 4. Frontend — instalar y arrancar (nueva terminal)
+cd frontend
+npm install
+npm run dev          # → http://localhost:3000
 ```
 
-Abre **http://localhost:8000** en el navegador. Pulsa **"Re-ingestar"** para procesar los documentos de ejemplo incluidos.
+Abre **http://localhost:3000** en el navegador. Pulsa **"Re-indexar todo"** para procesar los documentos de ejemplo incluidos.
 
 ---
 
@@ -75,7 +80,8 @@ Abre **http://localhost:8000** en el navegador. Pulsa **"Re-ingestar"** para pro
 ## Arquitectura
 
 ```
-Frontend (Alpine.js + Tailwind CSS)
+Frontend (Next.js + TypeScript + Tailwind CSS)     ← http://localhost:3000
+    │  (proxy /api/* → backend)
     │
     ├── /api/search       → Búsqueda híbrida BM25 + semántica
     ├── /api/agent/ask    → Agente IA con tool-calling
@@ -84,7 +90,7 @@ Frontend (Alpine.js + Tailwind CSS)
     ├── /api/graph        → Grafo de entidades (vis-network)
     └── /api/upload       → Subir y procesar nuevos documentos
     │
-Backend (FastAPI + Python)
+Backend (FastAPI + Python)                          ← http://localhost:8000
     │
     ├── Whoosh        → Índice BM25 (full-text)
     ├── ChromaDB      → Índice vectorial (cosine similarity)
@@ -107,8 +113,38 @@ Backend (FastAPI + Python)
 | NER | spaCy `es_core_news_md` |
 | LLM | Groq API (`llama-3.3-70b-versatile`) |
 | Sinónimos | fastText CC-es-300 |
-| Frontend | Alpine.js, Tailwind CSS, vis-network |
+| Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS v4, vis-network |
 | Parsing | pdfminer, python-docx, pytesseract (OCR) |
+
+---
+
+## Estructura del proyecto
+
+```
+├── backend/                 # FastAPI — lógica de negocio
+│   ├── api.py               # Endpoints REST
+│   ├── config.py             # Constantes y umbrales
+│   ├── models.py             # Modelos Pydantic
+│   ├── ingest.py             # Pipeline de ingestión
+│   ├── llm.py                # Integración con Groq LLM
+│   ├── search/               # Módulo de búsqueda
+│   │   ├── searcher.py       # Fusión híbrida BM25 + semántica
+│   │   ├── indexer.py        # Indexación Whoosh + ChromaDB
+│   │   └── text_normalize.py # Normalización de texto
+│   ├── graph/                # Módulo de grafo
+│   │   └── graph.py          # Entidades, comunidades, brokers
+│   └── sql_engine.py         # DuckDB sobre CSV/XLSX
+├── frontend/                # Next.js — interfaz de usuario
+│   ├── src/app/              # App Router (layout, page)
+│   ├── src/components/       # Componentes React (tabs, modales)
+│   ├── src/lib/              # API client, tipos, utilities
+│   └── next.config.ts        # Proxy /api/* → backend
+├── dataset_default/          # Documentos de ejemplo
+├── uploads/                  # Documentos subidos por el usuario
+├── data/                     # Índices generados (gitignored)
+├── requirements.txt          # Dependencias Python
+└── README.md
+```
 
 ---
 

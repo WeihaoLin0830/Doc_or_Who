@@ -215,4 +215,8 @@ data/tables.duckdb
 data/tables.duckdb.wal
 data/whoosh_index/
 data/entity_graph.json
-data/tables.duckdb
+
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/

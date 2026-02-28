@@ -18,7 +18,7 @@ from backend.config import (
     WHOOSH_DIR,
 )
 from backend.models import Chunk
-from backend.text_normalize import char_ngrams, fold_text, normalize_numbers_in_text
+from backend.search.text_normalize import char_ngrams, fold_text, normalize_numbers_in_text
 
 # ─── Whoosh: analizador con eliminación de acentos ────────────────
 # Permite buscar "reunion" y encontrar "reunión" y viceversa.
