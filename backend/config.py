@@ -31,6 +31,8 @@ CHUNK_OVERLAP_TOKENS = 50     # Solapamiento entre chunks contiguos
 SEARCH_TOP_K = 20             # Resultados por índice antes de fusionar
 FINAL_TOP_K = 10              # Resultados finales después de RRF
 RRF_K = 60                    # Constante para Reciprocal Rank Fusion
+SEMANTIC_MIN_SCORE = 0.30     # Umbral mínimo de similitud coseno (0=nada, 1=exacto)
+MAX_CHUNKS_PER_DOC = 3        # Máximo de chunks del mismo documento en resultados
 
 # ─── NER / spaCy ──────────────────────────────────────────────────
 SPACY_MODEL = "es_core_news_md"

@@ -44,8 +44,11 @@ from backend.graph import (
     find_connection_path,
     search_entities,
     get_stats as graph_stats,
+    get_communities,
+    get_top_brokers,
     load_graph,
 )
+from backend.indexer import find_duplicates
 
 # ─── Crear app ───────────────────────────────────────────────────
 app = FastAPI(
@@ -80,7 +83,18 @@ class SqlAskRequest(BaseModel):
 def startup():
     load_graph()
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    # Cargar tablas SQL en background
+
+    # Precargar modelo de embeddings y ChromaDB para que la primera búsqueda
+    # no sufra el coste de carga del modelo (~5-15 s).
+    try:
+        from backend.indexer import _get_embedding_model, _get_chroma_collection
+        _get_embedding_model()
+        _get_chroma_collection()
+        print("✅ Modelo de embeddings y ChromaDB precargados.")
+    except Exception as e:
+        print(f"⚠️  Error precargando embeddings: {e}")
+
+    # Cargar tablas SQL
     try:
         from backend.sql_engine import load_tables
         tables = load_tables()
@@ -98,6 +112,7 @@ def search(
     language: Optional[str] = Query(None, description="Filtrar por idioma"),
     person: Optional[str] = Query(None, description="Filtrar por persona"),
     organization: Optional[str] = Query(None, description="Filtrar por organización"),
+    date: Optional[str] = Query(None, description="Filtrar por fecha (ej: 2025, 2025-01, enero)"),
     top_k: int = Query(10, ge=1, le=50),
 ):
     """Búsqueda híbrida BM25 + semántica con fusión RRF + facets dinámicos."""
@@ -108,11 +123,12 @@ def search(
         language=language,
         person=person,
         organization=organization,
+        date=date,
         top_k=top_k,
     )
     return {
         "query": q,
-        "filters": {"type": type, "language": language, "person": person, "organization": organization},
+        "filters": {"type": type, "language": language, "person": person, "organization": organization, "date": date},
         "count": len(data["results"]),
         "results": [r.to_dict() for r in data["results"]],
         "facets": data["facets"],
@@ -241,6 +257,50 @@ def get_document_file(doc_id: str):
     )
 
 
+@app.get("/api/documents/{doc_id}/table")
+def get_document_table(doc_id: str, max_rows: int = Query(500, le=2000)):
+    """
+    Parsea el fichero original (CSV/XLSX/XLS) como tabla estructurada.
+    Devuelve {columns: [...], rows: [[...], ...]} listo para renderizar en HTML.
+    """
+    import pandas as pd
+    from backend.indexer import _get_chroma_collection
+
+    collection = _get_chroma_collection()
+    try:
+        results = collection.get(where={"doc_id": doc_id}, include=["metadatas"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if not results["ids"]:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    filename = results["metadatas"][0].get("filename", "") if results["metadatas"] else ""
+    filepath = _find_original_file(filename)
+    if not filepath:
+        raise HTTPException(status_code=404, detail=f"Fichero no encontrado: {filename}")
+
+    ext = filepath.suffix.lower()
+    try:
+        if ext == ".csv":
+            # Intentar detectar separador automáticamente
+            df = pd.read_csv(filepath, sep=None, engine="python", dtype=str, nrows=max_rows)
+        elif ext in (".xlsx", ".xls"):
+            df = pd.read_excel(filepath, dtype=str, nrows=max_rows)
+        else:
+            raise HTTPException(status_code=400, detail=f"Formato no tabular: {ext}")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Error al parsear tabla: {e}")
+
+    df = df.fillna("")
+    return {
+        "filename": filename,
+        "columns": df.columns.tolist(),
+        "rows": df.values.tolist(),
+        "total_rows": len(df),
+    }
+
+
 @app.get("/api/documents/{doc_id}/raw")
 def get_document_raw_text(doc_id: str):
     """Devuelve el texto completo reconstruido del documento."""
@@ -331,6 +391,28 @@ def graph_path(
 
 
 # ─── Dashboard stats ────────────────────────────────────────────
+@app.get("/api/graph/communities")
+def graph_communities():
+    """Retorna las comunidades Louvain del grafo de entidades."""
+    return {"communities": get_communities()}
+
+
+@app.get("/api/graph/brokers")
+def graph_brokers(top_k: int = 10):
+    """Retorna las entidades con mayor betweenness centrality (brokers de información)."""
+    return {"brokers": get_top_brokers(top_k=top_k)}
+
+
+@app.get("/api/duplicates")
+def duplicates(threshold: float = 0.85):
+    """
+    Detecta documentos near-duplicados usando mean-pooled embeddings.
+    threshold: umbral de similitud coseno (0-1), por defecto 0.85.
+    """
+    dupes = find_duplicates(threshold=threshold)
+    return {"duplicates": dupes, "count": len(dupes)}
+
+
 @app.get("/api/stats")
 def stats():
     """Estadísticas globales para el dashboard."""

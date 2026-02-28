@@ -19,8 +19,20 @@ from backend.config import (
 )
 from backend.models import Chunk
 
+# ─── Whoosh: analizador con eliminación de acentos ────────────────
+# Permite buscar "reunion" y encontrar "reunión" y viceversa.
+# Se aplica tanto al indexar como al parsear queries (MultifieldParser
+# usa el analizador del campo para tokenizar los términos de búsqueda).
+try:
+    from whoosh.analysis import StandardAnalyzer, CharsetFilter
+    from whoosh.support.charset import accent_map
+    _ACCENT_ANALYZER = StandardAnalyzer() | CharsetFilter(accent_map)
+except Exception:
+    _ACCENT_ANALYZER = None  # fallback: Whoosh sin accent stripping
+
 # ─── Lazy loading ────────────────────────────────────────────────
 _embedding_model = None
+_chroma_client = None       # kept globally so it isn't GC'd while collection is live
 _chroma_collection = None
 _whoosh_index = None
 
@@ -40,12 +52,12 @@ def _get_embedding_model():
 
 def _get_chroma_collection():
     """Obtiene (o crea) la colección de ChromaDB."""
-    global _chroma_collection
+    global _chroma_client, _chroma_collection
     if _chroma_collection is None:
         import chromadb
         CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-        client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        _chroma_collection = client.get_or_create_collection(
+        _chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        _chroma_collection = _chroma_client.get_or_create_collection(
             name=CHROMA_COLLECTION,
             metadata={"hnsw:space": "cosine"},
         )
@@ -58,20 +70,24 @@ def _get_whoosh_index(create: bool = False):
     from whoosh import index as whoosh_index
     from whoosh.fields import Schema, TEXT, ID, KEYWORD
 
+    # Usar el analizador con accent stripping si está disponible
+    _ta = {"analyzer": _ACCENT_ANALYZER} if _ACCENT_ANALYZER is not None else {}
+
     schema = Schema(
         chunk_id=ID(stored=True, unique=True),
         doc_id=ID(stored=True),
-        title=TEXT(stored=True),
-        content=TEXT(stored=True),
+        title=TEXT(stored=True, **_ta),
+        content=TEXT(stored=True, **_ta),
         doc_type=TEXT(stored=True),
         language=TEXT(stored=True),
         filename=TEXT(stored=True),
-        section=TEXT(stored=True),
+        section=TEXT(stored=True, **_ta),
         level=TEXT(stored=True),
-        persons=TEXT(stored=True),
-        organizations=TEXT(stored=True),
+        persons=TEXT(stored=True, **_ta),
+        organizations=TEXT(stored=True, **_ta),
         keywords=KEYWORD(stored=True, commas=True),
         dates=TEXT(stored=True),
+        emails=TEXT(stored=True),
     )
 
     WHOOSH_DIR.mkdir(parents=True, exist_ok=True)
@@ -160,6 +176,7 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
             organizations=meta["organizations"],
             keywords=meta["keywords"],
             dates=meta["dates"],
+            emails=meta.get("emails", ""),
         )
 
     writer.commit()
@@ -168,13 +185,96 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
 
 def clear_indices():
     """Borra ambos índices para reindexar desde cero."""
-    global _chroma_collection, _whoosh_index
+    global _chroma_client, _chroma_collection, _whoosh_index
+
+    # Release the ChromaDB client BEFORE deleting the directory so that
+    # the background SQLite writer thread shuts down cleanly. Otherwise
+    # the new PersistentClient can collide with the WAL left by the old one.
+    _chroma_collection = None
+    _chroma_client = None
+
+    # Force CPython refcount GC to finalize the old client immediately
+    # (important if ChromaDB has an open background writer thread).
+    import gc
+    gc.collect()
 
     if CHROMA_DIR.exists():
         shutil.rmtree(CHROMA_DIR)
     if WHOOSH_DIR.exists():
         shutil.rmtree(WHOOSH_DIR)
 
-    _chroma_collection = None
     _whoosh_index = None
     print("🗑️  Índices borrados.")
+
+
+def find_duplicates(threshold: float = 0.85) -> list[dict]:
+    """
+    Detecta documentos near-duplicados usando embeddings mean-pooled por documento.
+
+    Estrategia:
+    1. Obtener todos los chunks de ChromaDB con sus embeddings.
+    2. Agrupar chunks por doc_id y calcular el embedding medio (mean-pool).
+    3. Calcular similitud coseno entre todos los pares de documentos.
+    4. Retornar pares con similitud >= threshold, ordenados de mayor a menor.
+
+    Args:
+        threshold: Umbral de similitud coseno (0–1). Por defecto 0.85.
+
+    Returns:
+        Lista de dicts con doc_a, doc_b, similarity.
+    """
+    import numpy as np
+
+    collection = _get_chroma_collection()
+    results = collection.get(include=["embeddings", "metadatas"])
+
+    if not results["ids"]:
+        return []
+
+    # Agrupar embeddings por doc_id
+    doc_embs: dict[str, list[list[float]]] = {}
+    doc_meta: dict[str, dict] = {}
+
+    for chunk_id, meta, emb in zip(
+        results["ids"], results["metadatas"], results["embeddings"]
+    ):
+        doc_id = meta.get("doc_id", chunk_id)
+        if doc_id not in doc_embs:
+            doc_embs[doc_id] = []
+            doc_meta[doc_id] = meta
+        doc_embs[doc_id].append(emb)
+
+    if len(doc_embs) < 2:
+        return []
+
+    # Mean-pool: un vector por documento
+    doc_ids = list(doc_embs.keys())
+    doc_vectors = {
+        did: np.mean(np.array(embs), axis=0)
+        for did, embs in doc_embs.items()
+    }
+
+    duplicates: list[dict] = []
+
+    for i in range(len(doc_ids)):
+        for j in range(i + 1, len(doc_ids)):
+            a, b = doc_ids[i], doc_ids[j]
+            va, vb = doc_vectors[a], doc_vectors[b]
+            norm = np.linalg.norm(va) * np.linalg.norm(vb)
+            sim = float(np.dot(va, vb) / (norm + 1e-9))
+            if sim >= threshold:
+                duplicates.append({
+                    "doc_a": {
+                        "doc_id": a,
+                        "filename": doc_meta[a].get("filename", ""),
+                        "title": doc_meta[a].get("title", ""),
+                    },
+                    "doc_b": {
+                        "doc_id": b,
+                        "filename": doc_meta[b].get("filename", ""),
+                        "title": doc_meta[b].get("title", ""),
+                    },
+                    "similarity": round(sim, 4),
+                })
+
+    return sorted(duplicates, key=lambda x: x["similarity"], reverse=True)

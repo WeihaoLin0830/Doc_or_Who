@@ -45,12 +45,28 @@ def chunk_document(doc: Document, df: pd.DataFrame | None = None) -> list[Chunk]
         chunk.title = doc.title
         chunk.language = doc.language
         chunk.filename = doc.filename
-        chunk.persons = doc.persons
-        chunk.organizations = doc.organizations
-        chunk.keywords = doc.keywords
+        # Solo incluir entidades que aparecen LITERALMENTE en el texto de este chunk.
+        # No heredar todos los del documento completo → evita falsos positivos en búsqueda.
+        chunk.persons = _filter_entities_in_text(chunk.text, doc.persons)
+        chunk.organizations = _filter_entities_in_text(chunk.text, doc.organizations)
+        chunk.keywords = doc.keywords   # Keywords del doc completo: OK, son temáticas
         chunk.dates = doc.dates
+        # Emails: solo los que aparecen literalmente en el chunk
+        chunk.emails = [e for e in doc.emails if e.lower() in chunk.text.lower()]
 
     return chunks
+
+
+def _filter_entities_in_text(text: str, entities: list[str]) -> list[str]:
+    """
+    Devuelve solo las entidades de `entities` que aparecen literalmente
+    en `text` (case-insensitive). Evita que chunks sin mención de una
+    persona hereden su nombre de los metadatos del documento padre.
+    """
+    if not entities:
+        return []
+    text_lower = text.lower()
+    return [e for e in entities if e.lower() in text_lower]
 
 
 # ─── ACTAS DE REUNIÓN ────────────────────────────────────────────
@@ -304,30 +320,112 @@ def _generate_csv_summary(df: pd.DataFrame, subtype: str, filename: str) -> str:
     return "\n".join(lines)
 
 
-# ─── GENÉRICO (fallback) ─────────────────────────────────────────
+# ─── PDF / DOCUMENTO GENÉRICO ───────────────────────────────────
 def _chunk_generic(doc: Document) -> list[Chunk]:
     """
-    Chunking genérico por ventana de palabras con solapamiento.
-    Usado como fallback si no hay estrategia específica.
+    Chunking semántico por párrafos con fallback a ventana de palabras.
+    Estrategia:
+    1. Dividir por párrafos (doble salto de línea) o secciones numeradas.
+    2. Agrupar párrafos cortos hasta llegar a MAX_CHUNK_TOKENS palabras.
+    3. Si un párrafo excede el límite, subdividirlo por frases.
+    Esto mantiene coherencia semántica: nunca corta en medio de una frase.
     """
     text = doc.raw_text
-    words = text.split()
     chunks: list[Chunk] = []
 
-    step = MAX_CHUNK_TOKENS
-    overlap = 50
-    i = 0
+    # Intentar primero dividir por secciones numeradas (contratos, actas legales)
+    numbered_sections = re.split(r'(?m)^(?=\s*(?:ARTÍCULO|CLÁUSULA|CAPÍTULO|Art\.|Cláusula)\s+\w)', text, flags=re.IGNORECASE)
+    if len(numbered_sections) >= 3:
+        # Documento legal con secciones claras
+        for i, sec in enumerate(numbered_sections):
+            sec = sec.strip()
+            if not sec or len(sec.split()) < 10:
+                continue
+            for j, sub in enumerate(_split_to_token_limit(sec, MAX_CHUNK_TOKENS)):
+                chunks.append(Chunk(
+                    chunk_id=f"{doc.doc_id}_sec{i}_{j}",
+                    text=sub,
+                    chunk_index=len(chunks),
+                    section=_extract_section_title(sec),
+                ))
+        if chunks:
+            return chunks
+
+    # Dividir por párrafos (doble salto de línea)
+    paragraphs = [p.strip() for p in re.split(r'\n{2,}', text) if p.strip()]
+
+    current_parts: list[str] = []
+    current_words = 0
     idx = 0
 
-    while i < len(words):
-        chunk_words = words[i: i + step]
-        chunk_text = " ".join(chunk_words)
+    for para in paragraphs:
+        para_words = len(para.split())
+
+        if para_words > MAX_CHUNK_TOKENS:
+            # Párrafo enorme: vaciar buffer actual y subdividir por frases
+            if current_parts:
+                chunks.append(Chunk(
+                    chunk_id=f"{doc.doc_id}_chunk{idx}",
+                    text=" ".join(current_parts),
+                    chunk_index=idx,
+                ))
+                idx += 1
+                current_parts, current_words = [], 0
+            for sub in _split_to_token_limit(para, MAX_CHUNK_TOKENS):
+                chunks.append(Chunk(
+                    chunk_id=f"{doc.doc_id}_chunk{idx}",
+                    text=sub,
+                    chunk_index=idx,
+                ))
+                idx += 1
+        elif current_words + para_words > MAX_CHUNK_TOKENS and current_parts:
+            # El buffer llega al límite: emitir chunk y empezar nuevo
+            chunks.append(Chunk(
+                chunk_id=f"{doc.doc_id}_chunk{idx}",
+                text=" ".join(current_parts),
+                chunk_index=idx,
+            ))
+            idx += 1
+            current_parts, current_words = [para], para_words
+        else:
+            current_parts.append(para)
+            current_words += para_words
+
+    # Emitir lo que quede en el buffer
+    if current_parts:
         chunks.append(Chunk(
             chunk_id=f"{doc.doc_id}_chunk{idx}",
-            text=chunk_text,
+            text=" ".join(current_parts),
             chunk_index=idx,
         ))
-        i += step - overlap
-        idx += 1
 
-    return chunks
+    return chunks if chunks else [Chunk(
+        chunk_id=f"{doc.doc_id}_chunk0",
+        text=text[:MAX_CHUNK_TOKENS * 6],
+        chunk_index=0,
+    )]
+
+
+def _split_to_token_limit(text: str, limit: int) -> list[str]:
+    """Divide texto en trozos de máximo `limit` palabras, respetando frases."""
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    parts: list[str] = []
+    current: list[str] = []
+    current_words = 0
+    for sent in sentences:
+        w = len(sent.split())
+        if current_words + w > limit and current:
+            parts.append(" ".join(current))
+            current, current_words = [sent], w
+        else:
+            current.append(sent)
+            current_words += w
+    if current:
+        parts.append(" ".join(current))
+    return parts
+
+
+def _extract_section_title(text: str) -> str:
+    """Extrae el título de una sección del primer 100 chars."""
+    first_line = text.split("\n")[0].strip()[:80]
+    return first_line if first_line else "Sección"

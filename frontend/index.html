@@ -183,6 +183,9 @@
                             <input x-model="searchQuery" type="text" placeholder="Buscar en documentos..."
                                 class="w-full pl-10 pr-4 py-2.5 text-sm border border-surface-3 rounded-lg bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all">
                         </div>
+                        <input type="text" x-model="searchFilters.date" placeholder="Fecha (ej: 2025)"
+                            title="Filtrar por fecha: año, mes o fragmento"
+                            class="w-36 px-3 py-2.5 text-sm border border-surface-3 rounded-lg bg-white focus:border-amber-400 outline-none transition-all">
                         <button type="submit" :disabled="!searchQuery.trim()"
                             class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors">
                             Buscar
@@ -221,6 +224,14 @@
                                 Org: <span x-text="searchFilters.organization"></span>
                                 <button @click="searchFilters.organization = ''; doSearch()"
                                     class="hover:text-blue-900">&times;</button>
+                            </span>
+                        </template>
+                        <template x-if="searchFilters.date">
+                            <span
+                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                                Fecha: <span x-text="searchFilters.date"></span>
+                                <button @click="searchFilters.date = ''; doSearch()"
+                                    class="hover:text-amber-900">&times;</button>
                             </span>
                         </template>
                         <button @click="clearAllFilters(); doSearch()"
@@ -345,14 +356,32 @@
                                                         x-text="r.section"></span></span>
                                             </div>
                                         </div>
-                                        <span class="text-xs font-mono text-ink-3 shrink-0"
-                                            x-text="r.score.toFixed(4)"></span>
+                                        <!-- Score explainability badges -->
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <template x-if="r.score_detail?.bm25_rank">
+                                                <span
+                                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200"
+                                                    :title="'BM25 (palabra clave): posición ' + r.score_detail.bm25_rank"
+                                                    x-text="'BM25 #' + r.score_detail.bm25_rank"></span>
+                                            </template>
+                                            <template x-if="r.score_detail?.semantic_rank">
+                                                <span
+                                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-50 text-violet-600 border border-violet-200"
+                                                    :title="'Semántico (embeddings): posición ' + r.score_detail.semantic_rank"
+                                                    x-text="'Sem #' + r.score_detail.semantic_rank"></span>
+                                            </template>
+                                            <template
+                                                x-if="!r.score_detail?.bm25_rank && !r.score_detail?.semantic_rank">
+                                                <span class="text-xs font-mono text-ink-3"
+                                                    x-text="r.score.toFixed(4)"></span>
+                                            </template>
+                                        </div>
                                     </div>
                                     <!-- Highlight / snippet -->
                                     <p class="text-sm text-ink-1 leading-relaxed line-clamp-3"
                                         x-html="formatHighlight(r.highlight || r.text)"></p>
-                                    <!-- Metadata tags -->
-                                    <div x-show="r.persons.length || r.organizations.length"
+                                    <!-- Metadata tags: persons, orgs, emails -->
+                                    <div x-show="r.persons.length || r.organizations.length || (r.emails && r.emails.length)"
                                         class="flex flex-wrap gap-1 mt-2">
                                         <template x-for="p in r.persons.slice(0,3)" :key="p">
                                             <span
@@ -363,6 +392,11 @@
                                             <span
                                                 class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700"
                                                 x-text="o"></span>
+                                        </template>
+                                        <template x-for="e in (r.emails || []).slice(0,2)" :key="e">
+                                            <span
+                                                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-700 font-mono"
+                                                x-text="e"></span>
                                         </template>
                                     </div>
                                     <!-- Expandable chunk text -->
@@ -446,10 +480,62 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Duplicados -->
+                <div class="mt-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-ink-0 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-4 10h6a2 2 0 002-2v-8a2 2 0 00-2-2h-6a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            Documentos Duplicados
+                        </h3>
+                        <button @click="loadDuplicates()" :disabled="duplicatesLoading"
+                            class="text-xs px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors">
+                            <span x-show="!duplicatesLoading">Detectar duplicados</span>
+                            <span x-show="duplicatesLoading">Analizando...</span>
+                        </button>
+                    </div>
+                    <div x-show="duplicatesChecked && duplicates.length === 0 && !duplicatesLoading"
+                        class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                        ✓ No se encontraron documentos near-duplicados (umbral 85%).
+                    </div>
+                    <div x-show="duplicates.length > 0" class="space-y-2">
+                        <template x-for="(pair, i) in duplicates" :key="i">
+                            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-3">
+                                <svg class="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                </svg>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-sm font-medium text-amber-800 truncate"
+                                            x-text="pair.doc_a.title || pair.doc_a.filename"></span>
+                                        <svg class="w-3 h-3 text-amber-400 shrink-0" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                        </svg>
+                                        <span class="text-sm font-medium text-amber-800 truncate"
+                                            x-text="pair.doc_b.title || pair.doc_b.filename"></span>
+                                    </div>
+                                    <div class="text-xs text-amber-600 mt-0.5"
+                                        x-text="'Similitud: ' + (pair.similarity * 100).toFixed(1) + '%'"></div>
+                                </div>
+                                <div class="flex gap-2 shrink-0">
+                                    <button @click="viewDoc(pair.doc_a.doc_id)"
+                                        class="text-xs text-brand-600 hover:text-brand-700 font-medium">Ver A</button>
+                                    <button @click="viewDoc(pair.doc_b.doc_id)"
+                                        class="text-xs text-brand-600 hover:text-brand-700 font-medium">Ver B</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
             </div>
         </section>
-
-        <!-- TAB: SQL -->
         <section x-show="activeTab === 'sql'" x-cloak class="fade-in">
             <div class="max-w-5xl mx-auto">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -581,6 +667,76 @@
                                     x-text="e.mentions + ' menciones · ' + e.num_docs + ' docs'"></div>
                             </div>
                         </template>
+                    </div>
+                </div>
+
+                <!-- Community Legend + Top Brokers -->
+                <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Comunidades -->
+                    <div class="bg-white border border-surface-3 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-ink-0 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 12h8M12 8v8" />
+                                </svg>
+                                Comunidades
+                            </h3>
+                            <button @click="loadCommunities()"
+                                class="text-xs text-brand-500 hover:text-brand-600">Cargar</button>
+                        </div>
+                        <div x-show="communities.length === 0" class="text-xs text-ink-3 text-center py-2">Sin datos —
+                            haz clic en "Cargar"</div>
+                        <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                            <template x-for="c in communities" :key="c.community_id">
+                                <div class="flex items-start gap-2 text-xs">
+                                    <span class="w-3 h-3 rounded-full mt-0.5 shrink-0"
+                                        :style="`background-color:${c.color}`"></span>
+                                    <div>
+                                        <span class="font-medium text-ink-0"
+                                            x-text="c.label || ('Comunidad ' + c.community_id)"></span>
+                                        <span class="text-ink-3 ml-1"
+                                            x-text="'(' + c.members.length + ' entidades)'"></span>
+                                        <div class="text-ink-3 truncate max-w-xs"
+                                            x-text="c.members.slice(0,4).join(', ') + (c.members.length > 4 ? ' ...' : '')">
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <!-- Brokers (betweenness centrality) -->
+                    <div class="bg-white border border-surface-3 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-ink-0 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Brokers de Información
+                            </h3>
+                            <button @click="loadBrokers()"
+                                class="text-xs text-brand-500 hover:text-brand-600">Cargar</button>
+                        </div>
+                        <div x-show="brokers.length === 0" class="text-xs text-ink-3 text-center py-2">Sin datos — haz
+                            clic en "Cargar"</div>
+                        <div class="space-y-1 max-h-40 overflow-y-auto">
+                            <template x-for="b in brokers" :key="b.name">
+                                <div class="flex items-center justify-between text-xs cursor-pointer hover:bg-surface-1 rounded px-1 py-0.5"
+                                    @click="showEntity(b.name)">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2 h-2 rounded-full shrink-0"
+                                            :class="b.type === 'person' ? 'bg-green-400' : 'bg-blue-400'"></span>
+                                        <span class="font-medium text-ink-0" x-text="b.name"></span>
+                                    </div>
+                                    <span class="text-ink-3 tabular-nums"
+                                        x-text="(b.betweenness * 100).toFixed(1) + '%'"></span>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
 
@@ -888,10 +1044,40 @@
                 <template x-if="filePreview?.type === 'pdf'">
                     <iframe :src="filePreview?.url" class="w-full h-full min-h-[75vh] border-0"></iframe>
                 </template>
-                <!-- Text/CSV preview -->
+                <!-- Text preview (TXT) -->
                 <template x-if="filePreview?.type === 'text'">
                     <pre class="p-5 text-sm text-ink-1 leading-relaxed whitespace-pre-wrap font-mono bg-surface-1 min-h-[50vh]"
                         x-text="filePreview?.content"></pre>
+                </template>
+                <!-- Table preview (CSV / XLSX / XLS) -->
+                <template x-if="filePreview?.type === 'table'">
+                    <div class="overflow-auto flex-1">
+                        <div
+                            class="px-4 py-2 bg-surface-1 border-b border-surface-3 text-xs text-ink-3 sticky top-0 z-10">
+                            <span
+                                x-text="(filePreview.tableData?.total_rows || 0) + ' filas · ' + (filePreview.tableData?.columns?.length || 0) + ' columnas — ' + filePreview.tableData?.filename"></span>
+                        </div>
+                        <table class="w-full text-sm border-collapse">
+                            <thead>
+                                <tr>
+                                    <template x-for="col in (filePreview.tableData?.columns || [])" :key="col">
+                                        <th class="text-left px-3 py-2 text-xs font-semibold text-ink-0 bg-surface-1 border-b border-r border-surface-3 whitespace-nowrap sticky top-8"
+                                            x-text="col"></th>
+                                    </template>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(row, ri) in (filePreview.tableData?.rows || [])" :key="ri">
+                                    <tr :class="ri % 2 === 0 ? 'bg-white' : 'bg-surface-1'">
+                                        <template x-for="(cell, ci) in row" :key="ci">
+                                            <td class="px-3 py-1.5 text-xs text-ink-1 border-r border-b border-surface-3 max-w-xs truncate"
+                                                :title="String(cell)" x-text="cell"></td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </template>
                 <!-- Binary files (docx, xlsx) - show raw text from DB -->
                 <template x-if="filePreview?.type === 'binary'">
@@ -983,7 +1169,7 @@
                 askQuery: '', askLoading: false, chatMessages: [],
                 searchQuery: '', searchResults: [], lastSearchQuery: '',
                 searchFacets: null,
-                searchFilters: { type: '', language: '', person: '', organization: '' },
+                searchFilters: { type: '', language: '', person: '', organization: '', date: '' },
                 documents: [], docDetail: null, docSummary: null, summaryLoading: false,
                 filePreview: null,
                 sqlQuestion: '', sqlRaw: '', sqlResult: null, sqlGenerated: '', sqlTables: [], sqlLoading: false,
@@ -991,6 +1177,8 @@
                 graphFilterType: '', graphFilterDoc: '',
                 pathFrom: '', pathTo: '', pathResult: null,
                 pathSuggestionsA: [], pathSuggestionsB: [],
+                communities: [], brokers: [],
+                duplicates: [], duplicatesLoading: false, duplicatesChecked: false,
                 stats: {},
                 showUpload: false, dragOver: false, uploadStatus: null,
                 ingesting: false, toast: null,
@@ -1043,6 +1231,7 @@
                     if (this.searchFilters.language) params.set('language', this.searchFilters.language);
                     if (this.searchFilters.person) params.set('person', this.searchFilters.person);
                     if (this.searchFilters.organization) params.set('organization', this.searchFilters.organization);
+                    if (this.searchFilters.date) params.set('date', this.searchFilters.date);
                     try {
                         const data = await this.api(`/api/search?${params}`);
                         this.searchResults = (data.results || []).map(r => ({ ...r, _expanded: false }));
@@ -1052,11 +1241,11 @@
                 },
 
                 hasActiveFilters() {
-                    return this.searchFilters.type || this.searchFilters.language || this.searchFilters.person || this.searchFilters.organization;
+                    return this.searchFilters.type || this.searchFilters.language || this.searchFilters.person || this.searchFilters.organization || this.searchFilters.date;
                 },
 
                 clearAllFilters() {
-                    this.searchFilters = { type: '', language: '', person: '', organization: '' };
+                    this.searchFilters = { type: '', language: '', person: '', organization: '', date: '' };
                 },
 
                 langLabel(code) {
@@ -1121,13 +1310,45 @@
                         const data = await this.api(url);
                         const container = document.getElementById('graph-container');
                         if (!container) return;
-                        new vis.Network(container, data, {
+                        const network = new vis.Network(container, data, {
                             nodes: { shape: 'dot', font: { size: 12, face: 'Inter', color: '#334155' }, borderWidth: 0, scaling: { min: 8, max: 28 } },
                             edges: { color: { color: '#cbd5e1', highlight: '#3b82f6' }, smooth: { type: 'continuous' }, scaling: { min: 1, max: 4 } },
                             physics: { solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.005, springLength: 120 }, stabilization: { iterations: 100 } },
                             interaction: { hover: true, tooltipDelay: 100 },
                         });
+                        network.on('click', (params) => {
+                            if (params.nodes.length > 0) {
+                                const nodeId = params.nodes[0];
+                                const node = data.nodes.get ? data.nodes.get(nodeId) : (data.nodes || []).find(n => n.id === nodeId);
+                                if (node) this.showEntity(node.label || node.id);
+                            }
+                        });
+                        // Load community legend
+                        this.loadCommunities();
                     } catch { }
+                },
+
+                async loadCommunities() {
+                    try {
+                        const data = await this.api('/api/graph/communities');
+                        this.communities = data.communities || [];
+                    } catch { }
+                },
+
+                async loadBrokers() {
+                    try {
+                        const data = await this.api('/api/graph/brokers?top_k=10');
+                        this.brokers = data.brokers || [];
+                    } catch { }
+                },
+
+                async loadDuplicates() {
+                    this.duplicatesLoading = true; this.duplicatesChecked = true;
+                    try {
+                        const data = await this.api('/api/duplicates?threshold=0.85');
+                        this.duplicates = data.duplicates || [];
+                    } catch { this.duplicates = []; }
+                    this.duplicatesLoading = false;
                 },
 
                 async showEntity(name) {
@@ -1186,18 +1407,33 @@
 
                     if (ext === 'pdf') {
                         this.filePreview = { type: 'pdf', url: downloadUrl, filename, downloadUrl, ext };
-                    } else if (['txt', 'csv'].includes(ext)) {
+                    } else if (ext === 'txt') {
+                        // Plain text: fetch and display as formatted text
                         try {
                             const res = await fetch(downloadUrl);
-                            const text = await res.text();
-                            this.filePreview = { type: 'text', content: text, filename, downloadUrl, ext };
+                            const content = await res.text();
+                            this.filePreview = { type: 'text', content, filename, downloadUrl, ext };
                         } catch {
                             try {
                                 const data = await this.api(`/api/documents/${docId}/raw`);
                                 this.filePreview = { type: 'text', content: data.text, filename, downloadUrl, ext };
                             } catch { this.showToast('Error al cargar archivo', 'error'); }
                         }
+                    } else if (['csv', 'xlsx', 'xls'].includes(ext)) {
+                        // Tabular files: use /table endpoint for structured view
+                        try {
+                            const tableData = await this.api(`/api/documents/${docId}/table`);
+                            this.filePreview = { type: 'table', tableData, filename, downloadUrl, ext };
+                        } catch {
+                            // Fallback: raw text
+                            try {
+                                const res = await fetch(downloadUrl);
+                                const content = await res.text();
+                                this.filePreview = { type: 'text', content, filename, downloadUrl, ext };
+                            } catch { this.showToast('Error al cargar archivo', 'error'); }
+                        }
                     } else {
+                        // DOCX and other binary formats: show extracted text
                         try {
                             const data = await this.api(`/api/documents/${docId}/raw`);
                             this.filePreview = { type: 'binary', content: data.text, filename, downloadUrl, ext: '.' + ext };

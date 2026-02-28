@@ -63,18 +63,21 @@ def enrich_document(doc: Document) -> Document:
     # 2. Fechas
     doc.dates = _extract_dates(text)
 
-    # 3. Palabras clave (YAKE)
+    # 3. Emails
+    doc.emails = _extract_emails(text)
+
+    # 4. Palabras clave (YAKE)
     doc.keywords = _extract_keywords(text)
 
-    # 4. Entidades NER (spaCy): personas y organizaciones
+    # 5. Entidades NER (spaCy): personas y organizaciones
     persons, orgs = _extract_entities(text)
     doc.persons = persons
     doc.organizations = orgs
 
-    # 5. Resumen extractivo simple (primeras frases relevantes)
+    # 6. Resumen extractivo simple (primeras frases relevantes)
     doc.summary = _extract_summary(text)
 
-    # 6. Categoría / departamento
+    # 7. Categoría / departamento
     doc.category = _infer_category(doc)
 
     return doc
@@ -84,16 +87,18 @@ def enrich_document(doc: Document) -> Document:
 
 def _extract_title(text: str, filename: str) -> str:
     """Intenta extraer un título del contenido o usa el nombre del fichero."""
-    # Patrones a ignorar: números de página, headers genéricos de PDF, fechas solas
-    # Cubre: "Página 1", "Página 1 de 10", "Page 1 of 5", "1/10", fechas, etc.
+    # Patrones a ignorar: números de página, headers genéricos de PDF, fechas solas,
+    # separadores visuales tipo "--- Página 1 ---" o "=== ... ==="
     _IGNORE_PATTERNS = re.compile(
-        r'^(p[aá]ginas?\s*\d+(\s*(?:de|of)\s*\d+)?'
+        r'^[-=*_\s]*(p[aá]ginas?\s*\d+(\s*(?:de|of)\s*\d+)?[-=*_\s]*'
         r'|page\s*\d+(\s*of\s*\d+)?'
         r'|\d+\s*/\s*\d+'
         r'|\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}'
-        r'|confidencial|privado|internal)\s*$',
+        r'|confidencial|privado|internal)\s*[-=*_]*\s*$',
         re.IGNORECASE
     )
+    # También ignorar líneas que son puramente separadores: "---", "===", "***"
+    _SEPARATOR = re.compile(r'^[-=*_\s]{3,}$')
 
     for line in text.split("\n"):
         line = line.strip()
@@ -101,6 +106,9 @@ def _extract_title(text: str, filename: str) -> str:
             continue
         # Saltar líneas de número de página o ruido de PDF
         if _IGNORE_PATTERNS.match(line):
+            continue
+        # Saltar separadores visuales (---, ===, ***)
+        if _SEPARATOR.match(line):
             continue
         # Saltar líneas que son puramente números o muy cortas (<= 3 chars)
         if len(line) <= 3 or line.isdigit():
@@ -131,6 +139,12 @@ def _extract_dates(text: str) -> list[str]:
         for match in re.findall(pattern, text, re.IGNORECASE):
             dates.add(match)
     return sorted(dates)
+
+
+def _extract_emails(text: str) -> list[str]:
+    """Extrae direcciones de email del texto."""
+    pattern = r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b'
+    return sorted(set(re.findall(pattern, text)))
 
 
 def _extract_keywords(text: str) -> list[str]:
@@ -172,6 +186,13 @@ def _extract_entities(text: str) -> tuple[list[str], list[str]]:
             continue
         if re.match(r'^[A-Z]{2,3}-\d', name):  # Códigos como TK-2024
             continue
+        # Filtrar entidades con caracteres de separador o puramente numéricas
+        if re.search(r'[-=*_]{2,}|^\d+$', name):
+            continue
+        # Filtrar nombres que parecen fragmentos de frases (contienen verbos comunes)
+        if re.search(r'\b(de|del|la|el|los|las|en|con|por|para|que|se)\b', name.lower()):
+            if len(name.split()) > 3:  # OK si es "Ministerio de Economía"
+                continue
         if ent.label_ == "PER":
             persons.add(name)
         elif ent.label_ == "ORG":
@@ -181,9 +202,25 @@ def _extract_entities(text: str) -> tuple[list[str], list[str]]:
 
 
 _NER_STOPWORDS = {
+    # Términos técnicos y de metodología
     "eta", "iva", "memorándum", "atentamente", "disponer", "mantener",
     "elegibilidad", "producto", "sprint", "backend", "frontend",
     "scrum", "demo", "api", "formacion", "formación",
+    # Días y meses (spaCy los extrae como PER a veces)
+    "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo",
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    # Roles y cargos que no son nombres propios
+    "director", "directora", "gerente", "responsable", "coordinador",
+    "jefe", "jefa", "técnico", "técnica", "ingeniero", "ingeniera",
+    "analista", "consultor", "consultora", "desarrollador", "desarrolladora",
+    # Palabras de documentos legales/notariales que spaCy confunde
+    "número", "escritura", "constitución", "notario", "registrador",
+    "santiago", "galicia", "artículo", "cláusula", "párrafo",
+    "sociedad", "responsabilidad", "limitada", "anónima",
+    # Otros falsos positivos frecuentes
+    "teletrabajo", "reunión", "acta", "orden", "del", "que", "los",
+    "incidencia", "resolución", "fichero", "sistema", "equipo",
 }
 
 

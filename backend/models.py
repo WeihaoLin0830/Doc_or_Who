@@ -27,6 +27,7 @@ class Document:
     persons: list[str] = field(default_factory=list)       # NER: personas
     organizations: list[str] = field(default_factory=list)  # NER: organizaciones
     dates: list[str] = field(default_factory=list)          # Fechas encontradas
+    emails: list[str] = field(default_factory=list)         # Emails detectados
     category: str = ""                       # Departamento / área temática
 
     def to_dict(self) -> dict:
@@ -53,6 +54,7 @@ class Chunk:
     organizations: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     dates: list[str] = field(default_factory=list)
+    emails: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -72,6 +74,7 @@ class Chunk:
             "organizations": ", ".join(self.organizations),
             "keywords": ", ".join(self.keywords),
             "dates": ", ".join(self.dates),
+            "emails": ", ".join(self.emails),
         }
 
 
@@ -92,7 +95,10 @@ class SearchResult:
     organizations: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     dates: list[str] = field(default_factory=list)
+    emails: list[str] = field(default_factory=list)
     highlight: str = ""          # Snippet con los términos resaltados
+    # Explicabilidad del score: qué sistemas contribuyeron y en qué posición
+    score_detail: dict = field(default_factory=dict)  # {sources, bm25_rank, semantic_rank}
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -106,6 +112,8 @@ class EntityNode:
     entity_type: str             # person | organization | product | project
     doc_ids: list[str] = field(default_factory=list)
     mentions: int = 0
+    community_id: int = -1       # Louvain community (−1 = sin calcular)
+    betweenness: float = 0.0     # Betweenness centrality normalizada (0–1)
 
     def to_dict(self) -> dict:
         return asdict(self)

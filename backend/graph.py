@@ -73,6 +73,10 @@ def build_graph(documents: list[Document]) -> None:
     # Deduplicar entidades similares (ej: "Pedro" merged en "Pedro Suárez")
     _deduplicate_entities()
 
+    # Calcular métricas de análisis de grafo
+    _compute_betweenness()
+    _compute_communities()
+
     # Persistir en disco
     _save_graph()
     print(f"🕸️  Grafo construido: {len(_entity_nodes)} entidades, "
@@ -148,15 +152,24 @@ def get_graph_data() -> dict:
 
     nodes = []
     for key, node in _entity_nodes.items():
-        color = "#4CAF50" if node.entity_type == "person" else "#2196F3"
+        # Colores por comunidad (7 paleta) con distinción person/org por borde
+        color = _community_color(node.community_id, node.entity_type)
+        degree_val = degree.get(key, 0)
         nodes.append({
             "id": key,
             "label": node.name,
             "group": node.entity_type,
-            "value": node.mentions,
-            "degree": degree.get(key, 0),
+            "value": max(node.mentions, 1) + node.betweenness * 20,  # size = mentions + betweenness
+            "degree": degree_val,
+            "community": node.community_id,
+            "betweenness": round(node.betweenness, 4),
             "color": color,
-            "title": f"{node.name} ({node.entity_type}) — {node.mentions} menciones, {degree.get(key, 0)} conexiones en {len(node.doc_ids)} docs",
+            "title": (
+                f"<b>{node.name}</b> ({node.entity_type})<br>"
+                f"📄 {len(node.doc_ids)} docs · 🗣 {node.mentions} menciones<br>"
+                f"🔗 {degree_val} conexiones · 🌉 betweenness {node.betweenness:.3f}<br>"
+                f"🏘 comunidad #{node.community_id}"
+            ),
         })
 
     edges = []
@@ -322,10 +335,210 @@ def get_stats() -> dict:
     }
 
 
+def get_communities() -> list[dict]:
+    """Devuelve las comunidades detectadas con sus miembros."""
+    groups: dict[int, list[dict]] = defaultdict(list)
+    for key, node in _entity_nodes.items():
+        groups[node.community_id].append({
+            "name": node.name,
+            "type": node.entity_type,
+            "mentions": node.mentions,
+            "betweenness": round(node.betweenness, 4),
+        })
+    result = []
+    for comm_id, members in sorted(groups.items()):
+        # Label the community by the most-mentioned member
+        anchor = max(members, key=lambda m: m["mentions"])
+        result.append({
+            "community_id": comm_id,
+            "label": anchor["name"],
+            "size": len(members),
+            "color": _community_color(comm_id, ""),
+            "members": sorted(members, key=lambda m: m["mentions"], reverse=True),
+        })
+    return sorted(result, key=lambda c: c["size"], reverse=True)
+
+
+def get_top_brokers(top_k: int = 5) -> list[dict]:
+    """Devuelve las entidades con mayor betweenness (conectores clave del grafo)."""
+    nodes = sorted(_entity_nodes.values(), key=lambda n: n.betweenness, reverse=True)
+    return [
+        {
+            "name": n.name,
+            "type": n.entity_type,
+            "betweenness": round(n.betweenness, 4),
+            "mentions": n.mentions,
+            "num_docs": len(n.doc_ids),
+        }
+        for n in nodes[:top_k]
+        if n.betweenness > 0
+    ]
+
+
 # ─── Utilidades internas ─────────────────────────────────────────
 def _normalize_key(name: str) -> str:
-    """Normaliza el nombre para usar como clave del grafo."""
-    return name.strip().lower()
+    """Normaliza el nombre para usar como clave del grafo.
+
+    Aplica: strip + lowercase + eliminación de acentos/diacríticos.
+    Así 'Ana Belén' y 'ana belen' mapean a la misma clave y se deduplicarán.
+    """
+    import unicodedata
+    nfd = unicodedata.normalize("NFKD", name.strip().lower())
+    return "".join(c for c in nfd if not unicodedata.combining(c))
+
+
+# Paleta de 8 colores por comunidad (pares claro/oscuro para person/org)
+_COMMUNITY_PALETTE = [
+    "#6366f1",  # indigo
+    "#f59e0b",  # amber
+    "#10b981",  # emerald
+    "#ef4444",  # red
+    "#8b5cf6",  # violet
+    "#06b6d4",  # cyan
+    "#f97316",  # orange
+    "#ec4899",  # pink
+]
+
+def _community_color(community_id: int, entity_type: str) -> str:
+    """Devuelve el color de un nodo según su comunidad."""
+    if community_id < 0:
+        return "#4CAF50" if entity_type == "person" else "#2196F3"
+    base = _COMMUNITY_PALETTE[community_id % len(_COMMUNITY_PALETTE)]
+    return base
+
+
+def _compute_betweenness() -> None:
+    """
+    Calcula betweenness centrality para todos los nodos (Brandes algorithm).
+    Actualiza _entity_nodes[key].betweenness in-place.
+    Normalizado: divide por (n-1)(n-2) para grafos no dirigidos.
+    """
+    from collections import deque
+
+    keys = list(_entity_nodes.keys())
+    n = len(keys)
+    if n < 3:
+        return
+
+    betweenness: dict[str, float] = {k: 0.0 for k in keys}
+
+    for s in keys:
+        # Brandes BFS
+        stack: list[str] = []
+        predecessors: dict[str, list[str]] = {k: [] for k in keys}
+        num_paths: dict[str, float] = {k: 0.0 for k in keys}
+        num_paths[s] = 1.0
+        dist: dict[str, int] = {k: -1 for k in keys}
+        dist[s] = 0
+        queue: deque[str] = deque([s])
+
+        while queue:
+            v = queue.popleft()
+            stack.append(v)
+            for w in _edges.get(v, {}):
+                if w not in _entity_nodes:
+                    continue
+                if dist[w] < 0:
+                    queue.append(w)
+                    dist[w] = dist[v] + 1
+                if dist[w] == dist[v] + 1:
+                    num_paths[w] += num_paths[v]
+                    predecessors[w].append(v)
+
+        # Back-propagation of dependencies
+        delta: dict[str, float] = {k: 0.0 for k in keys}
+        while stack:
+            w = stack.pop()
+            for v in predecessors[w]:
+                if num_paths[w] > 0:
+                    delta[v] += (num_paths[v] / num_paths[w]) * (1.0 + delta[w])
+            if w != s:
+                betweenness[w] += delta[w]
+
+    # Normalize for undirected graph: divide by (n-1)(n-2)
+    norm = float((n - 1) * (n - 2))
+    for key in keys:
+        _entity_nodes[key].betweenness = betweenness[key] / norm if norm > 0 else 0.0
+
+    top = sorted(keys, key=lambda k: _entity_nodes[k].betweenness, reverse=True)[:3]
+    if top:
+        print(f"🌉 Top brokers: {', '.join(_entity_nodes[k].name for k in top)}")
+
+
+def _compute_communities() -> None:
+    """
+    Simplified Louvain community detection via greedy modularity maximization.
+    Stores community_id on each EntityNode.
+    """
+    keys = list(_entity_nodes.keys())
+    n = len(keys)
+    if n == 0:
+        return
+
+    # Total edge weight
+    m = sum(sum(v.values()) for v in _edges.values()) / 2.0
+    if m == 0:
+        for i, k in enumerate(keys):
+            _entity_nodes[k].community_id = i
+        return
+
+    # community[node_key] = community_label (initially = node_key itself)
+    community: dict[str, str] = {k: k for k in keys}
+    # sigma[comm_label] = sum of degrees of all nodes in that community
+    degree: dict[str, float] = {k: float(sum(_edges.get(k, {}).values())) for k in keys}
+    sigma: dict[str, float] = {k: degree[k] for k in keys}
+
+    improved = True
+    max_iter = 30
+    iteration = 0
+
+    while improved and iteration < max_iter:
+        improved = False
+        iteration += 1
+
+        for v in keys:
+            c_v = community[v]
+            k_v = degree[v]
+
+            # Compute edges from v to each neighboring community
+            k_in: dict[str, float] = {}
+            for neighbor, weight in _edges.get(v, {}).items():
+                if neighbor not in _entity_nodes:
+                    continue
+                nc = community[neighbor]
+                k_in[nc] = k_in.get(nc, 0.0) + weight
+
+            # Temporarily remove v from its community
+            sigma[c_v] -= k_v
+            k_in_current = k_in.get(c_v, 0.0)
+
+            best_comm = c_v
+            best_gain = 0.0
+
+            for d, ki_in_d in k_in.items():
+                if d == c_v:
+                    continue
+                # ΔQ = (ki_in_d - ki_in_current) / m + k_v * (sigma[c_v] - sigma[d]) / (2m²)
+                gain = (ki_in_d - k_in_current) / m + k_v * (sigma[c_v] - sigma.get(d, 0.0)) / (2 * m * m)
+                if gain > best_gain:
+                    best_gain = gain
+                    best_comm = d
+
+            if best_comm != c_v:
+                community[v] = best_comm
+                sigma[best_comm] = sigma.get(best_comm, 0.0) + k_v
+                improved = True
+            else:
+                sigma[c_v] += k_v  # restore
+
+    # Remap to sequential integers
+    unique_comms = sorted(set(community.values()))
+    remap = {old: new for new, old in enumerate(unique_comms)}
+    for k in keys:
+        _entity_nodes[k].community_id = remap[community[k]]
+
+    num_communities = len(unique_comms)
+    print(f"🏘  Comunidades detectadas: {num_communities}")
 
 
 def _deduplicate_entities() -> None:

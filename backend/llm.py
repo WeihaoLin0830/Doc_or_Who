@@ -44,6 +44,44 @@ Reglas:
 - Usa formato Markdown cuando mejore la legibilidad."""
 
 
+def _expand_query(query: str) -> str:
+    """
+    Usa el LLM para expandir la query con sinónimos/términos relacionados.
+    Solo para preguntas conceptuales — mejora el recall del retrieval.
+    Retorna la query original si falla o si el LLM no está disponible.
+    """
+    client = _get_client()
+    if client is None:
+        return query
+    try:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f'Término de búsqueda: "{query}"\n'
+                    "Genera 3-4 sinónimos o términos relacionados en español "
+                    "para mejorar la búsqueda documental corporativa.\n"
+                    "Responde SOLO las palabras separadas por espacios, sin explicaciones."
+                ),
+            }],
+            temperature=0.1,
+            max_tokens=40,
+        )
+        extras = response.choices[0].message.content.strip()
+        # Combinar original + expansión, deduplicar manteniendo orden
+        seen: set[str] = set()
+        combined: list[str] = []
+        for word in (query + " " + extras).split():
+            low = word.lower()
+            if low not in seen:
+                seen.add(low)
+                combined.append(word)
+        return " ".join(combined)
+    except Exception:
+        return query
+
+
 def _build_context(chunks: list[dict], max_tokens: int = 4000) -> str:
     """Construye el bloque de contexto a partir de chunks de búsqueda."""
     context_parts = []
@@ -92,9 +130,15 @@ def ask(question: str, doc_type: str | None = None, top_k: int = 8) -> dict:
             "model": GROQ_MODEL,
         }
 
-    # 1. Buscar chunks relevantes
+    # 1. Expandir query (solo para preguntas conceptuales, no nombres propios)
+    from backend.searcher import _is_entity_query
+    expanded_question = question
+    if not _is_entity_query(question):
+        expanded_question = _expand_query(question)
+
+    # 2. Buscar chunks relevantes
     from backend.searcher import hybrid_search
-    results = hybrid_search(query=question, doc_type=doc_type, top_k=top_k)
+    results = hybrid_search(query=expanded_question, doc_type=doc_type, top_k=top_k)
 
     if not results:
         return {

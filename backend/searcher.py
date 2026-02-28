@@ -11,11 +11,96 @@ Flujo:
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 from typing import Optional
 
 from backend.config import SEARCH_TOP_K, FINAL_TOP_K, RRF_K, WHOOSH_DIR
+from backend.config import SEMANTIC_MIN_SCORE, MAX_CHUNKS_PER_DOC
 from backend.models import SearchResult
+
+
+def _strip_accents(text: str) -> str:
+    """
+    Elimina acentos/diacríticos: 'reunión' → 'reunion'.
+    Permite buscar sin acento y encontrar términos acentuados
+    (cuando el índice Whoosh tiene el mismo analizador).
+    """
+    nfd = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in nfd if not unicodedata.combining(c))
+
+
+# ─── Sinónimos corporativos español ─────────────────────────────
+# Sólo para el fallback Or: si BM25-And no encuentra nada,
+# se expande la query con estos términos para mejorar el recall.
+_SYNONYMS: dict[str, list[str]] = {
+    "reunion":     ["junta", "asamblea", "sesion", "meeting"],
+    "informe":     ["reporte", "memoria", "nota", "resumen"],
+    "contrato":    ["acuerdo", "convenio", "pacto"],
+    "proveedor":   ["suministrador", "vendedor", "partner"],
+    "incidencia":  ["problema", "averia", "error", "fallo", "ticket"],
+    "empleado":    ["trabajador", "personal", "colaborador"],
+    "presupuesto": ["coste", "precio", "importe"],
+    "servidor":    ["maquina", "sistema", "equipo", "host"],
+    "proyecto":    ["iniciativa", "plan", "programa"],
+    "cliente":     ["usuario", "consumidor"],
+}
+
+
+def _expand_with_synonyms(query: str) -> str:
+    """
+    Expande la query con sinónimos del diccionario corporativo.
+    Usa claves normalizadas (sin acentos, minúsculas) para el matching.
+    Devuelve la query original si no hay sinónimos aplicables.
+    """
+    words = _strip_accents(query.lower()).split()
+    extra: list[str] = []
+    for word in words:
+        if word in _SYNONYMS:
+            extra.extend(_SYNONYMS[word])
+    if not extra:
+        return query
+    # Deduplicar manteniendo orden
+    seen: set[str] = set(_strip_accents(query.lower()).split())
+    unique_extra = [w for w in extra if w not in seen and not seen.add(w)]
+    return query + (" " + " ".join(unique_extra) if unique_extra else "")
+
+
+def _is_entity_query(query: str) -> bool:
+    """
+    Returns True when the query looks like a named entity (person/org),
+    in which case semantic search should be skipped.
+
+    Heuristics (all must fit):
+    - 1–4 tokens
+    - Every token starts with a capital letter (proper name pattern)
+    - No question words / conceptual vocabulary that suggests a semantic query
+
+    Additionally, if a matching entity exists in the graph, we confirm it.
+    """
+    QUESTION_WORDS = {
+        "qué", "que", "cuál", "cual", "cómo", "como", "dónde", "donde",
+        "cuándo", "cuando", "quién", "quien", "cuánto", "cuanto", "por",
+        "cómo", "hay", "existe", "tiene", "puede", "dame", "dime",
+        "busca", "muéstrame", "listar", "informe", "reporte",
+    }
+    words = query.strip().split()
+    if not words or len(words) > 4:
+        return False
+    if any(w.lower() in QUESTION_WORDS for w in words):
+        return False
+    # All words capitalized (proper name signal)
+    if all(w[0].isupper() for w in words):
+        return True
+    # Check against known graph entities
+    try:
+        from backend.graph import search_entities
+        hits = search_entities(query, top_k=1)
+        if hits and hits[0]["name"].lower() == query.lower():
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def hybrid_search(
@@ -24,21 +109,32 @@ def hybrid_search(
     language: Optional[str] = None,
     person: Optional[str] = None,
     organization: Optional[str] = None,
+    date: Optional[str] = None,
     top_k: int = FINAL_TOP_K,
 ) -> list[SearchResult]:
     """
     Búsqueda híbrida: combina BM25 + semántica con RRF.
-    Soporta filtros por tipo, idioma, persona y organización.
+    Soporta filtros por tipo, idioma, persona, organización y fecha.
+
+    Para queries de entidades (nombres propios) se omite la búsqueda semántica
+    porque los embeddings no capturan significado en nombres propios.
     """
     filters = {k: v for k, v in {
         "doc_type": doc_type,
         "language": language,
         "person": person,
         "organization": organization,
+        "date": date,
     }.items() if v}
 
     bm25_results = _search_whoosh(query, filters=filters, top_k=SEARCH_TOP_K)
-    semantic_results = _search_chroma(query, filters=filters, top_k=SEARCH_TOP_K)
+
+    # Skip semantic search for entity name queries — names have no vector meaning
+    if _is_entity_query(query):
+        semantic_results: list[SearchResult] = []
+    else:
+        semantic_results = _search_chroma(query, filters=filters, top_k=SEARCH_TOP_K)
+
     fused = _reciprocal_rank_fusion(bm25_results, semantic_results, k=RRF_K)
 
     for result in fused:
@@ -53,6 +149,7 @@ def hybrid_search_with_facets(
     language: Optional[str] = None,
     person: Optional[str] = None,
     organization: Optional[str] = None,
+    date: Optional[str] = None,
     top_k: int = FINAL_TOP_K,
 ) -> dict:
     """
@@ -65,13 +162,14 @@ def hybrid_search_with_facets(
     facets = _compute_facets(all_results)
 
     # Resultados CON filtros aplicados
-    if any([doc_type, language, person, organization]):
+    if any([doc_type, language, person, organization, date]):
         filtered_results = hybrid_search(
             query=query,
             doc_type=doc_type,
             language=language,
             person=person,
             organization=organization,
+            date=date,
             top_k=top_k,
         )
     else:
@@ -128,7 +226,7 @@ def _search_whoosh(
 ) -> list[SearchResult]:
     """Búsqueda full-text con Whoosh (BM25). Aplica filtros a nivel de query."""
     from whoosh import index as whoosh_index
-    from whoosh.qparser import MultifieldParser, OrGroup
+    from whoosh.qparser import MultifieldParser, OrGroup, AndGroup
     from whoosh.query import And, Term
 
     if not whoosh_index.exists_in(str(WHOOSH_DIR)):
@@ -137,15 +235,20 @@ def _search_whoosh(
     ix = whoosh_index.open_dir(str(WHOOSH_DIR))
     filters = filters or {}
 
-    # Buscar en título, contenido, keywords, personas y organizaciones
+    # AndGroup: "juan carlos" exige AMBOS términos (más preciso que Or).
+    # Para queries de una sola palabra And y Or son equivalentes.
     parser = MultifieldParser(
         ["content", "title", "keywords", "persons", "organizations"],
         schema=ix.schema,
-        group=OrGroup,
+        group=AndGroup,
     )
 
+    # Normalizar acentos en la query para que coincida con el analizador del índice.
+    # Así "reunion" encuentra "reunión" y viceversa sin importar cómo tipea el usuario.
+    normalized_query = _strip_accents(query)
+
     try:
-        parsed_query = parser.parse(query)
+        parsed_query = parser.parse(normalized_query)
     except Exception:
         return []
 
@@ -166,6 +269,22 @@ def _search_whoosh(
         # Pedir más resultados para luego aplicar filtros soft (persona/org)
         hits = searcher.search(parsed_query, limit=top_k * 3)
 
+        # Si And-query da 0 resultados, reintentamos con Or + sinónimos (fallback de precisión)
+        if len(hits) == 0:
+            or_parser = MultifieldParser(
+                ["content", "title", "keywords", "persons", "organizations"],
+                schema=ix.schema,
+                group=OrGroup,
+            )
+            try:
+                expanded_query = _expand_with_synonyms(normalized_query)
+                or_query = or_parser.parse(expanded_query)
+                if filter_queries:
+                    or_query = And([or_query] + filter_queries)
+                hits = searcher.search(or_query, limit=top_k * 3)
+            except Exception:
+                pass
+
         for hit in hits:
             # Filtro soft para persons/organizations (contienen substring)
             if filters.get("person"):
@@ -175,6 +294,10 @@ def _search_whoosh(
             if filters.get("organization"):
                 orgs_text = hit.get("organizations", "").lower()
                 if filters["organization"].lower() not in orgs_text:
+                    continue
+            # Filtro soft por fecha: busca el string en el campo dates
+            if filters.get("date"):
+                if filters["date"].lower() not in hit.get("dates", "").lower():
                     continue
 
             results.append(SearchResult(
@@ -191,6 +314,7 @@ def _search_whoosh(
                 organizations=_split_meta(hit.get("organizations", "")),
                 keywords=_split_meta(hit.get("keywords", "")),
                 dates=_split_meta(hit.get("dates", "")),
+                emails=_split_meta(hit.get("emails", "")),
             ))
 
             if len(results) >= top_k:
@@ -256,9 +380,17 @@ def _search_chroma(
             orgs_text = meta.get("organizations", "").lower()
             if filters["organization"].lower() not in orgs_text:
                 continue
+        # Filtro soft por fecha
+        if filters.get("date"):
+            if filters["date"].lower() not in meta.get("dates", "").lower():
+                continue
 
         # Convertir distancia coseno a score (1 = perfecto, 0 = nada)
         score = max(0, 1 - distance)
+
+        # Descartar resultados con similitud muy baja (ruido semántico)
+        if score < SEMANTIC_MIN_SCORE:
+            continue
 
         results.append(SearchResult(
             chunk_id=chunk_id,
@@ -274,6 +406,7 @@ def _search_chroma(
             organizations=_split_meta(meta.get("organizations", "")),
             keywords=_split_meta(meta.get("keywords", "")),
             dates=_split_meta(meta.get("dates", "")),
+            emails=_split_meta(meta.get("emails", "")),
         ))
 
         if len(results) >= top_k:
@@ -294,15 +427,19 @@ def _reciprocal_rank_fusion(
     """
     scores: dict[str, float] = {}
     result_map: dict[str, SearchResult] = {}
+    bm25_ranks: dict[str, int] = {}     # chunk_id → posición 1-based en lista BM25
+    semantic_ranks: dict[str, int] = {}  # chunk_id → posición 1-based en lista semántica
 
     # Acumular scores de BM25
     for rank, result in enumerate(bm25_results):
+        bm25_ranks[result.chunk_id] = rank + 1
         scores[result.chunk_id] = scores.get(result.chunk_id, 0) + 1 / (k + rank + 1)
         if result.chunk_id not in result_map:
             result_map[result.chunk_id] = result
 
     # Acumular scores de semántica
     for rank, result in enumerate(semantic_results):
+        semantic_ranks[result.chunk_id] = rank + 1
         scores[result.chunk_id] = scores.get(result.chunk_id, 0) + 1 / (k + rank + 1)
         if result.chunk_id not in result_map:
             result_map[result.chunk_id] = result
@@ -316,9 +453,23 @@ def _reciprocal_rank_fusion(
     ranked_ids = sorted(scores, key=scores.get, reverse=True)
 
     results = []
+    doc_chunk_count: dict[str, int] = {}
     for chunk_id in ranked_ids:
         r = result_map[chunk_id]
+        # Limitar chunks por documento: evita que un doc largo acapare todos los resultados
+        n = doc_chunk_count.get(r.doc_id, 0)
+        if n >= MAX_CHUNKS_PER_DOC:
+            continue
+        doc_chunk_count[r.doc_id] = n + 1
         r.score = scores[chunk_id]
+        # Explicabilidad: qué sistema(s) encontraron este resultado y en qué posición
+        sources = (["bm25"] if chunk_id in bm25_ranks else []) + \
+                  (["semantic"] if chunk_id in semantic_ranks else [])
+        r.score_detail = {
+            "sources": sources,
+            "bm25_rank": bm25_ranks.get(chunk_id),
+            "semantic_rank": semantic_ranks.get(chunk_id),
+        }
         results.append(r)
 
     return results

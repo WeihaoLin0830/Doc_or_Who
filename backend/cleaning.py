@@ -31,9 +31,14 @@ def clean_text(raw: str) -> str:
     text = re.sub(r"[ \t]{2,}", " ", text)        # Múltiples espacios → 1
     text = re.sub(r"[ \t]+\n", "\n", text)        # Trailing spaces antes de newline
 
-    # 3. Quitar ruido típico de PDFs: "Página 1 de 5", números de página solos
-    text = re.sub(r"[Pp]ágina\s+\d+\s+de\s+\d+", "", text)
+    # 3. Quitar ruido típico de PDFs: separadores de página, numeración suelta
+    # Cubre: "--- Página 1 ---", "=== Page 2 ===", "Página 1 de 5", número sólo
+    text = re.sub(r"[-=*_]{2,}\s*[Pp][aá]g(?:ina)?[s]?\s*\d+(?:\s*(?:de|of)\s*\d+)?\s*[-=*_]{0,10}", "", text)
+    text = re.sub(r"[Pp]ágina\s+\d+(?:\s+de\s+\d+)?", "", text)
+    text = re.sub(r"[Pp]age\s+\d+(?:\s+of\s+\d+)?", "", text)
     text = re.sub(r"^\s*\d{1,3}\s*$", "", text, flags=re.MULTILINE)
+    # Quitar líneas que sólo tienen guiones, iguales o asteriscos (separadores visuales)
+    text = re.sub(r"^\s*[-=*_]{3,}\s*$", "", text, flags=re.MULTILINE)
 
     return text.strip()
 
