@@ -209,8 +209,9 @@ def _compute_facets(results: list[SearchResult]) -> dict:
         for k in r.keywords:
             keyword_counter[k] += 1
         for d in r.dates:
-            if d.strip():
-                date_counter[d.strip()] += 1
+            iso = _normalize_date_to_iso(d.strip())
+            if iso:
+                date_counter[iso] += 1
 
     return {
         "doc_type":      [{"value": k, "count": v} for k, v in type_counter.most_common(20)],
@@ -218,8 +219,39 @@ def _compute_facets(results: list[SearchResult]) -> dict:
         "persons":       [{"value": k, "count": v} for k, v in person_counter.most_common(20)],
         "organizations": [{"value": k, "count": v} for k, v in org_counter.most_common(20)],
         "keywords":      [{"value": k, "count": v} for k, v in keyword_counter.most_common(15)],
-        "dates":         [{"value": k, "count": v} for k, v in date_counter.most_common(15)],
+        "dates":         [{"value": k, "count": v} for k, v in sorted(date_counter.items(), key=lambda x: x[0], reverse=True)[:20]],
     }
+
+
+def _normalize_date_to_iso(raw: str) -> str | None:
+    """
+    Convierte cualquier formato de fecha a ISO para deduplicar en facets.
+    Soporta: YYYY-MM-DD (ISO), DD/MM/YYYY, DD-MM-YYYY, YYYY-MM, YYYY.
+    """
+    import re
+    raw = raw.strip()
+    if not raw:
+        return None
+    # Ya es ISO: YYYY-MM-DD
+    if re.fullmatch(r'\d{4}-\d{2}-\d{2}', raw):
+        return raw
+    # Ya es ISO: YYYY-MM
+    if re.fullmatch(r'\d{4}-\d{2}', raw):
+        return raw
+    # Ya es ISO: YYYY
+    if re.fullmatch(r'\d{4}', raw):
+        return raw
+    # DD/MM/YYYY o D/M/YYYY
+    m = re.fullmatch(r'(\d{1,2})/(\d{1,2})/(\d{4})', raw)
+    if m:
+        d, mo, y = m.groups()
+        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+    # DD-MM-YYYY (evitar confundir con YYYY-MM-DD ya tratado arriba)
+    m = re.fullmatch(r'(\d{1,2})-(\d{1,2})-(\d{4})', raw)
+    if m:
+        d, mo, y = m.groups()
+        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+    return None
 
 
 
@@ -300,9 +332,15 @@ def _search_whoosh(
                 orgs_text = hit.get("organizations", "").lower()
                 if filters["organization"].lower() not in orgs_text:
                     continue
-            # Filtro soft por fecha: busca el string en el campo dates
+            # Filtro soft por fecha: normaliza cada fecha almacenada a ISO
+            # y verifica prefijo ("2025-01" debe coincidir con "2025-01-10")
             if filters.get("date"):
-                if filters["date"].lower() not in hit.get("dates", "").lower():
+                filter_date = filters["date"]
+                stored_iso = [
+                    _normalize_date_to_iso(d)
+                    for d in _split_meta(hit.get("dates", ""))
+                ]
+                if not any(d and d.startswith(filter_date) for d in stored_iso):
                     continue
 
             results.append(SearchResult(
@@ -385,9 +423,15 @@ def _search_chroma(
             orgs_text = meta.get("organizations", "").lower()
             if filters["organization"].lower() not in orgs_text:
                 continue
-        # Filtro soft por fecha
+        # Filtro soft por fecha: normaliza cada fecha almacenada a ISO
+        # y verifica prefijo ("2025-01" debe coincidir con "2025-01-10")
         if filters.get("date"):
-            if filters["date"].lower() not in meta.get("dates", "").lower():
+            filter_date = filters["date"]
+            stored_iso = [
+                _normalize_date_to_iso(d)
+                for d in _split_meta(meta.get("dates", ""))
+            ]
+            if not any(d and d.startswith(filter_date) for d in stored_iso):
                 continue
 
         # Convertir distancia coseno a score (1 = perfecto, 0 = nada)
