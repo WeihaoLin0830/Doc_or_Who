@@ -18,7 +18,7 @@ from backend.config import (
     WHOOSH_DIR,
 )
 from backend.models import Chunk
-from backend.text_normalize import char_ngrams, fold_text
+from backend.text_normalize import char_ngrams, fold_text, normalize_numbers_in_text
 
 # ─── Whoosh: analizador con eliminación de acentos ────────────────
 # Permite buscar "reunion" y encontrar "reunión" y viceversa.
@@ -47,8 +47,12 @@ def _whoosh_has_char3_field(ix) -> bool:
     return "content_char3" in set(ix.schema.names())
 
 
+def _whoosh_has_num_norm_field(ix) -> bool:
+    return "content_num_norm" in set(ix.schema.names())
+
+
 def _whoosh_missing_lexical_fields(ix) -> set[str]:
-    required_fields = {"content_folded", "title_folded", "content_char3"}
+    required_fields = {"content_folded", "title_folded", "content_char3", "content_num_norm"}
     return required_fields.difference(ix.schema.names())
 
 
@@ -126,6 +130,7 @@ def _get_whoosh_index(create: bool = False):
         content=TEXT(stored=True, **_ta),
         content_folded=TEXT(**_ta),
         content_char3=TEXT(**_ta),
+        content_num_norm=TEXT(**_ta),
         doc_type=TEXT(stored=True),
         language=TEXT(stored=True),
         filename=TEXT(stored=True),
@@ -217,6 +222,7 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
     ix = _get_whoosh_index()
     has_folded_fields = _whoosh_has_folded_fields(ix)
     has_char3_field = _whoosh_has_char3_field(ix)
+    has_num_norm_field = _whoosh_has_num_norm_field(ix)
     writer = ix.writer()
     committed = False
 
@@ -249,6 +255,11 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
                 payload["content_folded"] = fold_text(chunk.text)
             if has_char3_field:
                 payload["content_char3"] = " ".join(char_ngrams(fold_text(chunk.text), 3))
+            if has_num_norm_field:
+                payload["content_num_norm"] = normalize_numbers_in_text(
+                    chunk.text,
+                    language=chunk.language or meta.get("language"),
+                )
             writer.update_document(**payload)
 
         writer.commit()

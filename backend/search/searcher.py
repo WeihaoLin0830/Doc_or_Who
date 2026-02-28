@@ -16,7 +16,7 @@ from typing import Optional
 
 from backend.config import FINAL_TOP_K, FUZZY, LEXICAL_STRICT, MAX_CHUNKS_PER_DOC, RRF_K, SEARCH_TOP_K, SEMANTIC_MIN_SCORE, WHOOSH_DIR
 from backend.models import SearchResult
-from backend.text_normalize import _fold_with_mapping, char_ngrams, fold_text
+from backend.text_normalize import _fold_with_mapping, char_ngrams, fold_text, normalize_numbers_in_text
 
 
 def _folded_query(text: str) -> str:
@@ -74,6 +74,10 @@ def _whoosh_supports_char3_field(ix) -> bool:
     return "content_char3" in set(ix.schema.names())
 
 
+def _whoosh_supports_num_norm_field(ix) -> bool:
+    return "content_num_norm" in set(ix.schema.names())
+
+
 def _looks_noisy_query(query: str) -> bool:
     trimmed = query.strip()
     if not trimmed:
@@ -101,6 +105,17 @@ def _should_use_char3_fallback(query: str, base_results_count: int) -> tuple[boo
     if base_results_count <= 2:
         return True, "low_recall"
     return False, "not_needed"
+
+
+def _query_has_numeric_signal(query: str, normalized_numeric_query: str) -> bool:
+    folded = fold_text(query)
+    if re.search(r"\d", folded):
+        return True
+    if re.search(r"\b[a-z]+\b", folded) and normalized_numeric_query != folded:
+        return True
+    if re.search(r"\d+(?:[.,]\d+)*(?:[kmb])\b", folded):
+        return True
+    return False
 
 
 def _is_entity_query(query: str) -> bool:
@@ -368,6 +383,9 @@ def _search_whoosh(
     ix = whoosh_index.open_dir(str(WHOOSH_DIR))
     filters = filters or {}
     search_fields = _whoosh_search_fields(ix)
+    has_folded_fields = _whoosh_supports_folded_fields(ix)
+    has_char3_field = _whoosh_supports_char3_field(ix)
+    has_num_norm_field = _whoosh_supports_num_norm_field(ix)
     fieldboosts = {
         "title_folded": 2.5,
         "content_folded": 2.0,
@@ -390,9 +408,12 @@ def _search_whoosh(
     # Fold the lexical query so folded fields become robust to Unicode,
     # accents and casing. If the index is still on the old schema, we fall
     # back to raw fields and keep the original query text.
-    has_folded_fields = _whoosh_supports_folded_fields(ix)
-    has_char3_field = _whoosh_supports_char3_field(ix)
     normalized_query = _folded_query(query) if not LEXICAL_STRICT and has_folded_fields else query
+    normalized_numeric_query = normalize_numbers_in_text(
+        query,
+        language=None,
+        include_original=False,
+    )
 
     try:
         parsed_query = parser.parse(normalized_query)
@@ -434,7 +455,36 @@ def _search_whoosh(
         results = _collect_whoosh_results(normal_hits, filters, top_k)
         base_results_count = len(results)
 
-        use_char3, char3_reason = _should_use_char3_fallback(query, base_results_count)
+        numeric_signal = _query_has_numeric_signal(query, normalized_numeric_query)
+        if base_results_count <= 2 and numeric_signal and has_num_norm_field:
+            numeric_parser = QueryParser("content_num_norm", schema=ix.schema, group=AndGroup)
+            try:
+                numeric_query = numeric_parser.parse(normalized_numeric_query)
+                if filter_queries:
+                    numeric_query = And([numeric_query] + filter_queries)
+                numeric_hits = searcher.search(numeric_query, limit=max(top_k * 3, 10))
+                print(
+                    "🔢 Whoosh numeric mode=num_norm "
+                    f"base_hits={base_results_count} raw_hits={len(numeric_hits)} query={normalized_numeric_query!r}"
+                )
+                results.extend(
+                    _collect_whoosh_results(
+                        numeric_hits,
+                        filters,
+                        max(top_k - len(results), 0),
+                        seen_chunk_ids={result.chunk_id for result in results},
+                    )
+                )
+            except Exception:
+                pass
+        elif base_results_count <= 2 and numeric_signal and not has_num_norm_field:
+            print(
+                "⚠️  Whoosh numeric fallback requested but the index schema "
+                "does not include content_num_norm. Rebuild lexical indexes."
+            )
+
+        current_results_count = len(results)
+        use_char3, char3_reason = _should_use_char3_fallback(query, current_results_count)
         fuzzy_hits_count = 0
         if use_char3 and has_char3_field:
             q_fold = _folded_query(query)
@@ -449,7 +499,7 @@ def _search_whoosh(
                     fuzzy_hits_count = len(fuzzy_hits)
                     print(
                         "🪶 Whoosh fuzzy mode=char3 "
-                        f"reason={char3_reason} base_hits={base_results_count} raw_hits={fuzzy_hits_count}"
+                        f"reason={char3_reason} base_hits={current_results_count} raw_hits={fuzzy_hits_count}"
                     )
                     results.extend(
                         _collect_whoosh_results(
