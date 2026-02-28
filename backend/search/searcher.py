@@ -18,6 +18,7 @@ from backend.config import (
     FINAL_TOP_K,
     FUSION_MODE,
     FUZZY,
+    GRAPH_BOOST,
     LEXICAL_STRICT,
     MAX_CHUNKS_PER_DOC,
     RRF_K,
@@ -204,6 +205,75 @@ def _is_entity_query(query: str) -> bool:
     return False
 
 
+def _apply_graph_boost(
+    query: str,
+    results: list[SearchResult],
+    boost: float = GRAPH_BOOST,
+) -> list[SearchResult]:
+    """
+    Post-fusion: sube el score de resultados cuyos documentos contienen
+    entidades mencionadas en la query (según el grafo de conocimiento).
+
+    Estrategia:
+      - Extrae candidatos de nombre propio de la query (1-3 tokens en título)
+      - Busca cada candidato en el grafo via search_entities
+      - Si el nombre coincide exactamente con una entidad conocida,
+        aplica un multiplicador (1 + boost) a todos los chunks de ese doc
+      - Re-ordena la lista por score final
+    Solo actúa si GRAPH_BOOST > 0 y el grafo tiene entidades cargadas.
+    """
+    if boost <= 0 or not results:
+        return results
+    try:
+        from backend.graph import search_entities
+        from backend.text_normalize import fold_text as _ft
+
+        query_folded = _ft(query)
+        words = query.strip().split()
+
+        # Generar n-gramas de 1 a 3 tokens de la query como candidatos de entidad
+        candidates: list[str] = []
+        for n in (1, 2, 3):
+            for i in range(len(words) - n + 1):
+                span = " ".join(words[i:i + n])
+                # Solo spans que parecen nombre propio (al menos un token capitalizado)
+                if any(w and w[0].isupper() for w in span.split()):
+                    candidates.append(span)
+
+        if not candidates:
+            return results
+
+        # doc_ids que merecen boost, con el número de entidades que coinciden
+        boosted_doc_ids: dict[str, int] = {}
+        for candidate in candidates:
+            hits = search_entities(candidate, top_k=2)
+            for h in hits:
+                if _ft(h["name"]) in query_folded:
+                    for doc_id in h.get("doc_ids", []):
+                        boosted_doc_ids[doc_id] = boosted_doc_ids.get(doc_id, 0) + 1
+
+        if not boosted_doc_ids:
+            return results
+
+        boosted_count = 0
+        for r in results:
+            hits_count = boosted_doc_ids.get(r.doc_id, 0)
+            if hits_count:
+                # Boost proporcional al número de entidades matched (cap 2x)
+                effective_boost = min(boost * hits_count, boost * 2)
+                r.score = r.score * (1 + effective_boost)
+                r.explanation.setdefault("notes", []).append("graph_boost")
+                boosted_count += 1
+
+        if boosted_count:
+            results.sort(key=lambda r: r.score, reverse=True)
+            print(f"🕸️  Graph boost aplicado a {boosted_count} chunks (boost={boost})")
+
+    except Exception:
+        pass
+    return results
+
+
 def hybrid_search(
     query: str,
     doc_type: Optional[str] = None,
@@ -255,6 +325,9 @@ def hybrid_search(
         debug=debug,
         k=RRF_K,
     )
+
+    # Boost de grafo: documentos con entidades mencionadas en la query suben
+    fused = _apply_graph_boost(query, fused)
 
     for result in fused:
         fallback_used = result.explanation.setdefault(
@@ -556,6 +629,28 @@ def _search_whoosh(
     except Exception:
         empty = []
         return (empty, trace) if return_trace else empty
+
+    # Sinónimos como soft boost (AndMaybe): los términos expandidos NO son
+    # obligatorios, pero si aparecen en un documento suben su score.
+    # Esto es diferente al fallback OR (que solo actúa cuando AND da 0).
+    try:
+        from whoosh.query import AndMaybe
+        or_boost_parser = MultifieldParser(
+            search_fields,
+            schema=ix.schema,
+            group=OrGroup,
+            fieldboosts={
+                field: fieldboosts[field] * 0.35
+                for field in search_fields
+                if field in fieldboosts
+            },
+        )
+        expanded_for_boost = _expand_with_synonyms(normalized_query)
+        if expanded_for_boost != normalized_query:
+            synonym_boost_query = or_boost_parser.parse(expanded_for_boost)
+            parsed_query = AndMaybe(parsed_query, synonym_boost_query)
+    except Exception:
+        pass
 
     # Construir filtros como query terms (se aplican ANTES de la búsqueda)
     filter_queries = []
@@ -863,6 +958,8 @@ def _build_why_this_result(result: SearchResult) -> str:
         notes.append("normalizacion numerica activada")
     if fallback_used.get("fuzzy_char3"):
         notes.append("tolerancia a typos/OCR activada")
+    if "graph_boost" in (explanation.get("notes") or []):
+        notes.append("entidad del grafo de conocimiento")
 
     return ". ".join(notes) + "." if notes else ""
 

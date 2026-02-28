@@ -45,8 +45,11 @@ CHUNK_OVERLAP_TOKENS = 50     # Solapamiento entre chunks contiguos
 SEARCH_TOP_K = 20             # Resultados por índice antes de fusionar
 FINAL_TOP_K = 10              # Resultados finales después de RRF
 RRF_K = 60                    # Constante para Reciprocal Rank Fusion
-SEMANTIC_MIN_SCORE = 0.30     # Umbral mínimo de similitud coseno (0=nada, 1=exacto)
+SEMANTIC_MIN_SCORE = 0.45     # Umbral mínimo de similitud coseno (0=nada, 1=exacto)
+                              # MiniLM-L12-v2 sobre corpus corporativo español:
+                              # <0.45 es casi siempre ruido semántico irrelevante
 MAX_CHUNKS_PER_DOC = 3        # Máximo de chunks del mismo documento en resultados
+GRAPH_BOOST = float(os.getenv("GRAPH_BOOST", "0.15"))  # Multiplicador extra si el doc contiene entidades de la query
 
 # ─── NER / spaCy ──────────────────────────────────────────────────
 SPACY_MODEL = "es_core_news_md"
