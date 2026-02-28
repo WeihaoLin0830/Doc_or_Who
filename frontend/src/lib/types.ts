@@ -188,3 +188,23 @@ export interface GroupedResult {
     organizations: string[];
     expanded: boolean;
 }
+
+// ─── Chat sessions ───────────────────────────────────────────────
+export interface ChatSession {
+    id: string;
+    title: string;
+    messages: ChatMessage[];
+    createdAt: number;
+}
+
+// ─── Document clustering ─────────────────────────────────────────
+export interface DocCluster {
+    cluster_id: number;
+    label: string;
+    documents: DocListItem[];
+}
+
+export interface ClusterResult {
+    n_clusters: number;
+    clusters: DocCluster[];
+}

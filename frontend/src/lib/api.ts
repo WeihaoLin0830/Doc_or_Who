@@ -41,6 +41,7 @@ import type {
     IngestStatus,
     UploadResult,
     Stats,
+    ClusterResult,
 } from "./types";
 
 export interface SearchFilters {
@@ -152,6 +153,13 @@ export async function listBrokers(topK = 10): Promise<Broker[]> {
 export async function findDuplicates(threshold = 0.85): Promise<DuplicatePair[]> {
     const d = await request<{ duplicates: DuplicatePair[] }>(`/api/duplicates?threshold=${threshold}`);
     return d.duplicates || [];
+}
+
+// ─── Clustering ──────────────────────────────────────────────────
+export async function clusterDocuments(nClusters?: number): Promise<ClusterResult> {
+    const p = new URLSearchParams();
+    if (nClusters != null) p.set("n_clusters", String(nClusters));
+    return request<ClusterResult>(`/api/documents/clusters${p.toString() ? "?" + p : ""}`);
 }
 
 // ─── Ingest & Upload ─────────────────────────────────────────────

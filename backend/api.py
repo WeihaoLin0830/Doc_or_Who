@@ -545,6 +545,112 @@ def duplicates(threshold: float = 0.85):
     return {"duplicates": dupes, "count": len(dupes)}
 
 
+# ─── Clustering ──────────────────────────────────────────────────
+@app.get("/api/documents/clusters")
+def cluster_documents(n_clusters: Optional[int] = None):
+    """
+    Agrupa documentos por similitud semántica usando Agglomerative Clustering
+    sobre los embeddings mean-pooled de ChromaDB.
+
+    n_clusters: número deseado de clusters. Si es None, se elige
+    automáticamente con un heurístico (sqrt(n_docs/2), min 2, max 8).
+    """
+    import numpy as np
+    from sklearn.cluster import AgglomerativeClustering
+    from backend.search.indexer import _get_chroma_collection
+    from backend.graph.graph import _documents
+
+    collection = _get_chroma_collection()
+    results = collection.get(include=["embeddings", "metadatas"])
+
+    if not results["ids"]:
+        return {"n_clusters": 0, "clusters": []}
+
+    # Agrupar embeddings por doc_id → mean-pool
+    doc_embs: dict[str, list[list[float]]] = {}
+    doc_meta: dict[str, dict] = {}
+    for chunk_id, meta, emb in zip(results["ids"], results["metadatas"], results["embeddings"]):
+        doc_id = meta.get("doc_id", chunk_id)
+        if doc_id not in doc_embs:
+            doc_embs[doc_id] = []
+            doc_meta[doc_id] = meta
+        doc_embs[doc_id].append(emb)
+
+    doc_ids = list(doc_embs.keys())
+    n_docs = len(doc_ids)
+
+    if n_docs < 2:
+        # Solo un documento, devolver un cluster con ese documento
+        single_meta = doc_meta[doc_ids[0]]
+        return {
+            "n_clusters": 1,
+            "clusters": [{
+                "cluster_id": 0,
+                "label": single_meta.get("doc_type", "Documentos"),
+                "documents": [{
+                    "doc_id": doc_ids[0],
+                    "title": single_meta.get("title", ""),
+                    "filename": single_meta.get("filename", ""),
+                    "doc_type": single_meta.get("doc_type", ""),
+                    "category": _documents.get(doc_ids[0], {}).get("category", ""),
+                }],
+            }],
+        }
+
+    # Calcular vectores mean-pooled
+    vectors = np.array([np.mean(np.array(doc_embs[did]), axis=0) for did in doc_ids])
+    # Normalizar para usar distancia coseno
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1e-9
+    vectors = vectors / norms
+
+    # Determinar número de clusters
+    k = n_clusters
+    if k is None:
+        k = max(2, min(8, int(np.sqrt(n_docs / 2) + 0.5)))
+    k = min(k, n_docs)
+
+    # Clustering
+    model = AgglomerativeClustering(n_clusters=k, metric="cosine", linkage="average")
+    labels = model.fit_predict(vectors)
+
+    # Agrupar documentos por cluster
+    cluster_docs: dict[int, list[dict]] = {}
+    for idx, doc_id in enumerate(doc_ids):
+        c = int(labels[idx])
+        if c not in cluster_docs:
+            cluster_docs[c] = []
+        meta = doc_meta[doc_id]
+        doc_info = _documents.get(doc_id, {})
+        cluster_docs[c].append({
+            "doc_id": doc_id,
+            "title": meta.get("title", ""),
+            "filename": meta.get("filename", ""),
+            "doc_type": meta.get("doc_type", ""),
+            "category": doc_info.get("category", ""),
+        })
+
+    # Generar etiquetas para cada cluster basadas en los tipos más frecuentes
+    cluster_list = []
+    for cid in sorted(cluster_docs.keys()):
+        docs = cluster_docs[cid]
+        # Etiqueta: tipo más frecuente + cantidad
+        type_counts: dict[str, int] = {}
+        for d in docs:
+            t = d.get("doc_type", "documento")
+            type_counts[t] = type_counts.get(t, 0) + 1
+        top_type = max(type_counts, key=type_counts.get) if type_counts else "documentos"
+        label = f"{top_type.replace('_', ' ').title()}" if len(type_counts) == 1 else \
+                f"{top_type.replace('_', ' ').title()} y otros"
+        cluster_list.append({
+            "cluster_id": cid,
+            "label": label,
+            "documents": docs,
+        })
+
+    return {"n_clusters": k, "clusters": cluster_list}
+
+
 @app.get("/api/stats")
 def stats():
     """Estadísticas globales para el dashboard."""
