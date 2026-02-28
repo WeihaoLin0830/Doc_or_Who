@@ -93,7 +93,7 @@ def ingest_file(filepath: Path) -> Document | None:
     return doc
 
 
-def ingest_directory(directory: Path) -> list[Document]:
+def ingest_directory(directory: Path, _status: dict | None = None, _offset: int = 0) -> list[Document]:
     """Procesa todos los ficheros de un directorio."""
     files = sorted(
         f for f in directory.iterdir()
@@ -104,7 +104,11 @@ def ingest_directory(directory: Path) -> list[Document]:
     print(f"{'='*60}\n")
 
     documents = []
-    for filepath in files:
+    for i, filepath in enumerate(files):
+        if _status is not None:
+            _status["phase"] = "indexing"
+            _status["current"] = _offset + i
+            _status["current_file"] = filepath.name
         doc = ingest_file(filepath)
         if doc:
             documents.append(doc)
@@ -113,33 +117,54 @@ def ingest_directory(directory: Path) -> list[Document]:
     return documents
 
 
-def run_full_pipeline():
+def run_full_pipeline(_status: dict | None = None) -> list[Document]:
     """
     Pipeline completo:
     1. Limpia índices previos
     2. Ingesta todos los ficheros del dataset
     3. Construye el grafo de entidades
+
+    El parámetro opcional _status es un dict mutable que se actualiza
+    con el progreso en tiempo real (thread-safe por el GIL de Python).
     """
     t0 = time.time()
+
+    # Calcular total de ficheros para barra de progreso
+    _dirs = [DATASET_DIR]
+    if UPLOAD_DIR.exists():
+        _dirs.append(UPLOAD_DIR)
+    total_files = sum(
+        sum(1 for f in d.iterdir() if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS)
+        for d in _dirs if d.exists()
+    )
+    if _status is not None:
+        _status.update({"phase": "clearing", "current": 0, "total": total_files, "current_file": ""})
 
     # Limpiar índices previos
     print("🧹 Limpiando índices previos...")
     clear_indices()
 
+    if _status is not None:
+        _status.update({"phase": "indexing", "current": 0, "total": total_files, "current_file": ""})
+
     # Ingestar dataset principal
-    documents = ingest_directory(DATASET_DIR)
+    documents = ingest_directory(DATASET_DIR, _status=_status, _offset=0)
 
     # Ingestar uploads si existen
-    if UPLOAD_DIR.exists() and any(UPLOAD_DIR.iterdir()):
-        uploads = ingest_directory(UPLOAD_DIR)
+    if UPLOAD_DIR.exists() and any(f.is_file() for f in UPLOAD_DIR.iterdir()):
+        uploads = ingest_directory(UPLOAD_DIR, _status=_status, _offset=len(documents))
         documents.extend(uploads)
 
     # Construir grafo de entidades
+    if _status is not None:
+        _status.update({"phase": "graph", "current": total_files, "total": total_files, "current_file": ""})
     print(f"\n{'='*60}")
     print("🕸️  Construyendo grafo de entidades...")
     build_graph(documents)
 
     elapsed = time.time() - t0
+    if _status is not None:
+        _status.update({"phase": "done", "current": total_files, "total": total_files, "current_file": "", "elapsed": elapsed})
     print(f"\n{'='*60}")
     print(f"✅ Pipeline completado en {elapsed:.1f}s")
     print(f"   {len(documents)} documentos procesados")

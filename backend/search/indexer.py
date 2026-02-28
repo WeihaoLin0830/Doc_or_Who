@@ -274,25 +274,39 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
 
 
 def clear_indices():
-    """Borra ambos índices para reindexar desde cero."""
+    """
+    Borra ambos índices para reindexar desde cero.
+
+    ChromaDB: usa la API (delete_collection) en lugar de eliminar el directorio.
+    Esto evita la carrera entre el hilo WAL de SQLite y el nuevo PersistentClient
+    que causaba el error 'attempt to write a readonly database'.
+    Si no hay cliente activo, el directorio se elimina como fallback.
+    """
     global _chroma_client, _chroma_collection, _whoosh_index
 
-    # Release the ChromaDB client BEFORE deleting the directory so that
-    # the background SQLite writer thread shuts down cleanly. Otherwise
-    # the new PersistentClient can collide with the WAL left by the old one.
-    _chroma_collection = None
-    _chroma_client = None
+    # ── ChromaDB: limpiar via API para mantener la conexión SQLite activa ──
+    if _chroma_client is not None:
+        try:
+            _chroma_client.delete_collection(CHROMA_COLLECTION)
+            # Dejar el cliente vivo: el próximo _get_chroma_collection()
+            # llamará get_or_create sobre la misma conexión SQLite válida.
+        except Exception as exc:
+            print(f"  ⚠️  ChromaDB delete_collection fallido ({exc}). Borrando directorio.")
+            _chroma_client = None
+            import gc; gc.collect()
+            if CHROMA_DIR.exists():
+                shutil.rmtree(CHROMA_DIR)
+        _chroma_collection = None  # forzar re-create en el siguiente acceso
+    else:
+        # Sin cliente activo → borrado seguro de directorio
+        _chroma_collection = None
+        import gc; gc.collect()
+        if CHROMA_DIR.exists():
+            shutil.rmtree(CHROMA_DIR)
 
-    # Force CPython refcount GC to finalize the old client immediately
-    # (important if ChromaDB has an open background writer thread).
-    import gc
-    gc.collect()
-
-    if CHROMA_DIR.exists():
-        shutil.rmtree(CHROMA_DIR)
+    # ── Whoosh: siempre borrar directorio (safe, no background threads) ──
     if WHOOSH_DIR.exists():
         shutil.rmtree(WHOOSH_DIR)
-
     _whoosh_index = None
     print("🗑️  Índices borrados.")
 

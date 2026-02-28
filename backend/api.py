@@ -22,6 +22,9 @@ Ejecutar:  uvicorn backend.api:app --reload --port 8000
 """
 
 from __future__ import annotations
+import asyncio
+import threading
+import time as _time
 from pathlib import Path
 from typing import Optional
 
@@ -183,6 +186,21 @@ def _list_documents_from_whoosh() -> list[dict]:
                 "category": "",
             }
     return list(documents.values())
+
+
+# ─── Estado global de ingestión ─────────────────────────────────
+_ingest_lock = threading.Lock()
+_ingest_state: dict = {
+    "running": False,
+    "phase": None,        # "clearing" | "indexing" | "graph" | "done" | "error"
+    "current": 0,
+    "total": 0,
+    "current_file": "",
+    "docs_processed": 0,
+    "elapsed": 0.0,
+    "error": None,
+}
+_ingest_t0: float = 0.0
 
 
 # ─── Startup: cargar grafo + tablas SQL ──────────────────────────
@@ -569,41 +587,133 @@ def sql_ask(req: SqlAskRequest):
 
 
 # ─── Ingestión ───────────────────────────────────────────────────
+@app.get("/api/ingest/status")
+def ingest_status():
+    """Estado en tiempo real del pipeline de ingestión."""
+    state = dict(_ingest_state)
+    if state["running"]:
+        state["elapsed"] = round(_time.time() - _ingest_t0, 1)
+    return state
+
+
 @app.post("/api/ingest")
 def ingest():
-    """Re-ejecuta el pipeline completo de ingestión."""
-    from backend.ingestion.ingest import run_full_pipeline
-    docs = run_full_pipeline()
-    # Invalidar cache de schema para el agente
-    try:
-        import backend.ai.agent as _ag; _ag._schema_cache_time = 0
-    except Exception:
-        pass
-    return {"status": "ok", "documents_processed": len(docs)}
+    """
+    Lanza el pipeline de ingestión completo en background.
+    Retorna inmediatamente — sondea /api/ingest/status para seguir el progreso.
+    Devuelve 409 si ya hay una ingestión en curso.
+    """
+    global _ingest_t0
+
+    if not _ingest_lock.acquire(blocking=False):
+        return {"status": "already_running", "running": True, **_ingest_state}
+
+    _ingest_state.update({
+        "running": True,
+        "phase": "starting",
+        "current": 0,
+        "total": 0,
+        "current_file": "",
+        "docs_processed": 0,
+        "elapsed": 0.0,
+        "error": None,
+    })
+    _ingest_t0 = _time.time()
+
+    def _run_pipeline():
+        try:
+            from backend.ingestion.ingest import run_full_pipeline
+            docs = run_full_pipeline(_status=_ingest_state)
+            _ingest_state.update({
+                "running": False,
+                "phase": "done",
+                "docs_processed": len(docs),
+                "elapsed": round(_time.time() - _ingest_t0, 1),
+                "current_file": "",
+                "error": None,
+            })
+            try:
+                import backend.ai.agent as _ag; _ag._schema_cache_time = 0
+            except Exception:
+                pass
+            load_graph()
+        except Exception as exc:
+            _ingest_state.update({
+                "running": False,
+                "phase": "error",
+                "error": str(exc),
+                "elapsed": round(_time.time() - _ingest_t0, 1),
+                "current_file": "",
+            })
+        finally:
+            _ingest_lock.release()
+
+    threading.Thread(target=_run_pipeline, daemon=True, name="ingest-pipeline").start()
+    return {"status": "started", "running": True}
 
 
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
-    """Sube un fichero nuevo y lo procesa."""
+    """Sube un fichero nuevo, lo valida y lo procesa sin bloquear el event loop."""
+    from backend.ingestion.ingest import ingest_file, SUPPORTED_EXTENSIONS
+
+    # No permitir uploads mientras hay una re-ingestión en curso (evita carreras)
+    if _ingest_state.get("running"):
+        raise HTTPException(
+            status_code=409,
+            detail="Re-ingestión en curso. Espera a que termine antes de subir documentos."
+        )
+
+    # Validar extensión antes de leer
+    ext = Path(file.filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Formato '{ext}' no soportado. Usa: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+        )
+
+    # Leer contenido y validar tamaño (máx 50 MB)
+    content = await file.read()
+    MAX_BYTES = 50 * 1024 * 1024
+    if len(content) > MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Archivo demasiado grande ({len(content) // (1024*1024)} MB). Máximo 50 MB."
+        )
+
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
     dest = UPLOAD_DIR / file.filename
-    with open(dest, "wb") as f:
-        content = await file.read()
-        f.write(content)
+    dest.write_bytes(content)
 
-    from backend.ingestion.ingest import ingest_file
-    doc = ingest_file(dest)
+    # Ejecutar ingest en thread pool para no bloquear el event loop (Python 3.9+)
+    import traceback as _tb
+    try:
+        doc = await asyncio.to_thread(ingest_file, dest)
+    except Exception as exc:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al procesar el documento: {type(exc).__name__}: {exc}\n{_tb.format_exc()}"
+        )
+
     if not doc:
-        raise HTTPException(status_code=400, detail="Formato no soportado o sin contenido")
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail="Sin contenido útil o formato no procesable")
 
-    # Simple approach: reload the persisted graph snapshot; full rebuild runs on ingest.
     load_graph()
-    # Invalidar cache de schema (puede haber nuevas tablas CSV)
     try:
         import backend.ai.agent as _ag; _ag._schema_cache_time = 0
     except Exception:
         pass
+
+    # Contar chunks indexados para el response
+    try:
+        from backend.search.indexer import _get_chroma_collection
+        col = _get_chroma_collection()
+        doc_chunks = col.get(where={"doc_id": doc.doc_id}, include=[])
+        chunks_indexed = len(doc_chunks.get("ids", []))
+    except Exception:
+        chunks_indexed = 0
 
     return {
         "status": "ok",
@@ -611,6 +721,8 @@ async def upload(file: UploadFile = File(...)):
         "doc_id": doc.doc_id,
         "doc_type": doc.doc_type,
         "title": doc.title,
+        "language": doc.language,
+        "chunks_indexed": chunks_indexed,
     }
 
 
