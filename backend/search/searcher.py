@@ -373,16 +373,16 @@ def hybrid_search_with_facets(
     debug: bool = False,
 ) -> dict:
     """
-    Búsqueda híbrida que devuelve resultados + facets dinámicos.
-    Los facets se calculan sobre los resultados SIN filtrar para
-    mostrar qué opciones están disponibles en el universo de la query.
+    Búsqueda híbrida que devuelve resultados + facets dinámicos en cascada.
+    Los facets se calculan siempre sobre los resultados filtrados, de modo
+    que al aplicar un filtro los demás se restringen a lo que realmente existe.
+    Para la primera búsqueda (sin filtros) se usa un pool amplio (top 200)
+    para que los facets muestren la variedad máxima.
     """
-    # Resultados sin filtros para calcular facets (hasta 50)
-    all_results = hybrid_search(query=query, top_k=max(top_k, 50), debug=debug)
-    facets = _compute_facets(all_results)
+    active_filters = any([doc_type, language, person, organization, date])
 
-    # Resultados CON filtros aplicados
-    if any([doc_type, language, person, organization, date]):
+    if active_filters:
+        # Resultados con los filtros activos (pool amplio para facets)
         filtered_results = hybrid_search(
             query=query,
             doc_type=doc_type,
@@ -390,11 +390,17 @@ def hybrid_search_with_facets(
             person=person,
             organization=organization,
             date=date,
-            top_k=top_k,
+            top_k=max(top_k, 200),
             debug=debug,
         )
+        # Los facets se calculan sobre ESOS mismos resultados filtrados
+        facets = _compute_facets(filtered_results)
+        filtered_results = filtered_results[:top_k]
     else:
-        filtered_results = all_results[:top_k]
+        # Sin filtros: pool amplio para tener todos los facets disponibles
+        filtered_results = hybrid_search(query=query, top_k=max(top_k, 200), debug=debug)
+        facets = _compute_facets(filtered_results)
+        filtered_results = filtered_results[:top_k]
 
     return {
         "results": filtered_results,

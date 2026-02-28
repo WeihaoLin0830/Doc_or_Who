@@ -369,12 +369,18 @@ function FacetBlock({ title, items, activeValue, onToggle, renderLabel }: {
     title: string; items?: { value: string; count: number }[]; activeValue?: string;
     onToggle: (v: string) => void; renderLabel: (v: string) => React.ReactNode;
 }) {
-    if (!items || items.length === 0) return null;
+    // Always include the active value so it can be deselected, even if backend didn't return it
+    const allItems = items ?? [];
+    const displayItems = activeValue && !allItems.find((i) => i.value === activeValue)
+        ? [{ value: activeValue, count: 0 }, ...allItems]
+        : allItems;
+
+    if (displayItems.length === 0) return null;
     return (
         <div className="bg-white border border-surface-3 rounded-lg p-3">
             <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">{title}</h4>
             <div className="space-y-1 max-h-40 overflow-y-auto">
-                {items.map((f) => (
+                {displayItems.map((f) => (
                     <button key={f.value} onClick={() => onToggle(f.value)}
                         className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${activeValue === f.value ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
                         <div className="flex items-center gap-2">{renderLabel(f.value)}</div>
