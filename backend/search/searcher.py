@@ -11,23 +11,16 @@ Flujo:
 from __future__ import annotations
 
 import re
-import unicodedata
 from collections import Counter
 from typing import Optional
 
-from backend.config import SEARCH_TOP_K, FINAL_TOP_K, RRF_K, WHOOSH_DIR
-from backend.config import SEMANTIC_MIN_SCORE, MAX_CHUNKS_PER_DOC
+from backend.config import FINAL_TOP_K, LEXICAL_STRICT, MAX_CHUNKS_PER_DOC, RRF_K, SEARCH_TOP_K, SEMANTIC_MIN_SCORE, WHOOSH_DIR
 from backend.models import SearchResult
+from backend.text_normalize import _fold_with_mapping, fold_text
 
 
-def _strip_accents(text: str) -> str:
-    """
-    Elimina acentos/diacríticos: 'reunión' → 'reunion'.
-    Permite buscar sin acento y encontrar términos acentuados
-    (cuando el índice Whoosh tiene el mismo analizador).
-    """
-    nfd = unicodedata.normalize("NFKD", text)
-    return "".join(c for c in nfd if not unicodedata.combining(c))
+def _folded_query(text: str) -> str:
+    return fold_text(text)
 
 
 # ─── Sinónimos corporativos español ─────────────────────────────
@@ -53,7 +46,7 @@ def _expand_with_synonyms(query: str) -> str:
     Usa claves normalizadas (sin acentos, minúsculas) para el matching.
     Devuelve la query original si no hay sinónimos aplicables.
     """
-    words = _strip_accents(query.lower()).split()
+    words = _folded_query(query).split()
     extra: list[str] = []
     for word in words:
         if word in _SYNONYMS:
@@ -61,9 +54,20 @@ def _expand_with_synonyms(query: str) -> str:
     if not extra:
         return query
     # Deduplicar manteniendo orden
-    seen: set[str] = set(_strip_accents(query.lower()).split())
+    seen: set[str] = set(_folded_query(query).split())
     unique_extra = [w for w in extra if w not in seen and not seen.add(w)]
     return query + (" " + " ".join(unique_extra) if unique_extra else "")
+
+
+def _whoosh_supports_folded_fields(ix) -> bool:
+    schema_names = set(ix.schema.names())
+    return {"content_folded", "title_folded"}.issubset(schema_names)
+
+
+def _whoosh_search_fields(ix) -> list[str]:
+    if not LEXICAL_STRICT and _whoosh_supports_folded_fields(ix):
+        return ["content_folded", "title_folded", "content", "title", "keywords", "persons", "organizations"]
+    return ["content", "title", "keywords", "persons", "organizations"]
 
 
 def _is_entity_query(query: str) -> bool:
@@ -271,18 +275,30 @@ def _search_whoosh(
 
     ix = whoosh_index.open_dir(str(WHOOSH_DIR))
     filters = filters or {}
+    search_fields = _whoosh_search_fields(ix)
+    fieldboosts = {
+        "title_folded": 2.5,
+        "content_folded": 2.0,
+        "title": 1.8,
+        "content": 1.0,
+        "keywords": 1.2,
+        "persons": 1.2,
+        "organizations": 1.2,
+    }
 
     # AndGroup: "juan carlos" exige AMBOS términos (más preciso que Or).
     # Para queries de una sola palabra And y Or son equivalentes.
     parser = MultifieldParser(
-        ["content", "title", "keywords", "persons", "organizations"],
+        search_fields,
         schema=ix.schema,
         group=AndGroup,
+        fieldboosts={field: fieldboosts[field] for field in search_fields if field in fieldboosts},
     )
 
-    # Normalizar acentos en la query para que coincida con el analizador del índice.
-    # Así "reunion" encuentra "reunión" y viceversa sin importar cómo tipea el usuario.
-    normalized_query = _strip_accents(query)
+    # Fold the lexical query so folded fields become robust to Unicode,
+    # accents and casing. If the index is still on the old schema, we fall
+    # back to raw fields and keep the original query text.
+    normalized_query = _folded_query(query) if not LEXICAL_STRICT and _whoosh_supports_folded_fields(ix) else query
 
     try:
         parsed_query = parser.parse(normalized_query)
@@ -309,9 +325,10 @@ def _search_whoosh(
         # Si And-query da 0 resultados, reintentamos con Or + sinónimos (fallback de precisión)
         if len(hits) == 0:
             or_parser = MultifieldParser(
-                ["content", "title", "keywords", "persons", "organizations"],
+                search_fields,
                 schema=ix.schema,
                 group=OrGroup,
+                fieldboosts={field: fieldboosts[field] for field in search_fields if field in fieldboosts},
             )
             try:
                 expanded_query = _expand_with_synonyms(normalized_query)
@@ -325,12 +342,12 @@ def _search_whoosh(
         for hit in hits:
             # Filtro soft para persons/organizations (contienen substring)
             if filters.get("person"):
-                persons_text = hit.get("persons", "").lower()
-                if filters["person"].lower() not in persons_text:
+                persons_text = fold_text(hit.get("persons", ""))
+                if fold_text(filters["person"]) not in persons_text:
                     continue
             if filters.get("organization"):
-                orgs_text = hit.get("organizations", "").lower()
-                if filters["organization"].lower() not in orgs_text:
+                orgs_text = fold_text(hit.get("organizations", ""))
+                if fold_text(filters["organization"]) not in orgs_text:
                     continue
             # Filtro soft por fecha: normaliza cada fecha almacenada a ISO
             # y verifica prefijo ("2025-01" debe coincidir con "2025-01-10")
@@ -362,6 +379,9 @@ def _search_whoosh(
 
             if len(results) >= top_k:
                 break
+
+    lexical_mode = "strict-raw" if LEXICAL_STRICT else ("folded" if _whoosh_supports_folded_fields(ix) else "raw-fallback")
+    print(f"🔎 Whoosh lexical mode={lexical_mode} query={normalized_query!r} hits={len(results)}")
 
     return results
 
@@ -416,12 +436,12 @@ def _search_chroma(
 
         # Filtro soft para persons/organizations
         if filters.get("person"):
-            persons_text = meta.get("persons", "").lower()
-            if filters["person"].lower() not in persons_text:
+            persons_text = fold_text(meta.get("persons", ""))
+            if fold_text(filters["person"]) not in persons_text:
                 continue
         if filters.get("organization"):
-            orgs_text = meta.get("organizations", "").lower()
-            if filters["organization"].lower() not in orgs_text:
+            orgs_text = fold_text(meta.get("organizations", ""))
+            if fold_text(filters["organization"]) not in orgs_text:
                 continue
         # Filtro soft por fecha: normaliza cada fecha almacenada a ISO
         # y verifica prefijo ("2025-01" debe coincidir con "2025-01-10")
@@ -533,12 +553,12 @@ def _generate_highlight(text: str, query: str, context_chars: int = 200) -> str:
     if not text:
         return ""
 
-    query_terms = [t.lower() for t in query.split() if len(t) > 2]
+    query_terms = [t.casefold() for t in query.split() if len(t) > 2]
 
     if not query_terms:
         return text[:context_chars] + ("..." if len(text) > context_chars else "")
 
-    text_lower = text.lower()
+    text_lower = text.casefold()
 
     # Encontrar la posición de la primera aparición
     best_pos = len(text)
@@ -546,6 +566,16 @@ def _generate_highlight(text: str, query: str, context_chars: int = 200) -> str:
         pos = text_lower.find(term)
         if 0 <= pos < best_pos:
             best_pos = pos
+
+    if best_pos >= len(text):
+        folded_text, mapping = _fold_with_mapping(text)
+        folded_terms = [fold_text(term) for term in query_terms if fold_text(term)]
+        for term in folded_terms:
+            pos = folded_text.find(term)
+            if pos >= 0:
+                mapped_pos = mapping[pos] if pos < len(mapping) else 0
+                if mapped_pos < best_pos:
+                    best_pos = mapped_pos
 
     if best_pos >= len(text):
         best_pos = 0

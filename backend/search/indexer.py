@@ -9,15 +9,16 @@ from __future__ import annotations
 
 import os
 import shutil
-from pathlib import Path
 
 from backend.config import (
     CHROMA_DIR,
     CHROMA_COLLECTION,
+    CHROMA_TELEMETRY_ENABLED,
     EMBEDDING_MODEL,
     WHOOSH_DIR,
 )
 from backend.models import Chunk
+from backend.text_normalize import fold_text
 
 # ─── Whoosh: analizador con eliminación de acentos ────────────────
 # Permite buscar "reunion" y encontrar "reunión" y viceversa.
@@ -35,6 +36,11 @@ _embedding_model = None
 _chroma_client = None       # kept globally so it isn't GC'd while collection is live
 _chroma_collection = None
 _whoosh_index = None
+
+
+def _whoosh_has_folded_fields(ix) -> bool:
+    schema_names = set(ix.schema.names())
+    return {"content_folded", "title_folded"}.issubset(schema_names)
 
 
 def _get_embedding_model():
@@ -55,8 +61,33 @@ def _get_chroma_collection():
     global _chroma_client, _chroma_collection
     if _chroma_collection is None:
         import chromadb
+        from chromadb.config import Settings
+
         CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-        _chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        os.environ.setdefault(
+            "ANONYMIZED_TELEMETRY",
+            "TRUE" if CHROMA_TELEMETRY_ENABLED else "FALSE",
+        )
+        print(
+            "🛰️ Chroma telemetry "
+            f"{'enabled' if CHROMA_TELEMETRY_ENABLED else 'disabled'}."
+        )
+        chroma_settings = {
+            "anonymized_telemetry": CHROMA_TELEMETRY_ENABLED,
+            "is_persistent": True,
+            "persist_directory": str(CHROMA_DIR),
+        }
+        if not CHROMA_TELEMETRY_ENABLED:
+            chroma_settings["chroma_product_telemetry_impl"] = (
+                "backend.search.chroma_telemetry.NoOpTelemetry"
+            )
+            chroma_settings["chroma_telemetry_impl"] = (
+                "backend.search.chroma_telemetry.NoOpTelemetry"
+            )
+        _chroma_client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=Settings(**chroma_settings),
+        )
         _chroma_collection = _chroma_client.get_or_create_collection(
             name=CHROMA_COLLECTION,
             metadata={"hnsw:space": "cosine"},
@@ -65,7 +96,12 @@ def _get_chroma_collection():
 
 
 def _get_whoosh_index(create: bool = False):
-    """Obtiene (o crea) el índice Whoosh."""
+    """
+    Obtiene (o crea) el índice Whoosh.
+
+    Note: changing the schema does not migrate an existing Whoosh index.
+    Rebuild from scratch with clear_indices()/full re-ingest after schema updates.
+    """
     global _whoosh_index
     from whoosh import index as whoosh_index
     from whoosh.fields import Schema, TEXT, ID, KEYWORD
@@ -77,7 +113,9 @@ def _get_whoosh_index(create: bool = False):
         chunk_id=ID(stored=True, unique=True),
         doc_id=ID(stored=True),
         title=TEXT(stored=True, **_ta),
+        title_folded=TEXT(**_ta),
         content=TEXT(stored=True, **_ta),
+        content_folded=TEXT(**_ta),
         doc_type=TEXT(stored=True),
         language=TEXT(stored=True),
         filename=TEXT(stored=True),
@@ -95,6 +133,11 @@ def _get_whoosh_index(create: bool = False):
     if whoosh_index.exists_in(str(WHOOSH_DIR)):
         print(f"📖 Opening existing Whoosh index at {WHOOSH_DIR}")
         _whoosh_index = whoosh_index.open_dir(str(WHOOSH_DIR))
+        if not _whoosh_has_folded_fields(_whoosh_index):
+            print(
+                "⚠️  Existing Whoosh index uses an old schema without folded fields. "
+                "Run clear_indices() or a full re-ingest to rebuild lexical search."
+            )
     else:
         print(f"🆕 Creating Whoosh index at {WHOOSH_DIR}")
         _whoosh_index = whoosh_index.create_in(str(WHOOSH_DIR), schema)
@@ -160,6 +203,7 @@ def _index_chroma(chunks: list[Chunk]) -> int:
 def _index_whoosh(chunks: list[Chunk]) -> int:
     """Indexa chunks en Whoosh (BM25 full-text search)."""
     ix = _get_whoosh_index()
+    has_folded_fields = _whoosh_has_folded_fields(ix)
     writer = ix.writer()
     committed = False
 
@@ -171,7 +215,7 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
 
         for chunk in chunks:
             meta = chunk.metadata
-            writer.update_document(
+            payload = dict(
                 chunk_id=chunk.chunk_id,
                 doc_id=meta["doc_id"],
                 title=meta["title"],
@@ -187,6 +231,10 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
                 dates=meta["dates"],
                 emails=meta.get("emails", ""),
             )
+            if has_folded_fields:
+                payload["title_folded"] = fold_text(meta["title"])
+                payload["content_folded"] = fold_text(chunk.text)
+            writer.update_document(**payload)
 
         writer.commit()
         committed = True

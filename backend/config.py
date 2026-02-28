@@ -5,10 +5,14 @@ Todas las rutas y parámetros del proyecto están aquí.
 Si cambias la ubicación de datos o el modelo de embeddings, solo tocas este fichero.
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # ─── Rutas del proyecto ───────────────────────────────────────────
 ROOT_DIR = Path(__file__).resolve().parent.parent          # DocumentWho/
+load_dotenv(ROOT_DIR / ".env")
 DATASET_DIR = ROOT_DIR / "dataset_default"                 # Datos originales
 DATA_DIR = ROOT_DIR / "data"                               # Datos procesados
 WHOOSH_DIR = DATA_DIR / "whoosh_index"                     # Índice BM25
@@ -22,6 +26,16 @@ EMBEDDING_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 
 # ─── ChromaDB ─────────────────────────────────────────────────────
 CHROMA_COLLECTION = "documentwho"
+CHROMA_TELEMETRY_ENABLED = os.getenv("CHROMA_TELEMETRY_ENABLED", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+os.environ.setdefault(
+    "ANONYMIZED_TELEMETRY",
+    "TRUE" if CHROMA_TELEMETRY_ENABLED else "FALSE",
+)
 
 # ─── Chunking ─────────────────────────────────────────────────────
 MAX_CHUNK_TOKENS = 512        # Tamaño máximo de un chunk (en tokens aprox)
@@ -42,11 +56,9 @@ YAKE_MAX_KEYWORDS = 8
 YAKE_LANGUAGE = "es"
 
 # ─── LLM (Groq) ───────────────────────────────────────────────────
-import os
-from dotenv import load_dotenv
-load_dotenv(ROOT_DIR / ".env")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = "llama-3.1-8b-instant"
+LEXICAL_STRICT = os.getenv("LEXICAL_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 # ─── DuckDB ───────────────────────────────────────────────────────
 DUCKDB_PATH = DATA_DIR / "tables.duckdb"
