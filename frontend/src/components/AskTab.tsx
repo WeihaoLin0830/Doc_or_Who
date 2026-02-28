@@ -108,9 +108,8 @@ export function AskTab() {
         <section className="fade-in flex h-[calc(100vh-6rem)]">
             {/* ─── Sidebar ──────────────────────────────────────── */}
             <aside
-                className={`${
-                    sidebarOpen ? "w-64" : "w-0"
-                } shrink-0 transition-all duration-200 overflow-hidden border-r border-surface-3 bg-surface-1 flex flex-col`}
+                className={`${sidebarOpen ? "w-64" : "w-0"
+                    } shrink-0 transition-all duration-200 overflow-hidden border-r border-surface-3 bg-surface-1 flex flex-col`}
             >
                 <div className="flex items-center justify-between p-3 border-b border-surface-3">
                     <span className="text-xs font-semibold text-ink-2 uppercase tracking-wider">Conversaciones</span>
@@ -130,11 +129,10 @@ export function AskTab() {
                         <div
                             key={s.id}
                             onClick={() => selectSession(s.id)}
-                            className={`group flex items-center gap-2 mx-1.5 my-0.5 px-3 py-2 rounded-md cursor-pointer text-sm transition-colors ${
-                                s.id === activeId
+                            className={`group flex items-center gap-2 mx-1.5 my-0.5 px-3 py-2 rounded-md cursor-pointer text-sm transition-colors ${s.id === activeId
                                     ? "bg-brand-50 text-brand-700 font-medium"
                                     : "text-ink-1 hover:bg-surface-2"
-                            }`}
+                                }`}
                         >
                             <svg className="w-3.5 h-3.5 shrink-0 text-ink-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -195,11 +193,10 @@ export function AskTab() {
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`fade-in flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                                 <div
-                                    className={`max-w-[85%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
-                                        msg.role === "user"
+                                    className={`max-w-[85%] rounded-xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user"
                                             ? "bg-brand-600 text-white"
                                             : "bg-white border border-surface-3 text-ink-0"
-                                    }`}
+                                        }`}
                                 >
                                     {msg.role === "user" ? (
                                         <div>{msg.content}</div>
@@ -237,9 +234,8 @@ export function AskTab() {
                                                 {msg.sources.map((src) => (
                                                     <span
                                                         key={src.filename}
-                                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
-                                                            msg.role === "user" ? "bg-brand-500 text-brand-100" : "bg-surface-2 text-ink-2"
-                                                        }`}
+                                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${msg.role === "user" ? "bg-brand-500 text-brand-100" : "bg-surface-2 text-ink-2"
+                                                            }`}
                                                     >
                                                         {src.filename}
                                                     </span>
