@@ -1,5 +1,191 @@
 {
   "nodes": {
+    "alejandro pérez-villanueva lópez": {
+      "name": "Alejandro Pérez-Villanueva López",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "dni 76.543.210-b": {
+      "name": "DNI 76.543.210-B",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "don alejandro pérez-villanueva lópez": {
+      "name": "Don Alejandro Pérez-Villanueva López",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "don pedro suárez castro": {
+      "name": "Don Pedro Suárez Castro",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "doña laura fernández iglesias": {
+      "name": "Doña Laura Fernández Iglesias",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "doña laura fernández iglesias don pedro suárez castro": {
+      "name": "Doña Laura Fernández Iglesias Don Pedro Suárez Castro",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "firma": {
+      "name": "Firma",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "garcía barbón": {
+      "name": "García Barbón",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "intervienen": {
+      "name": "Intervienen",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "laura fernández iglesias": {
+      "name": "Laura Fernández Iglesias",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "notario": {
+      "name": "Notario",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "notario del ilustre colegio de galicia": {
+      "name": "Notario del Ilustre Colegio de Galicia",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "pedro suárez castro": {
+      "name": "Pedro Suárez Castro",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "rúa": {
+      "name": "Rúa",
+      "entity_type": "person",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "administradores solidarios": {
+      "name": "Administradores Solidarios",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "diez euros": {
+      "name": "DIEZ EUROS",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "dni": {
+      "name": "DNI",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "doy": {
+      "name": "Doy",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "exponen": {
+      "name": "EXPONEN",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418",
+        "07a8a5936afa",
+        "6b59bf324642"
+      ],
+      "mentions": 3
+    },
+    "responsabilidad": {
+      "name": "RESPONSABILIDAD",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "sociedad": {
+      "name": "SOCIEDAD",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "sociedad de artículo 1.- denominación": {
+      "name": "Sociedad de Artículo 1.- DENOMINACIÓN",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
+    "sociedad de responsabilidad limitada": {
+      "name": "Sociedad de Responsabilidad Limitada",
+      "entity_type": "organization",
+      "doc_ids": [
+        "9d0fcf0de418"
+      ],
+      "mentions": 1
+    },
     "ana belén": {
       "name": "Ana Belén",
       "entity_type": "person",
@@ -176,14 +362,6 @@
       ],
       "mentions": 1
     },
-    "sprint": {
-      "name": "SPRINT",
-      "entity_type": "organization",
-      "doc_ids": [
-        "9434e75ecde7"
-      ],
-      "mentions": 1
-    },
     "tech lead": {
       "name": "Tech Lead",
       "entity_type": "organization",
@@ -193,14 +371,6 @@
       ],
       "mentions": 2
     },
-    "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": {
-      "name": "Alfonso Vázquez Reboredo\nSocio Director\nConsultoría Vázquez & Asociados\nMadrid",
-      "entity_type": "person",
-      "doc_ids": [
-        "b582385993f7"
-      ],
-      "mentions": 1
-    },
     "elaborar": {
       "name": "Elaborar",
       "entity_type": "person",
@@ -209,14 +379,6 @@
         "6b59bf324642"
       ],
       "mentions": 2
-    },
-    "h3": {
-      "name": "H3",
-      "entity_type": "person",
-      "doc_ids": [
-        "b582385993f7"
-      ],
-      "mentions": 1
     },
     "separar": {
       "name": "Separar",
@@ -299,16 +461,6 @@
       ],
       "mentions": 1
     },
-    "formación": {
-      "name": "Formación",
-      "entity_type": "organization",
-      "doc_ids": [
-        "b582385993f7",
-        "1644b1c99f1f",
-        "65297a97797d"
-      ],
-      "mentions": 3
-    },
     "grupo industrial mares s.a.": {
       "name": "Grupo Industrial Mares S.A.",
       "entity_type": "organization",
@@ -343,14 +495,6 @@
       ],
       "mentions": 1
     },
-    "normas internacionales para el ejercicio\nprofesional de la auditoría interna": {
-      "name": "Normas Internacionales para el Ejercicio\nProfesional de la Auditoría Interna",
-      "entity_type": "organization",
-      "doc_ids": [
-        "b582385993f7"
-      ],
-      "mentions": 1
-    },
     "rgpd": {
       "name": "RGPD",
       "entity_type": "organization",
@@ -371,14 +515,6 @@
     },
     "anc": {
       "name": "ANC",
-      "entity_type": "organization",
-      "doc_ids": [
-        "c939dd6cab3a"
-      ],
-      "mentions": 1
-    },
-    "inf-005\nwebcam inputmaster brio": {
-      "name": "INF-005\nWebcam InputMaster Brio",
       "entity_type": "organization",
       "doc_ids": [
         "c939dd6cab3a"
@@ -422,14 +558,6 @@
       "entity_type": "organization",
       "doc_ids": [
         "c939dd6cab3a"
-      ],
-      "mentions": 1
-    },
-    "rafael alonso hernández\ndirector de certificación\nacnor\nmadrid": {
-      "name": "Rafael Alonso Hernández\nDirector de Certificación\nACNOR\nMadrid",
-      "entity_type": "person",
-      "doc_ids": [
-        "3307071f17bb"
       ],
       "mentions": 1
     },
@@ -547,15 +675,6 @@
       ],
       "mentions": 1
     },
-    "exponen": {
-      "name": "EXPONEN",
-      "entity_type": "organization",
-      "doc_ids": [
-        "07a8a5936afa",
-        "6b59bf324642"
-      ],
-      "mentions": 2
-    },
     "ine": {
       "name": "INE",
       "entity_type": "organization",
@@ -645,14 +764,6 @@
       ],
       "mentions": 1
     },
-    "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": {
-      "name": "Fernando Mares López\nDirector General\nGrupo Industrial Mares S.A.\nDocumento",
-      "entity_type": "person",
-      "doc_ids": [
-        "6b59bf324642"
-      ],
-      "mentions": 1
-    },
     "hoja": {
       "name": "Hoja",
       "entity_type": "person",
@@ -660,15 +771,6 @@
         "6b59bf324642"
       ],
       "mentions": 1
-    },
-    "mantener": {
-      "name": "Mantener",
-      "entity_type": "person",
-      "doc_ids": [
-        "6b59bf324642",
-        "2f6e1cb57283"
-      ],
-      "mentions": 2
     },
     "pedro suárez garcía": {
       "name": "Pedro Suárez García",
@@ -785,23 +887,6 @@
       ],
       "mentions": 1
     },
-    "ue": {
-      "name": "UE",
-      "entity_type": "organization",
-      "doc_ids": [
-        "6b59bf324642",
-        "d3caaab50b2e"
-      ],
-      "mentions": 2
-    },
-    "po-2024-0156": {
-      "name": "PO-2024-0156",
-      "entity_type": "person",
-      "doc_ids": [
-        "5182c7b25def"
-      ],
-      "mentions": 1
-    },
     "pedro.": {
       "name": "Pedro.",
       "entity_type": "person",
@@ -818,14 +903,6 @@
       ],
       "mentions": 1
     },
-    "eta": {
-      "name": "ETA",
-      "entity_type": "organization",
-      "doc_ids": [
-        "5182c7b25def"
-      ],
-      "mentions": 1
-    },
     "shentech": {
       "name": "ShenTech",
       "entity_type": "organization",
@@ -834,11 +911,11 @@
       ],
       "mentions": 1
     },
-    "ap": {
-      "name": "AP",
+    "pag": {
+      "name": "PAG",
       "entity_type": "organization",
       "doc_ids": [
-        "dc26a76205ed"
+        "45e5dab4855c"
       ],
       "mentions": 1
     },
@@ -852,14 +929,6 @@
     },
     "fcc": {
       "name": "FCC",
-      "entity_type": "organization",
-      "doc_ids": [
-        "dc26a76205ed"
-      ],
-      "mentions": 1
-    },
-    "rh": {
-      "name": "RH",
       "entity_type": "organization",
       "doc_ids": [
         "dc26a76205ed"
@@ -1009,14 +1078,6 @@
       ],
       "mentions": 2
     },
-    "tk-2024-0406": {
-      "name": "TK-2024-0406",
-      "entity_type": "organization",
-      "doc_ids": [
-        "75be6d63d84a"
-      ],
-      "mentions": 1
-    },
     "uci": {
       "name": "UCI",
       "entity_type": "organization",
@@ -1041,14 +1102,6 @@
         "f598e3529519"
       ],
       "mentions": 2
-    },
-    "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": {
-      "name": "María José Alonso\nDirectora Financiera\nGrupo Industrial Mares S.A.",
-      "entity_type": "person",
-      "doc_ids": [
-        "1644b1c99f1f"
-      ],
-      "mentions": 1
     },
     "+9.1%\ningresos": {
       "name": "+9.1%\nIngresos",
@@ -1132,14 +1185,6 @@
       ],
       "mentions": 1
     },
-    "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": {
-      "name": "Fernando Mares López\nPresidente de Grupo Industrial Mares S.A.\nPágina 1\n\nGrupo Industrial Mares S.A. | Informe de Sostenibilidad 2023",
-      "entity_type": "person",
-      "doc_ids": [
-        "d3caaab50b2e"
-      ],
-      "mentions": 1
-    },
     "reducción": {
       "name": "Reducción",
       "entity_type": "person",
@@ -1206,22 +1251,6 @@
     },
     "gestión": {
       "name": "Gestión",
-      "entity_type": "organization",
-      "doc_ids": [
-        "d3caaab50b2e"
-      ],
-      "mentions": 1
-    },
-    "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": {
-      "name": "Grupo Industrial Mares S.A. | Informe de Sostenibilidad 2023\nCARTA",
-      "entity_type": "organization",
-      "doc_ids": [
-        "d3caaab50b2e"
-      ],
-      "mentions": 1
-    },
-    "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": {
-      "name": "Grupo Industrial Mares S.A. | Informe de Sostenibilidad 2023\n•",
       "entity_type": "organization",
       "doc_ids": [
         "d3caaab50b2e"
@@ -1452,14 +1481,6 @@
       ],
       "mentions": 1
     },
-    "sn-2024-11287": {
-      "name": "SN-2024-11287",
-      "entity_type": "person",
-      "doc_ids": [
-        "f598e3529519"
-      ],
-      "mentions": 1
-    },
     "sara nogueira": {
       "name": "Sara Nogueira",
       "entity_type": "person",
@@ -1580,30 +1601,6 @@
       ],
       "mentions": 1
     },
-    "up": {
-      "name": "up",
-      "entity_type": "organization",
-      "doc_ids": [
-        "46ceb81c7cda"
-      ],
-      "mentions": 1
-    },
-    "atentamente": {
-      "name": "Atentamente",
-      "entity_type": "person",
-      "doc_ids": [
-        "2f6e1cb57283"
-      ],
-      "mentions": 1
-    },
-    "disponer": {
-      "name": "Disponer",
-      "entity_type": "person",
-      "doc_ids": [
-        "2f6e1cb57283"
-      ],
-      "mentions": 1
-    },
     "dirección\ngeneral": {
       "name": "Dirección\nGeneral",
       "entity_type": "organization",
@@ -1614,30 +1611,6 @@
     },
     "dirección general\nnovatech solutions": {
       "name": "Dirección General\nNovaTech Solutions",
-      "entity_type": "organization",
-      "doc_ids": [
-        "2f6e1cb57283"
-      ],
-      "mentions": 1
-    },
-    "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": {
-      "name": "Dirección General\nPara: Todo el personal\nFecha: 1 de abril de 2024\nAsunto: Actualización",
-      "entity_type": "organization",
-      "doc_ids": [
-        "2f6e1cb57283"
-      ],
-      "mentions": 1
-    },
-    "elegibilidad": {
-      "name": "ELEGIBILIDAD",
-      "entity_type": "organization",
-      "doc_ids": [
-        "2f6e1cb57283"
-      ],
-      "mentions": 1
-    },
-    "memorándum": {
-      "name": "MEMORÁNDUM",
       "entity_type": "organization",
       "doc_ids": [
         "2f6e1cb57283"
@@ -1676,14 +1649,6 @@
       ],
       "mentions": 1
     },
-    "nda-2023-1108": {
-      "name": "NDA-2023-1108",
-      "entity_type": "person",
-      "doc_ids": [
-        "975783bc576e"
-      ],
-      "mentions": 1
-    },
     "page": {
       "name": "Page",
       "entity_type": "person",
@@ -1709,24 +1674,8 @@
       ],
       "mentions": 1
     },
-    "waiving any other jurisdiction to which they might be entitled": {
-      "name": "waiving any other jurisdiction to which they might be entitled",
-      "entity_type": "person",
-      "doc_ids": [
-        "975783bc576e"
-      ],
-      "mentions": 1
-    },
     "& greenfield energy ltd": {
       "name": "& Greenfield Energy Ltd",
-      "entity_type": "organization",
-      "doc_ids": [
-        "975783bc576e"
-      ],
-      "mentions": 1
-    },
-    "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": {
-      "name": "All communications and notices to be made under this Agreement shall be addressed to the\nfollowing addresses",
       "entity_type": "organization",
       "doc_ids": [
         "975783bc576e"
@@ -1760,14 +1709,6 @@
     },
     "head of partnerships": {
       "name": "Head of Partnerships",
-      "entity_type": "organization",
-      "doc_ids": [
-        "975783bc576e"
-      ],
-      "mentions": 1
-    },
-    "nda-2023-1108\nfecha / date": {
-      "name": "NDA-2023-1108\nFecha / Date",
       "entity_type": "organization",
       "doc_ids": [
         "975783bc576e"
@@ -1808,30 +1749,6 @@
     },
     "officers": {
       "name": "officers",
-      "entity_type": "organization",
-      "doc_ids": [
-        "975783bc576e"
-      ],
-      "mentions": 1
-    },
-    "or advisors who need to know it for the\npurposes of the collaboration between the parties": {
-      "name": "or advisors who need to know it for the\npurposes of the collaboration between the Parties",
-      "entity_type": "organization",
-      "doc_ids": [
-        "975783bc576e"
-      ],
-      "mentions": 1
-    },
-    "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": {
-      "name": "the Parties expressly submit to the jurisdiction of the Courts of Santiago de\nCompostela",
-      "entity_type": "organization",
-      "doc_ids": [
-        "975783bc576e"
-      ],
-      "mentions": 1
-    },
-    "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": {
-      "name": "the disclosing\nParty to allow it to take such protective measures as it deems appropriate",
       "entity_type": "organization",
       "doc_ids": [
         "975783bc576e"
@@ -2047,22 +1964,6 @@
       ],
       "mentions": 1
     },
-    "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": {
-      "name": "DOC/2024-0087 | Pliego de Prescripciones Técnicas | Página 1/4",
-      "entity_type": "organization",
-      "doc_ids": [
-        "941ab348b6ea"
-      ],
-      "mentions": 1
-    },
-    "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": {
-      "name": "DOC/2024-0087 | Pliego de Prescripciones Técnicas | Página 3/4",
-      "entity_type": "organization",
-      "doc_ids": [
-        "941ab348b6ea"
-      ],
-      "mentions": 1
-    },
     "ens": {
       "name": "ENS",
       "entity_type": "organization",
@@ -2129,14 +2030,6 @@
     },
     "real\ndecreto": {
       "name": "Real\nDecreto",
-      "entity_type": "organization",
-      "doc_ids": [
-        "941ab348b6ea"
-      ],
-      "mentions": 1
-    },
-    "sa": {
-      "name": "SA",
       "entity_type": "organization",
       "doc_ids": [
         "941ab348b6ea"
@@ -2233,14 +2126,6 @@
     },
     "prop-2024-0518-sp\npágina 3/4\ndesarrollo": {
       "name": "PROP-2024-0518-SP\nPágina 3/4\nDesarrollo",
-      "entity_type": "organization",
-      "doc_ids": [
-        "65297a97797d"
-      ],
-      "mentions": 1
-    },
-    "qa": {
-      "name": "QA",
       "entity_type": "organization",
       "doc_ids": [
         "65297a97797d"
@@ -2441,6 +2326,598 @@
     }
   },
   "edges": {
+    "alejandro pérez-villanueva lópez": {
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "dni 76.543.210-b": {
+      "alejandro pérez-villanueva lópez": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "don alejandro pérez-villanueva lópez": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "don pedro suárez castro": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "doña laura fernández iglesias": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "doña laura fernández iglesias don pedro suárez castro": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "firma": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "garcía barbón": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "intervienen": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "laura fernández iglesias": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "notario": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "notario del ilustre colegio de galicia": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "pedro suárez castro": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "rúa": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "administradores solidarios": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "diez euros": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "dni": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "doy": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "exponen": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1,
+      "b-15678901": 1,
+      "consejero delegado": 2,
+      "d. pedro\nsuárez": 1,
+      "dolores vázquez prieto": 1,
+      "dolores vázquez prieto\nfdo": 1,
+      "dña": 1,
+      "fdo": 2,
+      "pedro suárez\nadministradora\nceo": 1,
+      "arrendatario": 1,
+      "costa atlántica": 1,
+      "el arrendatario": 1,
+      "ine": 1,
+      "impuesto": 2,
+      "instituto nacional de estadística": 1,
+      "local": 1,
+      "local\npara uso": 1,
+      "oficina\nreferencia": 1,
+      "renta\nel arrendatario": 1,
+      "subarriendo": 1,
+      "uso": 1,
+      "a-36123456": 1,
+      "elaborar": 1,
+      "fernando mares lópez": 1,
+      "hoja": 1,
+      "pedro suárez garcía": 1,
+      "pedro suárez garcía\nconsejero delegado": 1,
+      "cliente": 2,
+      "cliente\ngrupo industrial mares s.a.": 1,
+      "consejo": 1,
+      "contrato cs-2024-0315-nvt": 1,
+      "departamento l": 1,
+      "grupo industrial\nmares s.a.": 1,
+      "grupo industrial mares s.a.": 1,
+      "grupo industrial mares s.a.\nno": 1,
+      "grupo mares": 1,
+      "lopdgdd": 1,
+      "novatech": 2,
+      "obligaciones": 1,
+      "parlamento europeo": 1,
+      "rgpd": 1
+    },
+    "responsabilidad": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "sociedad": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad de artículo 1.- denominación": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "sociedad de artículo 1.- denominación": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de responsabilidad limitada": 1
+    },
+    "sociedad de responsabilidad limitada": {
+      "alejandro pérez-villanueva lópez": 1,
+      "dni 76.543.210-b": 1,
+      "don alejandro pérez-villanueva lópez": 1,
+      "don pedro suárez castro": 1,
+      "doña laura fernández iglesias": 1,
+      "doña laura fernández iglesias don pedro suárez castro": 1,
+      "firma": 1,
+      "garcía barbón": 1,
+      "intervienen": 1,
+      "laura fernández iglesias": 1,
+      "notario": 1,
+      "notario del ilustre colegio de galicia": 1,
+      "pedro suárez castro": 1,
+      "rúa": 1,
+      "administradores solidarios": 1,
+      "diez euros": 1,
+      "dni": 1,
+      "doy": 1,
+      "exponen": 1,
+      "responsabilidad": 1,
+      "sociedad": 1,
+      "sociedad de artículo 1.- denominación": 1
+    },
     "ana belén": {
       "ana belén rivas": 2,
       "carlos": 1,
@@ -2461,12 +2938,9 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
-      "po-2024-0156": 1,
       "pedro.": 1,
       "raúl": 1,
-      "eta": 1,
       "grupo mares": 1,
       "shentech": 1
     },
@@ -2490,12 +2964,9 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
-      "po-2024-0156": 1,
       "pedro.": 1,
       "raúl": 1,
-      "eta": 1,
       "grupo mares": 1,
       "shentech": 1,
       "adrián castro": 1,
@@ -2519,7 +2990,6 @@
       "pf4bcde6": 1,
       "pablo souto": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -2532,14 +3002,12 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1,
       "javier cao": 1,
@@ -2573,7 +3041,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "carlos méndez": {
@@ -2596,7 +3063,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
       "adrián castro": 1,
       "alejandro varela": 1,
@@ -2619,7 +3085,6 @@
       "pf4bcde6": 1,
       "pablo souto": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -2648,7 +3113,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "iván": {
@@ -2671,7 +3135,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "iván reyes": {
@@ -2694,7 +3157,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
       "balanza": 1,
       "cambio": 1,
@@ -2713,7 +3175,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1,
       "adrián castro": 1,
       "alejandro varela": 1,
@@ -2736,7 +3197,6 @@
       "pf4bcde6": 1,
       "pablo souto": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -2765,7 +3225,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "marta": {
@@ -2788,7 +3247,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "marta lois": {
@@ -2811,7 +3269,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
       "balanza": 1,
       "cambio": 1,
@@ -2830,7 +3287,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1,
       "adrián castro": 1,
       "alejandro varela": 1,
@@ -2853,7 +3309,6 @@
       "pf4bcde6": 1,
       "pablo souto": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -2882,7 +3337,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "pedro + marta": {
@@ -2905,7 +3359,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "pedro suárez": {
@@ -2928,12 +3381,9 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
-      "po-2024-0156": 1,
       "pedro.": 1,
       "raúl": 1,
-      "eta": 1,
       "grupo mares": 1,
       "shentech": 1,
       "adrián castro": 1,
@@ -2957,7 +3407,6 @@
       "pf4bcde6": 1,
       "pablo souto": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -2986,12 +3435,9 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
-      "po-2024-0156": 1,
       "pedro.": 1,
       "raúl": 1,
-      "eta": 1,
       "grupo mares": 1,
       "shentech": 1,
       "adrián castro": 1,
@@ -3015,7 +3461,6 @@
       "pf4bcde6": 1,
       "pablo souto": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -3062,7 +3507,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "sara domínguez": {
@@ -3085,7 +3529,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "finpay": {
@@ -3108,7 +3551,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "grupo industrial\nmares": {
@@ -3131,9 +3573,7 @@
       "finpay": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1,
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -3146,15 +3586,12 @@
       "gestión": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
@@ -3178,7 +3615,6 @@
       "finpay": 1,
       "grupo industrial\nmares": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "tech lead": 1
     },
     "qa engineer": {
@@ -3201,30 +3637,6 @@
       "finpay": 1,
       "grupo industrial\nmares": 1,
       "product owner": 1,
-      "sprint": 1,
-      "tech lead": 1
-    },
-    "sprint": {
-      "ana belén": 1,
-      "ana belén rivas": 1,
-      "carlos": 1,
-      "carlos méndez": 1,
-      "compras": 1,
-      "iván": 1,
-      "iván reyes": 1,
-      "kafka": 1,
-      "marta": 1,
-      "marta lois": 1,
-      "pedro": 1,
-      "pedro + marta": 1,
-      "pedro suárez": 1,
-      "raúl domínguez": 1,
-      "raúl domínguez | escalar": 1,
-      "sara domínguez": 1,
-      "finpay": 1,
-      "grupo industrial\nmares": 1,
-      "product owner": 1,
-      "qa engineer": 1,
       "tech lead": 1
     },
     "tech lead": {
@@ -3248,7 +3660,6 @@
       "grupo industrial\nmares": 1,
       "product owner": 1,
       "qa engineer": 1,
-      "sprint": 1,
       "aleksandr novak": 1,
       "aleksandr novak\nthis": 1,
       "indefinite": 1,
@@ -3260,30 +3671,7 @@
       "eur": 1,
       "software engineer": 1
     },
-    "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": {
-      "elaborar": 1,
-      "h3": 1,
-      "separar": 1,
-      "seve\nlas": 1,
-      "seve\nse": 1,
-      "aepd": 1,
-      "agencia española de protección de datos": 1,
-      "consultoría vázquez & asociados\ndestinatario": 1,
-      "dir": 1,
-      "dirección general": 1,
-      "dpto": 1,
-      "financiera": 1,
-      "formación": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a.\nreferencia": 1,
-      "jurídica": 1,
-      "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
-      "rgpd": 1
-    },
     "elaborar": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3294,20 +3682,16 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 2,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 2,
       "a-36123456": 1,
       "consejero delegado": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -3323,34 +3707,10 @@
       "lopdgdd": 1,
       "novatech": 2,
       "obligaciones": 1,
-      "parlamento europeo": 1,
-      "ue": 1
-    },
-    "h3": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
-      "elaborar": 1,
-      "separar": 1,
-      "seve\nlas": 1,
-      "seve\nse": 1,
-      "aepd": 1,
-      "agencia española de protección de datos": 1,
-      "consultoría vázquez & asociados\ndestinatario": 1,
-      "dir": 1,
-      "dirección general": 1,
-      "dpto": 1,
-      "financiera": 1,
-      "formación": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a.\nreferencia": 1,
-      "jurídica": 1,
-      "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
-      "rgpd": 1
+      "parlamento europeo": 1
     },
     "separar": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
       "aepd": 1,
@@ -3360,18 +3720,14 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "seve\nlas": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nse": 1,
       "aepd": 1,
@@ -3381,18 +3737,14 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "seve\nse": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "aepd": 1,
@@ -3402,18 +3754,14 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "aepd": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3423,18 +3771,14 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "agencia española de protección de datos": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3444,18 +3788,14 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "consultoría vázquez & asociados\ndestinatario": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3465,18 +3805,14 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "dir": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3486,18 +3822,14 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "dirección general": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3507,18 +3839,14 @@
       "dir": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "dpto": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3528,16 +3856,13 @@
       "dir": 1,
       "dirección general": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1,
       "pasacables": 1,
       "anc": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
       "ips": 1,
       "marketing\nfecha de publicación": 1,
       "oficina\nref.": 1,
@@ -3545,9 +3870,7 @@
       "pivot": 1
     },
     "financiera": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3557,67 +3880,14 @@
       "dir": 1,
       "dirección general": 1,
       "dpto": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
-    "formación": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
-      "elaborar": 1,
-      "h3": 1,
-      "separar": 1,
-      "seve\nlas": 1,
-      "seve\nse": 1,
-      "aepd": 1,
-      "agencia española de protección de datos": 1,
-      "consultoría vázquez & asociados\ndestinatario": 1,
-      "dir": 1,
-      "dirección general": 1,
-      "dpto": 1,
-      "financiera": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a.\nreferencia": 1,
-      "jurídica": 1,
-      "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
-      "rgpd": 1,
-      "directora financiera": 1,
-      "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
-      "+9.1%\ningresos": 1,
-      "cdti": 1,
-      "grupo": 1,
-      "ico": 1,
-      "junta": 1,
-      "novatech\nsolutions": 1,
-      "previsiones": 1,
-      "pyme innovadora": 1,
-      "salga": 1,
-      "total ingresos": 1,
-      "ana belén rivas": 1,
-      "autonorte fabricación": 1,
-      "autoridad portuaria de marbravo": 1,
-      "autoridad portuaria de marbravo\npresentado": 1,
-      "calidad": 1,
-      "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación\npruebas": 1,
-      "grupo\nindustrial mares": 1,
-      "novatech": 1,
-      "pcs": 1,
-      "prop-2024-0518-sp\npágina": 1,
-      "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
-      "scada": 1,
-      "uptime": 1
-    },
     "grupo industrial mares s.a.": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 2,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3628,19 +3898,15 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 2,
       "a-36123456": 1,
       "consejero delegado": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -3657,8 +3923,6 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "ue": 2,
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -3671,8 +3935,6 @@
       "gestión": 1,
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
@@ -3683,9 +3945,7 @@
       "universidade do faro": 1
     },
     "grupo industrial mares s.a.\nreferencia": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3696,17 +3956,13 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "jurídica": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3717,17 +3973,13 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "rgpd": 1
     },
     "media": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 1,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3738,38 +3990,13 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 1,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
-      "rgpd": 1
-    },
-    "normas internacionales para el ejercicio\nprofesional de la auditoría interna": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
-      "elaborar": 1,
-      "h3": 1,
-      "separar": 1,
-      "seve\nlas": 1,
-      "seve\nse": 1,
-      "aepd": 1,
-      "agencia española de protección de datos": 1,
-      "consultoría vázquez & asociados\ndestinatario": 1,
-      "dir": 1,
-      "dirección general": 1,
-      "dpto": 1,
-      "financiera": 1,
-      "formación": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a.\nreferencia": 1,
-      "jurídica": 1,
-      "media": 1,
       "rgpd": 1
     },
     "rgpd": {
-      "alfonso vázquez reboredo\nsocio director\nconsultoría vázquez & asociados\nmadrid": 1,
       "elaborar": 2,
-      "h3": 1,
       "separar": 1,
       "seve\nlas": 1,
       "seve\nse": 1,
@@ -3780,19 +4007,15 @@
       "dirección general": 1,
       "dpto": 1,
       "financiera": 1,
-      "formación": 1,
       "grupo industrial mares s.a.": 2,
       "grupo industrial mares s.a.\nreferencia": 1,
       "jurídica": 1,
       "media": 1,
-      "normas internacionales para el ejercicio\nprofesional de la auditoría interna": 1,
       "a-36123456": 1,
       "consejero delegado": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -3809,15 +4032,12 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "ue": 1,
       "anexo": 1,
       "criterio\npuntuación": 1,
       "puntuación": 1,
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -3827,13 +4047,11 @@
       "rbac": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "pasacables": {
       "anc": 1,
       "dpto": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
       "ips": 1,
       "marketing\nfecha de publicación": 1,
       "oficina\nref.": 1,
@@ -3842,17 +4060,6 @@
     },
     "anc": {
       "pasacables": 1,
-      "dpto": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
-      "ips": 1,
-      "marketing\nfecha de publicación": 1,
-      "oficina\nref.": 1,
-      "productos": 1,
-      "pivot": 1
-    },
-    "inf-005\nwebcam inputmaster brio": {
-      "pasacables": 1,
-      "anc": 1,
       "dpto": 1,
       "ips": 1,
       "marketing\nfecha de publicación": 1,
@@ -3864,7 +4071,6 @@
       "pasacables": 1,
       "anc": 1,
       "dpto": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
       "marketing\nfecha de publicación": 1,
       "oficina\nref.": 1,
       "productos": 1,
@@ -3874,7 +4080,6 @@
       "pasacables": 1,
       "anc": 1,
       "dpto": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
       "ips": 1,
       "oficina\nref.": 1,
       "productos": 1,
@@ -3884,7 +4089,6 @@
       "pasacables": 1,
       "anc": 1,
       "dpto": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
       "ips": 1,
       "marketing\nfecha de publicación": 1,
       "productos": 1,
@@ -3894,7 +4098,6 @@
       "pasacables": 1,
       "anc": 1,
       "dpto": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
       "ips": 1,
       "marketing\nfecha de publicación": 1,
       "oficina\nref.": 1,
@@ -3904,29 +4107,20 @@
       "pasacables": 1,
       "anc": 1,
       "dpto": 1,
-      "inf-005\nwebcam inputmaster brio": 1,
       "ips": 1,
       "marketing\nfecha de publicación": 1,
       "oficina\nref.": 1,
       "productos": 1
     },
-    "rafael alonso hernández\ndirector de certificación\nacnor\nmadrid": {
-      "acnor\nasociación de certificación": 1,
-      "empresa": 1,
-      "norma": 1
-    },
     "acnor\nasociación de certificación": {
-      "rafael alonso hernández\ndirector de certificación\nacnor\nmadrid": 1,
       "empresa": 1,
       "norma": 1
     },
     "empresa": {
-      "rafael alonso hernández\ndirector de certificación\nacnor\nmadrid": 1,
       "acnor\nasociación de certificación": 1,
       "norma": 1
     },
     "norma": {
-      "rafael alonso hernández\ndirector de certificación\nacnor\nmadrid": 1,
       "acnor\nasociación de certificación": 1,
       "empresa": 1
     },
@@ -3976,9 +4170,7 @@
       "a-36123456": 1,
       "elaborar": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -3994,8 +4186,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "d. pedro\nsuárez": {
       "b-15678901": 1,
@@ -4109,9 +4300,7 @@
       "a-36123456": 1,
       "elaborar": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4127,8 +4316,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "pedro suárez\nadministradora\nceo": {
       "b-15678901": 1,
@@ -4218,51 +4406,6 @@
       "subarriendo": 1,
       "uso": 1
     },
-    "exponen": {
-      "b-15678901": 1,
-      "consejero delegado": 2,
-      "d. pedro\nsuárez": 1,
-      "dolores vázquez prieto": 1,
-      "dolores vázquez prieto\nfdo": 1,
-      "dña": 1,
-      "fdo": 2,
-      "pedro suárez\nadministradora\nceo": 1,
-      "arrendatario": 1,
-      "costa atlántica": 1,
-      "el arrendatario": 1,
-      "ine": 1,
-      "impuesto": 2,
-      "instituto nacional de estadística": 1,
-      "local": 1,
-      "local\npara uso": 1,
-      "oficina\nreferencia": 1,
-      "renta\nel arrendatario": 1,
-      "subarriendo": 1,
-      "uso": 1,
-      "a-36123456": 1,
-      "elaborar": 1,
-      "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
-      "hoja": 1,
-      "mantener": 1,
-      "pedro suárez garcía": 1,
-      "pedro suárez garcía\nconsejero delegado": 1,
-      "cliente": 2,
-      "cliente\ngrupo industrial mares s.a.": 1,
-      "consejo": 1,
-      "contrato cs-2024-0315-nvt": 1,
-      "departamento l": 1,
-      "grupo industrial\nmares s.a.": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a.\nno": 1,
-      "grupo mares": 1,
-      "lopdgdd": 1,
-      "novatech": 2,
-      "obligaciones": 1,
-      "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
-    },
     "ine": {
       "b-15678901": 1,
       "consejero delegado": 1,
@@ -4309,9 +4452,7 @@
       "a-36123456": 1,
       "elaborar": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4327,8 +4468,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "instituto nacional de estadística": {
       "b-15678901": 1,
@@ -4489,9 +4629,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4509,17 +4647,14 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "fernando mares lópez": {
       "a-36123456": 1,
       "consejero delegado": 1,
       "elaborar": 1,
       "fdo": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4537,36 +4672,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
-    },
-    "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": {
-      "a-36123456": 1,
-      "consejero delegado": 1,
-      "elaborar": 1,
-      "fdo": 1,
-      "fernando mares lópez": 1,
-      "hoja": 1,
-      "mantener": 1,
-      "pedro suárez garcía": 1,
-      "pedro suárez garcía\nconsejero delegado": 1,
-      "cliente": 2,
-      "cliente\ngrupo industrial mares s.a.": 1,
-      "consejo": 1,
-      "contrato cs-2024-0315-nvt": 1,
-      "departamento l": 1,
-      "exponen": 1,
-      "grupo industrial\nmares s.a.": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a.\nno": 1,
-      "grupo mares": 1,
-      "impuesto": 1,
-      "lopdgdd": 1,
-      "novatech": 2,
-      "obligaciones": 1,
-      "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "hoja": {
       "a-36123456": 1,
@@ -4574,8 +4680,6 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4593,44 +4697,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
-    },
-    "mantener": {
-      "a-36123456": 1,
-      "consejero delegado": 1,
-      "elaborar": 1,
-      "fdo": 1,
-      "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
-      "hoja": 1,
-      "pedro suárez garcía": 1,
-      "pedro suárez garcía\nconsejero delegado": 1,
-      "cliente": 2,
-      "cliente\ngrupo industrial mares s.a.": 1,
-      "consejo": 1,
-      "contrato cs-2024-0315-nvt": 1,
-      "departamento l": 1,
-      "exponen": 1,
-      "grupo industrial\nmares s.a.": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a.\nno": 1,
-      "grupo mares": 1,
-      "impuesto": 1,
-      "lopdgdd": 1,
-      "novatech": 2,
-      "obligaciones": 1,
-      "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1,
-      "atentamente": 1,
-      "disponer": 1,
-      "dirección\ngeneral": 1,
-      "dirección general\nnovatech solutions": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "elegibilidad": 1,
-      "memorándum": 1,
-      "recursos humanos": 1
+      "rgpd": 1
     },
     "pedro suárez garcía": {
       "a-36123456": 1,
@@ -4638,9 +4705,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
       "cliente\ngrupo industrial mares s.a.": 1,
@@ -4657,8 +4722,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "pedro suárez garcía\nconsejero delegado": {
       "a-36123456": 1,
@@ -4666,9 +4730,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "cliente": 2,
       "cliente\ngrupo industrial mares s.a.": 1,
@@ -4685,8 +4747,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "cliente": {
       "a-36123456": 2,
@@ -4694,9 +4755,7 @@
       "elaborar": 2,
       "fdo": 2,
       "fernando mares lópez": 2,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 2,
       "hoja": 2,
-      "mantener": 2,
       "pedro suárez garcía": 2,
       "pedro suárez garcía\nconsejero delegado": 2,
       "cliente\ngrupo industrial mares s.a.": 2,
@@ -4713,8 +4772,7 @@
       "novatech": 4,
       "obligaciones": 2,
       "parlamento europeo": 2,
-      "rgpd": 2,
-      "ue": 2
+      "rgpd": 2
     },
     "cliente\ngrupo industrial mares s.a.": {
       "a-36123456": 1,
@@ -4722,9 +4780,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4741,8 +4797,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "consejo": {
       "a-36123456": 1,
@@ -4750,9 +4805,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4769,8 +4822,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "contrato cs-2024-0315-nvt": {
       "a-36123456": 1,
@@ -4778,9 +4830,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4797,8 +4847,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "departamento l": {
       "a-36123456": 1,
@@ -4806,9 +4855,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4825,8 +4872,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "grupo industrial\nmares s.a.": {
       "a-36123456": 1,
@@ -4834,9 +4880,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4853,8 +4897,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "grupo industrial mares s.a.\nno": {
       "a-36123456": 1,
@@ -4862,9 +4905,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4881,8 +4922,7 @@
       "novatech": 2,
       "obligaciones": 1,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "grupo mares": {
       "a-36123456": 1,
@@ -4890,9 +4930,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4910,15 +4948,12 @@
       "obligaciones": 1,
       "parlamento europeo": 1,
       "rgpd": 1,
-      "ue": 1,
       "ana belén": 1,
       "ana belén rivas": 1,
-      "po-2024-0156": 1,
       "pedro suárez": 1,
       "pedro.": 1,
       "raúl": 1,
       "raúl domínguez": 1,
-      "eta": 1,
       "shentech": 1
     },
     "lopdgdd": {
@@ -4927,9 +4962,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -4947,15 +4980,12 @@
       "obligaciones": 1,
       "parlamento europeo": 1,
       "rgpd": 2,
-      "ue": 1,
       "anexo": 1,
       "criterio\npuntuación": 1,
       "puntuación": 1,
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -4965,7 +4995,6 @@
       "rbac": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "novatech": {
@@ -4974,9 +5003,7 @@
       "elaborar": 2,
       "fdo": 2,
       "fernando mares lópez": 2,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 2,
       "hoja": 2,
-      "mantener": 2,
       "pedro suárez garcía": 2,
       "pedro suárez garcía\nconsejero delegado": 2,
       "cliente": 4,
@@ -4994,20 +5021,17 @@
       "obligaciones": 2,
       "parlamento europeo": 2,
       "rgpd": 2,
-      "ue": 2,
       "ana belén rivas": 1,
       "autonorte fabricación": 1,
       "autoridad portuaria de marbravo": 1,
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -5017,9 +5041,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -5036,8 +5058,7 @@
       "lopdgdd": 1,
       "novatech": 2,
       "parlamento europeo": 1,
-      "rgpd": 1,
-      "ue": 1
+      "rgpd": 1
     },
     "parlamento europeo": {
       "a-36123456": 1,
@@ -5045,9 +5066,7 @@
       "elaborar": 1,
       "fdo": 1,
       "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
       "hoja": 1,
-      "mantener": 1,
       "pedro suárez garcía": 1,
       "pedro suárez garcía\nconsejero delegado": 1,
       "cliente": 2,
@@ -5064,100 +5083,22 @@
       "lopdgdd": 1,
       "novatech": 2,
       "obligaciones": 1,
-      "rgpd": 1,
-      "ue": 1
-    },
-    "ue": {
-      "a-36123456": 1,
-      "consejero delegado": 1,
-      "elaborar": 1,
-      "fdo": 1,
-      "fernando mares lópez": 1,
-      "fernando mares lópez\ndirector general\ngrupo industrial mares s.a.\ndocumento": 1,
-      "hoja": 1,
-      "mantener": 1,
-      "pedro suárez garcía": 1,
-      "pedro suárez garcía\nconsejero delegado": 1,
-      "cliente": 2,
-      "cliente\ngrupo industrial mares s.a.": 1,
-      "consejo": 1,
-      "contrato cs-2024-0315-nvt": 1,
-      "departamento l": 1,
-      "exponen": 1,
-      "grupo industrial\nmares s.a.": 1,
-      "grupo industrial mares s.a.": 2,
-      "grupo industrial mares s.a.\nno": 1,
-      "grupo mares": 1,
-      "impuesto": 1,
-      "lopdgdd": 1,
-      "novatech": 2,
-      "obligaciones": 1,
-      "parlamento europeo": 1,
-      "rgpd": 1,
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
-      "reducción": 1,
-      "tasa": 1,
-      "asid": 1,
-      "consultoría vázquez & asociados": 1,
-      "flota": 1,
-      "fomento": 1,
-      "fundación asid": 1,
-      "gdt vigo": 1,
-      "grupo": 1,
-      "gestión": 1,
-      "grupo industrial\nmares": 1,
-      "grupo industrial mares": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
-      "mares": 1,
-      "naciones unidas": 1,
-      "ods": 1,
-      "ods\ngrupo industrial mares": 1,
-      "presidente\nestimados": 1,
-      "udc": 1,
-      "universidade da coruña": 1,
-      "universidade do faro": 1
-    },
-    "po-2024-0156": {
-      "ana belén": 1,
-      "ana belén rivas": 1,
-      "pedro suárez": 1,
-      "pedro.": 1,
-      "raúl": 1,
-      "raúl domínguez": 1,
-      "eta": 1,
-      "grupo mares": 1,
-      "shentech": 1
+      "rgpd": 1
     },
     "pedro.": {
       "ana belén": 1,
       "ana belén rivas": 1,
-      "po-2024-0156": 1,
       "pedro suárez": 1,
       "raúl": 1,
       "raúl domínguez": 1,
-      "eta": 1,
       "grupo mares": 1,
       "shentech": 1
     },
     "raúl": {
       "ana belén": 1,
       "ana belén rivas": 1,
-      "po-2024-0156": 1,
       "pedro suárez": 1,
       "pedro.": 1,
-      "raúl domínguez": 1,
-      "eta": 1,
-      "grupo mares": 1,
-      "shentech": 1
-    },
-    "eta": {
-      "ana belén": 1,
-      "ana belén rivas": 1,
-      "po-2024-0156": 1,
-      "pedro suárez": 1,
-      "pedro.": 1,
-      "raúl": 1,
       "raúl domínguez": 1,
       "grupo mares": 1,
       "shentech": 1
@@ -5165,33 +5106,17 @@
     "shentech": {
       "ana belén": 1,
       "ana belén rivas": 1,
-      "po-2024-0156": 1,
       "pedro suárez": 1,
       "pedro.": 1,
       "raúl": 1,
       "raúl domínguez": 1,
-      "eta": 1,
       "grupo mares": 1
     },
-    "ap": {
-      "alimentación\n5v dc": 1,
-      "fcc": 1,
-      "rh": 1
-    },
     "alimentación\n5v dc": {
-      "ap": 1,
-      "fcc": 1,
-      "rh": 1
+      "fcc": 1
     },
     "fcc": {
-      "ap": 1,
-      "alimentación\n5v dc": 1,
-      "rh": 1
-    },
-    "rh": {
-      "ap": 1,
-      "alimentación\n5v dc": 1,
-      "fcc": 1
+      "alimentación\n5v dc": 1
     },
     "balanza": {
       "cambio": 1,
@@ -5212,7 +5137,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "cambio": {
@@ -5234,7 +5158,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "diego vidal": {
@@ -5256,7 +5179,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "latencia": {
@@ -5278,7 +5200,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "monitor": {
@@ -5300,7 +5221,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "nuria campos": {
@@ -5322,7 +5242,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "teclado": {
@@ -5344,7 +5263,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "descripcion_breve": {
@@ -5366,7 +5284,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "óscar brea": {
@@ -5388,7 +5305,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "agrocampo s.a.": {
@@ -5410,7 +5326,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "autonorte fabricación s.a.": {
@@ -5432,7 +5347,6 @@
       "grupo industrial mares": 2,
       "innoflex holdings s.a.": 2,
       "oceanharvest foods s.a.": 2,
-      "tk-2024-0406": 1,
       "uci": 1,
       "ana belén rivas": 1,
       "javier cao": 1,
@@ -5461,21 +5375,18 @@
       "grupo industrial mares": 2,
       "innoflex holdings s.a.": 2,
       "oceanharvest foods s.a.": 2,
-      "tk-2024-0406": 1,
       "uci": 1,
       "ana belén rivas": 2,
       "autonorte fabricación": 1,
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1,
       "javier cao": 1,
@@ -5504,7 +5415,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "cámara ip": {
@@ -5526,7 +5436,6 @@
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
       "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1,
       "uci": 1
     },
     "grupo industrial mares": {
@@ -5548,9 +5457,7 @@
       "cámara ip": 1,
       "innoflex holdings s.a.": 2,
       "oceanharvest foods s.a.": 2,
-      "tk-2024-0406": 1,
       "uci": 1,
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -5563,15 +5470,12 @@
       "gestión": 1,
       "grupo industrial\nmares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1,
       "ana belén rivas": 1,
@@ -5601,7 +5505,6 @@
       "cámara ip": 1,
       "grupo industrial mares": 2,
       "oceanharvest foods s.a.": 2,
-      "tk-2024-0406": 1,
       "uci": 1,
       "ana belén rivas": 1,
       "javier cao": 1,
@@ -5630,7 +5533,6 @@
       "cámara ip": 1,
       "grupo industrial mares": 2,
       "innoflex holdings s.a.": 2,
-      "tk-2024-0406": 1,
       "uci": 1,
       "ana belén rivas": 1,
       "javier cao": 1,
@@ -5639,28 +5541,6 @@
       "autoridad portuaria de las marismas": 1,
       "diputación de monterrey": 1,
       "metalforge industries s.a.": 1
-    },
-    "tk-2024-0406": {
-      "balanza": 1,
-      "cambio": 1,
-      "diego vidal": 1,
-      "iván reyes": 1,
-      "latencia": 1,
-      "marta lois": 1,
-      "monitor": 1,
-      "nuria campos": 1,
-      "teclado": 1,
-      "descripcion_breve": 1,
-      "óscar brea": 1,
-      "agrocampo s.a.": 1,
-      "autonorte fabricación s.a.": 1,
-      "autoridad portuaria de marbravo": 1,
-      "cervecera dorada s.a.": 1,
-      "cámara ip": 1,
-      "grupo industrial mares": 1,
-      "innoflex holdings s.a.": 1,
-      "oceanharvest foods s.a.": 1,
-      "uci": 1
     },
     "uci": {
       "balanza": 1,
@@ -5681,15 +5561,12 @@
       "cámara ip": 1,
       "grupo industrial mares": 1,
       "innoflex holdings s.a.": 1,
-      "oceanharvest foods s.a.": 1,
-      "tk-2024-0406": 1
+      "oceanharvest foods s.a.": 1
     },
     "directora financiera": {
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5701,10 +5578,8 @@
     },
     "maría josé alonso": {
       "directora financiera": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5739,7 +5614,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -5748,27 +5622,10 @@
       "pf4hxyz3": 1,
       "sigmalink": 1
     },
-    "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": {
-      "directora financiera": 1,
-      "maría josé alonso": 1,
-      "+9.1%\ningresos": 1,
-      "cdti": 1,
-      "formación": 1,
-      "grupo": 1,
-      "ico": 1,
-      "junta": 1,
-      "novatech\nsolutions": 1,
-      "previsiones": 1,
-      "pyme innovadora": 1,
-      "salga": 1,
-      "total ingresos": 1
-    },
     "+9.1%\ningresos": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5781,9 +5638,7 @@
     "cdti": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5796,10 +5651,8 @@
     "grupo": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "ico": 1,
       "junta": 1,
       "novatech\nsolutions": 1,
@@ -5807,7 +5660,6 @@
       "pyme innovadora": 1,
       "salga": 1,
       "total ingresos": 1,
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -5820,25 +5672,20 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "ico": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "junta": 1,
       "novatech\nsolutions": 1,
@@ -5850,10 +5697,8 @@
     "junta": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "novatech\nsolutions": 1,
@@ -5865,10 +5710,8 @@
     "novatech\nsolutions": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5880,10 +5723,8 @@
     "previsiones": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5895,10 +5736,8 @@
     "pyme innovadora": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5910,10 +5749,8 @@
     "salga": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5927,8 +5764,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -5939,16 +5774,13 @@
       "rbac": 1,
       "rgpd": 1,
       "rpo": 1,
-      "real\ndecreto": 1,
-      "sa": 1
+      "real\ndecreto": 1
     },
     "total ingresos": {
       "directora financiera": 1,
       "maría josé alonso": 1,
-      "maría josé alonso\ndirectora financiera\ngrupo industrial mares s.a.": 1,
       "+9.1%\ningresos": 1,
       "cdti": 1,
-      "formación": 1,
       "grupo": 1,
       "ico": 1,
       "junta": 1,
@@ -5957,34 +5789,7 @@
       "pyme innovadora": 1,
       "salga": 1
     },
-    "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": {
-      "reducción": 1,
-      "tasa": 1,
-      "asid": 1,
-      "consultoría vázquez & asociados": 1,
-      "flota": 1,
-      "fomento": 1,
-      "fundación asid": 1,
-      "gdt vigo": 1,
-      "grupo": 1,
-      "gestión": 1,
-      "grupo industrial\nmares": 1,
-      "grupo industrial mares": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
-      "mares": 1,
-      "naciones unidas": 1,
-      "ods": 1,
-      "ods\ngrupo industrial mares": 1,
-      "presidente\nestimados": 1,
-      "udc": 1,
-      "ue": 1,
-      "universidade da coruña": 1,
-      "universidade do faro": 1
-    },
     "reducción": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "tasa": 1,
       "asid": 1,
       "consultoría vázquez & asociados": 1,
@@ -5997,20 +5802,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "tasa": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "asid": 1,
       "consultoría vázquez & asociados": 1,
@@ -6023,20 +5824,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "asid": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "consultoría vázquez & asociados": 1,
@@ -6049,20 +5846,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "consultoría vázquez & asociados": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6075,20 +5868,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "flota": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6101,20 +5890,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "fomento": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6127,20 +5912,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "fundación asid": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6153,20 +5934,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "gdt vigo": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6179,20 +5956,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "gestión": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6205,72 +5978,16 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
-      "universidade da coruña": 1,
-      "universidade do faro": 1
-    },
-    "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
-      "reducción": 1,
-      "tasa": 1,
-      "asid": 1,
-      "consultoría vázquez & asociados": 1,
-      "flota": 1,
-      "fomento": 1,
-      "fundación asid": 1,
-      "gdt vigo": 1,
-      "grupo": 1,
-      "gestión": 1,
-      "grupo industrial\nmares": 1,
-      "grupo industrial mares": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
-      "mares": 1,
-      "naciones unidas": 1,
-      "ods": 1,
-      "ods\ngrupo industrial mares": 1,
-      "presidente\nestimados": 1,
-      "udc": 1,
-      "ue": 1,
-      "universidade da coruña": 1,
-      "universidade do faro": 1
-    },
-    "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
-      "reducción": 1,
-      "tasa": 1,
-      "asid": 1,
-      "consultoría vázquez & asociados": 1,
-      "flota": 1,
-      "fomento": 1,
-      "fundación asid": 1,
-      "gdt vigo": 1,
-      "grupo": 1,
-      "gestión": 1,
-      "grupo industrial\nmares": 1,
-      "grupo industrial mares": 1,
-      "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "mares": 1,
-      "naciones unidas": 1,
-      "ods": 1,
-      "ods\ngrupo industrial mares": 1,
-      "presidente\nestimados": 1,
-      "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "mares": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6284,19 +6001,15 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "naciones unidas": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6310,19 +6023,15 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "ods": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6336,19 +6045,15 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "ods\ngrupo industrial mares": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6362,19 +6067,15 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "presidente\nestimados": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6388,19 +6089,15 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "udc": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6414,19 +6111,15 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
-      "ue": 1,
       "universidade da coruña": 1,
       "universidade do faro": 1
     },
     "universidade da coruña": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6440,19 +6133,15 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade do faro": 1
     },
     "universidade do faro": {
-      "fernando mares lópez\npresidente de grupo industrial mares s.a.\npágina 1\n\ngrupo industrial mares s.a. | informe de sostenibilidad 2023": 1,
       "reducción": 1,
       "tasa": 1,
       "asid": 1,
@@ -6466,15 +6155,12 @@
       "grupo industrial\nmares": 1,
       "grupo industrial mares": 1,
       "grupo industrial mares s.a.": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\ncarta": 1,
-      "grupo industrial mares s.a. | informe de sostenibilidad 2023\n•": 1,
       "mares": 1,
       "naciones unidas": 1,
       "ods": 1,
       "ods\ngrupo industrial mares": 1,
       "presidente\nestimados": 1,
       "udc": 1,
-      "ue": 1,
       "universidade da coruña": 1
     },
     "adrián castro": {
@@ -6504,7 +6190,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6540,7 +6225,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6576,7 +6260,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6612,7 +6295,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6648,7 +6330,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6684,7 +6365,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6720,7 +6400,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6756,7 +6435,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6792,7 +6470,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6828,7 +6505,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6864,7 +6540,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6900,7 +6575,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6936,7 +6610,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -6972,7 +6645,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7008,7 +6680,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7044,7 +6715,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7080,7 +6750,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7116,7 +6785,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7152,7 +6820,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7188,43 +6855,6 @@
       "pablo souto": 1,
       "pedro suárez": 1,
       "raúl domínguez": 1,
-      "sn-2024-11287": 1,
-      "sara nogueira": 1,
-      "sofía iglesias": 1,
-      "fecha_compra": 1,
-      "álvaro gil": 1,
-      "óscar peña": 1,
-      "pf4hxyz3": 1,
-      "sigmalink": 1
-    },
-    "sn-2024-11287": {
-      "adrián castro": 1,
-      "alejandro varela": 1,
-      "ana belén rivas": 1,
-      "beatriz campos": 1,
-      "c02j62vnmd6t": 1,
-      "carlos méndez": 1,
-      "chromaview-804rtxk3b7 | asignado_a": 1,
-      "cristina otero": 1,
-      "dl8vn3q02": 1,
-      "diego romero": 1,
-      "elena pardo": 1,
-      "fernando casal": 1,
-      "gonzalo prieto": 1,
-      "inés carballo": 1,
-      "iván reyes": 1,
-      "lucía blanco": 1,
-      "manuel ríos": 1,
-      "marta lois": 1,
-      "maría josé alonso": 1,
-      "natalia vázquez": 1,
-      "pf1rght5": 1,
-      "pf3fghj9": 1,
-      "pf4bcde6": 1,
-      "pablo souto": 1,
-      "pedro suárez": 1,
-      "raúl domínguez": 1,
-      "rosa martínez": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7261,7 +6891,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
       "álvaro gil": 1,
@@ -7297,7 +6926,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "fecha_compra": 1,
       "álvaro gil": 1,
@@ -7333,7 +6961,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "álvaro gil": 1,
@@ -7369,7 +6996,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7405,7 +7031,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7441,7 +7066,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7477,7 +7101,6 @@
       "pedro suárez": 1,
       "raúl domínguez": 1,
       "rosa martínez": 1,
-      "sn-2024-11287": 1,
       "sara nogueira": 1,
       "sofía iglesias": 1,
       "fecha_compra": 1,
@@ -7492,8 +7115,7 @@
       "jwt": 1,
       "man-iot-v2.1": 1,
       "rate limiting": 1,
-      "totp": 1,
-      "up": 1
+      "totp": 1
     },
     "and": {
       "dispositivos": 1,
@@ -7502,8 +7124,7 @@
       "jwt": 1,
       "man-iot-v2.1": 1,
       "rate limiting": 1,
-      "totp": 1,
-      "up": 1
+      "totp": 1
     },
     "authorization": {
       "dispositivos": 1,
@@ -7512,8 +7133,7 @@
       "jwt": 1,
       "man-iot-v2.1": 1,
       "rate limiting": 1,
-      "totp": 1,
-      "up": 1
+      "totp": 1
     },
     "cuerpo": {
       "dispositivos": 1,
@@ -7522,8 +7142,7 @@
       "jwt": 1,
       "man-iot-v2.1": 1,
       "rate limiting": 1,
-      "totp": 1,
-      "up": 1
+      "totp": 1
     },
     "jwt": {
       "dispositivos": 1,
@@ -7532,8 +7151,7 @@
       "cuerpo": 1,
       "man-iot-v2.1": 1,
       "rate limiting": 1,
-      "totp": 1,
-      "up": 1
+      "totp": 1
     },
     "man-iot-v2.1": {
       "dispositivos": 1,
@@ -7542,8 +7160,7 @@
       "cuerpo": 1,
       "jwt": 1,
       "rate limiting": 1,
-      "totp": 1,
-      "up": 1
+      "totp": 1
     },
     "rate limiting": {
       "dispositivos": 1,
@@ -7552,8 +7169,7 @@
       "cuerpo": 1,
       "jwt": 1,
       "man-iot-v2.1": 1,
-      "totp": 1,
-      "up": 1
+      "totp": 1
     },
     "totp": {
       "dispositivos": 1,
@@ -7562,218 +7178,87 @@
       "cuerpo": 1,
       "jwt": 1,
       "man-iot-v2.1": 1,
-      "rate limiting": 1,
-      "up": 1
-    },
-    "up": {
-      "dispositivos": 1,
-      "and": 1,
-      "authorization": 1,
-      "cuerpo": 1,
-      "jwt": 1,
-      "man-iot-v2.1": 1,
-      "rate limiting": 1,
-      "totp": 1
-    },
-    "atentamente": {
-      "disponer": 1,
-      "mantener": 1,
-      "dirección\ngeneral": 1,
-      "dirección general\nnovatech solutions": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "elegibilidad": 1,
-      "memorándum": 1,
-      "recursos humanos": 1
-    },
-    "disponer": {
-      "atentamente": 1,
-      "mantener": 1,
-      "dirección\ngeneral": 1,
-      "dirección general\nnovatech solutions": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "elegibilidad": 1,
-      "memorándum": 1,
-      "recursos humanos": 1
+      "rate limiting": 1
     },
     "dirección\ngeneral": {
-      "atentamente": 1,
-      "disponer": 1,
-      "mantener": 1,
       "dirección general\nnovatech solutions": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "elegibilidad": 1,
-      "memorándum": 1,
       "recursos humanos": 1
     },
     "dirección general\nnovatech solutions": {
-      "atentamente": 1,
-      "disponer": 1,
-      "mantener": 1,
       "dirección\ngeneral": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "elegibilidad": 1,
-      "memorándum": 1,
-      "recursos humanos": 1
-    },
-    "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": {
-      "atentamente": 1,
-      "disponer": 1,
-      "mantener": 1,
-      "dirección\ngeneral": 1,
-      "dirección general\nnovatech solutions": 1,
-      "elegibilidad": 1,
-      "memorándum": 1,
-      "recursos humanos": 1
-    },
-    "elegibilidad": {
-      "atentamente": 1,
-      "disponer": 1,
-      "mantener": 1,
-      "dirección\ngeneral": 1,
-      "dirección general\nnovatech solutions": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "memorándum": 1,
-      "recursos humanos": 1
-    },
-    "memorándum": {
-      "atentamente": 1,
-      "disponer": 1,
-      "mantener": 1,
-      "dirección\ngeneral": 1,
-      "dirección general\nnovatech solutions": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "elegibilidad": 1,
       "recursos humanos": 1
     },
     "recursos humanos": {
-      "atentamente": 1,
-      "disponer": 1,
-      "mantener": 1,
       "dirección\ngeneral": 1,
-      "dirección general\nnovatech solutions": 1,
-      "dirección general\npara: todo el personal\nfecha: 1 de abril de 2024\nasunto: actualización": 1,
-      "elegibilidad": 1,
-      "memorándum": 1
+      "dirección general\nnovatech solutions": 1
     },
     "acuerdo": {
       "james mitchell": 2,
       "laura fernández": 2,
-      "nda-2023-1108": 2,
       "page": 2,
       "parte": 4,
       "represented": 2,
-      "waiving any other jurisdiction to which they might be entitled": 2,
       "& greenfield energy ltd": 2,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 2,
       "directora legal\nrúa do vilar": 2,
       "directora legal / legal director\nparte segunda": 2,
       "greenfield energy ltd": 2,
       "head of partnerships": 2,
-      "nda-2023-1108\nfecha / date": 2,
       "partes": 2,
       "propiedad intelectual": 2,
       "the confidentiality obligations set": 2,
       "united kingdom\nrepresentada por /": 2,
-      "officers": 2,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 2,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 2,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 2
+      "officers": 2
     },
     "james mitchell": {
       "acuerdo": 2,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "laura fernández": {
       "acuerdo": 2,
       "james mitchell": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
-    },
-    "nda-2023-1108": {
-      "acuerdo": 2,
-      "james mitchell": 1,
-      "laura fernández": 1,
-      "page": 1,
-      "parte": 2,
-      "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
-      "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
-      "directora legal\nrúa do vilar": 1,
-      "directora legal / legal director\nparte segunda": 1,
-      "greenfield energy ltd": 1,
-      "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
-      "partes": 1,
-      "propiedad intelectual": 1,
-      "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "page": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
       "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1,
       "aleksandr novak": 1,
       "aleksandr novak\nthis": 1,
       "indefinite": 1,
@@ -7789,193 +7274,103 @@
       "acuerdo": 4,
       "james mitchell": 2,
       "laura fernández": 2,
-      "nda-2023-1108": 2,
       "page": 2,
       "represented": 2,
-      "waiving any other jurisdiction to which they might be entitled": 2,
       "& greenfield energy ltd": 2,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 2,
       "directora legal\nrúa do vilar": 2,
       "directora legal / legal director\nparte segunda": 2,
       "greenfield energy ltd": 2,
       "head of partnerships": 2,
-      "nda-2023-1108\nfecha / date": 2,
       "partes": 2,
       "propiedad intelectual": 2,
       "the confidentiality obligations set": 2,
       "united kingdom\nrepresentada por /": 2,
-      "officers": 2,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 2,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 2,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 2
+      "officers": 2
     },
     "represented": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
-    },
-    "waiving any other jurisdiction to which they might be entitled": {
-      "acuerdo": 2,
-      "james mitchell": 1,
-      "laura fernández": 1,
-      "nda-2023-1108": 1,
-      "page": 1,
-      "parte": 2,
-      "represented": 1,
-      "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
-      "directora legal\nrúa do vilar": 1,
-      "directora legal / legal director\nparte segunda": 1,
-      "greenfield energy ltd": 1,
-      "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
-      "partes": 1,
-      "propiedad intelectual": 1,
-      "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "& greenfield energy ltd": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
-    },
-    "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": {
-      "acuerdo": 2,
-      "james mitchell": 1,
-      "laura fernández": 1,
-      "nda-2023-1108": 1,
-      "page": 1,
-      "parte": 2,
-      "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
-      "& greenfield energy ltd": 1,
-      "directora legal\nrúa do vilar": 1,
-      "directora legal / legal director\nparte segunda": 1,
-      "greenfield energy ltd": 1,
-      "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
-      "partes": 1,
-      "propiedad intelectual": 1,
-      "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "directora legal\nrúa do vilar": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "directora legal / legal director\nparte segunda": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "greenfield energy ltd": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
       "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1,
       "consultoría": 1,
       "contacto": 1,
       "dpto.": 1,
@@ -7999,241 +7394,103 @@
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
-    },
-    "nda-2023-1108\nfecha / date": {
-      "acuerdo": 2,
-      "james mitchell": 1,
-      "laura fernández": 1,
-      "nda-2023-1108": 1,
-      "page": 1,
-      "parte": 2,
-      "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
-      "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
-      "directora legal\nrúa do vilar": 1,
-      "directora legal / legal director\nparte segunda": 1,
-      "greenfield energy ltd": 1,
-      "head of partnerships": 1,
-      "partes": 1,
-      "propiedad intelectual": 1,
-      "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "partes": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "propiedad intelectual": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "the confidentiality obligations set": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "the confidentiality obligations set": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "united kingdom\nrepresentada por /": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
+      "officers": 1
     },
     "officers": {
       "acuerdo": 2,
       "james mitchell": 1,
       "laura fernández": 1,
-      "nda-2023-1108": 1,
       "page": 1,
       "parte": 2,
       "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
       "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
       "directora legal\nrúa do vilar": 1,
       "directora legal / legal director\nparte segunda": 1,
       "greenfield energy ltd": 1,
       "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
       "partes": 1,
       "propiedad intelectual": 1,
       "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
-    },
-    "or advisors who need to know it for the\npurposes of the collaboration between the parties": {
-      "acuerdo": 2,
-      "james mitchell": 1,
-      "laura fernández": 1,
-      "nda-2023-1108": 1,
-      "page": 1,
-      "parte": 2,
-      "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
-      "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
-      "directora legal\nrúa do vilar": 1,
-      "directora legal / legal director\nparte segunda": 1,
-      "greenfield energy ltd": 1,
-      "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
-      "partes": 1,
-      "propiedad intelectual": 1,
-      "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
-    },
-    "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": {
-      "acuerdo": 2,
-      "james mitchell": 1,
-      "laura fernández": 1,
-      "nda-2023-1108": 1,
-      "page": 1,
-      "parte": 2,
-      "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
-      "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
-      "directora legal\nrúa do vilar": 1,
-      "directora legal / legal director\nparte segunda": 1,
-      "greenfield energy ltd": 1,
-      "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
-      "partes": 1,
-      "propiedad intelectual": 1,
-      "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": 1
-    },
-    "the disclosing\nparty to allow it to take such protective measures as it deems appropriate": {
-      "acuerdo": 2,
-      "james mitchell": 1,
-      "laura fernández": 1,
-      "nda-2023-1108": 1,
-      "page": 1,
-      "parte": 2,
-      "represented": 1,
-      "waiving any other jurisdiction to which they might be entitled": 1,
-      "& greenfield energy ltd": 1,
-      "all communications and notices to be made under this agreement shall be addressed to the\nfollowing addresses": 1,
-      "directora legal\nrúa do vilar": 1,
-      "directora legal / legal director\nparte segunda": 1,
-      "greenfield energy ltd": 1,
-      "head of partnerships": 1,
-      "nda-2023-1108\nfecha / date": 1,
-      "partes": 1,
-      "propiedad intelectual": 1,
-      "the confidentiality obligations set": 1,
-      "united kingdom\nrepresentada por /": 1,
-      "officers": 1,
-      "or advisors who need to know it for the\npurposes of the collaboration between the parties": 1,
-      "the parties expressly submit to the jurisdiction of the courts of santiago de\ncompostela": 1
+      "united kingdom\nrepresentada por /": 1
     },
     "bonus": {
       "departamento": 1,
@@ -8443,8 +7700,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8456,7 +7711,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "criterio\npuntuación": {
@@ -8465,8 +7719,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8478,7 +7730,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "puntuación": {
@@ -8487,8 +7738,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8500,7 +7749,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "cissp": {
@@ -8509,8 +7757,6 @@
       "puntuación": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8522,7 +7768,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "doc/2024-0087\nfecha: 1": {
@@ -8531,8 +7776,6 @@
       "puntuación": 1,
       "cissp": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8544,7 +7787,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "doc/2024-0087 | pliego de prescripciones técnicas | página": {
@@ -8553,8 +7795,6 @@
       "puntuación": 1,
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8566,51 +7806,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
-      "salga": 1
-    },
-    "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": {
-      "anexo": 1,
-      "criterio\npuntuación": 1,
-      "puntuación": 1,
-      "cissp": 1,
-      "doc/2024-0087\nfecha: 1": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
-      "ens": 1,
-      "expediente sa": 1,
-      "ianus": 1,
-      "lopdgdd": 1,
-      "pmp": 1,
-      "plataforma de\nexpediente sa": 1,
-      "propuesta": 1,
-      "rbac": 1,
-      "rgpd": 1,
-      "rpo": 1,
-      "real\ndecreto": 1,
-      "sa": 1,
-      "salga": 1
-    },
-    "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": {
-      "anexo": 1,
-      "criterio\npuntuación": 1,
-      "puntuación": 1,
-      "cissp": 1,
-      "doc/2024-0087\nfecha: 1": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "ens": 1,
-      "expediente sa": 1,
-      "ianus": 1,
-      "lopdgdd": 1,
-      "pmp": 1,
-      "plataforma de\nexpediente sa": 1,
-      "propuesta": 1,
-      "rbac": 1,
-      "rgpd": 1,
-      "rpo": 1,
-      "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "ens": {
@@ -8620,8 +7815,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "expediente sa": 1,
       "ianus": 1,
       "lopdgdd": 1,
@@ -8632,7 +7825,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "expediente sa": {
@@ -8642,8 +7834,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "ianus": 1,
       "lopdgdd": 1,
@@ -8654,7 +7844,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "ianus": {
@@ -8664,8 +7853,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "lopdgdd": 1,
@@ -8676,7 +7863,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "pmp": {
@@ -8686,8 +7872,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8698,7 +7882,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "plataforma de\nexpediente sa": {
@@ -8708,8 +7891,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8720,7 +7901,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "propuesta": {
@@ -8730,8 +7910,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8742,7 +7920,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "rbac": {
@@ -8752,8 +7929,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8764,7 +7939,6 @@
       "rgpd": 1,
       "rpo": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "rpo": {
@@ -8774,8 +7948,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8786,7 +7958,6 @@
       "rbac": 1,
       "rgpd": 1,
       "real\ndecreto": 1,
-      "sa": 1,
       "salga": 1
     },
     "real\ndecreto": {
@@ -8796,8 +7967,6 @@
       "cissp": 1,
       "doc/2024-0087\nfecha: 1": 1,
       "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
       "ens": 1,
       "expediente sa": 1,
       "ianus": 1,
@@ -8808,29 +7977,6 @@
       "rbac": 1,
       "rgpd": 1,
       "rpo": 1,
-      "sa": 1,
-      "salga": 1
-    },
-    "sa": {
-      "anexo": 1,
-      "criterio\npuntuación": 1,
-      "puntuación": 1,
-      "cissp": 1,
-      "doc/2024-0087\nfecha: 1": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 1/4": 1,
-      "doc/2024-0087 | pliego de prescripciones técnicas | página 3/4": 1,
-      "ens": 1,
-      "expediente sa": 1,
-      "ianus": 1,
-      "lopdgdd": 1,
-      "pmp": 1,
-      "plataforma de\nexpediente sa": 1,
-      "propuesta": 1,
-      "rbac": 1,
-      "rgpd": 1,
-      "rpo": 1,
-      "real\ndecreto": 1,
       "salga": 1
     },
     "i+d": {
@@ -8851,14 +7997,12 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8868,14 +8012,12 @@
       "autoridad portuaria de marbravo": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8885,14 +8027,12 @@
       "autoridad portuaria de marbravo": 1,
       "autoridad portuaria de marbravo\npresentado": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8902,14 +8042,12 @@
       "autoridad portuaria de marbravo": 1,
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8920,13 +8058,11 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8937,13 +8073,11 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8954,13 +8088,11 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8971,13 +8103,11 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -8988,30 +8118,11 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
-      "qa": 1,
-      "scada": 1,
-      "uptime": 1
-    },
-    "qa": {
-      "ana belén rivas": 1,
-      "autonorte fabricación": 1,
-      "autoridad portuaria de marbravo": 1,
-      "autoridad portuaria de marbravo\npresentado": 1,
-      "calidad": 1,
-      "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
-      "formación\npruebas": 1,
-      "grupo\nindustrial mares": 1,
-      "novatech": 1,
-      "pcs": 1,
-      "prop-2024-0518-sp\npágina": 1,
-      "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
       "scada": 1,
       "uptime": 1
     },
@@ -9022,14 +8133,12 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "uptime": 1
     },
     "uptime": {
@@ -9039,14 +8148,12 @@
       "autoridad portuaria de marbravo\npresentado": 1,
       "calidad": 1,
       "ejecutivo\nnovatech solutions s.l.": 1,
-      "formación": 1,
       "formación\npruebas": 1,
       "grupo\nindustrial mares": 1,
       "novatech": 1,
       "pcs": 1,
       "prop-2024-0518-sp\npágina": 1,
       "prop-2024-0518-sp\npágina 3/4\ndesarrollo": 1,
-      "qa": 1,
       "scada": 1
     },
     "consultoría": {
@@ -9449,6 +8556,13 @@
     }
   },
   "documents": {
+    "9d0fcf0de418": {
+      "doc_id": "9d0fcf0de418",
+      "title": "--- Página 1 ---",
+      "filename": "acta_constitucion_novatech.pdf",
+      "doc_type": "documento",
+      "category": "General"
+    },
     "9434e75ecde7": {
       "doc_id": "9434e75ecde7",
       "title": "ACTA DE REUNIÓN — PROYECTO AURORA",
@@ -9460,22 +8574,22 @@
       "doc_id": "b582385993f7",
       "title": "CONSULTORÍA VÁZQUEZ & ASOCIADOS",
       "filename": "auditoria_interna_2024.pdf",
-      "doc_type": "contrato",
-      "category": "Legal"
+      "doc_type": "informe",
+      "category": "General"
     },
     "c939dd6cab3a": {
       "doc_id": "c939dd6cab3a",
       "title": "DISTRIBUCIONES GALLAECIA S.L.",
       "filename": "catalogo_productos_2024.pdf",
-      "doc_type": "factura",
-      "category": "Finanzas"
+      "doc_type": "documento",
+      "category": "General"
     },
     "3307071f17bb": {
       "doc_id": "3307071f17bb",
       "title": "ACNOR",
       "filename": "certificado_ISO9001_novatech.pdf",
-      "doc_type": "listado",
-      "category": "Compras"
+      "doc_type": "documento",
+      "category": "General"
     },
     "07a8a5936afa": {
       "doc_id": "07a8a5936afa",
@@ -9498,6 +8612,13 @@
       "doc_type": "email",
       "category": "Comunicaciones"
     },
+    "45e5dab4855c": {
+      "doc_id": "45e5dab4855c",
+      "title": "--- Página 1 ---",
+      "filename": "factura_GAL-2024-0892.pdf",
+      "doc_type": "factura",
+      "category": "Finanzas"
+    },
     "dc26a76205ed": {
       "doc_id": "dc26a76205ed",
       "title": "NovaTech Solutions — Dpto. Ingeniería",
@@ -9516,15 +8637,15 @@
       "doc_id": "1644b1c99f1f",
       "title": "GRUPO INDUSTRIAL MARES S.A.",
       "filename": "informe_financiero_Q3_2024_mares.pdf",
-      "doc_type": "contrato",
-      "category": "Legal"
+      "doc_type": "informe",
+      "category": "General"
     },
     "d3caaab50b2e": {
       "doc_id": "d3caaab50b2e",
       "title": "GRUPO INDUSTRIAL",
       "filename": "informe_sostenibilidad_2023_mares.pdf",
-      "doc_type": "factura",
-      "category": "Finanzas"
+      "doc_type": "informe",
+      "category": "General"
     },
     "f598e3529519": {
       "doc_id": "f598e3529519",
@@ -9537,15 +8658,15 @@
       "doc_id": "46ceb81c7cda",
       "title": "NovaTech Solutions",
       "filename": "manual_panel_iot_v2.pdf",
-      "doc_type": "contrato",
-      "category": "Legal"
+      "doc_type": "documento",
+      "category": "General"
     },
     "2f6e1cb57283": {
       "doc_id": "2f6e1cb57283",
       "title": "MEMORÁNDUM INTERNO",
       "filename": "memo_teletrabajo_2024.txt",
-      "doc_type": "email",
-      "category": "Comunicaciones"
+      "doc_type": "memo",
+      "category": "RRHH / Dirección"
     },
     "975783bc576e": {
       "doc_id": "975783bc576e",
@@ -9572,15 +8693,15 @@
       "doc_id": "fcd0d315ab7e",
       "title": "ORDEN DE COMPRA / PURCHASE ORDER",
       "filename": "pedido_PO-2024-0156.pdf",
-      "doc_type": "listado",
-      "category": "Compras"
+      "doc_type": "factura",
+      "category": "Finanzas"
     },
     "941ab348b6ea": {
       "doc_id": "941ab348b6ea",
       "title": "JUNTA DE GALORIA - Consellería de Sanidade",
       "filename": "pliego_condiciones_licitacion_2024.pdf",
-      "doc_type": "contrato",
-      "category": "Legal"
+      "doc_type": "documento",
+      "category": "General"
     },
     "0effa9046158": {
       "doc_id": "0effa9046158",
@@ -9600,8 +8721,8 @@
       "doc_id": "1fe881d7cbc0",
       "title": "LISTADO DE PROVEEDORES ACTIVOS",
       "filename": "proveedores_activos.txt",
-      "doc_type": "contrato",
-      "category": "Legal"
+      "doc_type": "listado",
+      "category": "Compras"
     },
     "fae603f9c75c": {
       "doc_id": "fae603f9c75c",

@@ -149,7 +149,12 @@ def _extract_entities(text: str) -> tuple[list[str], list[str]]:
 
     for ent in doc.ents:
         name = ent.text.strip()
-        if len(name) < 2:
+        if len(name) < 3 or len(name) > 60:
+            continue
+        # Filtrar ruido común de spaCy
+        if name.lower() in _NER_STOPWORDS:
+            continue
+        if re.match(r'^[A-Z]{2,3}-\d', name):  # Códigos como TK-2024
             continue
         if ent.label_ == "PER":
             persons.add(name)
@@ -157,6 +162,13 @@ def _extract_entities(text: str) -> tuple[list[str], list[str]]:
             orgs.add(name)
 
     return sorted(persons), sorted(orgs)
+
+
+_NER_STOPWORDS = {
+    "eta", "iva", "memorándum", "atentamente", "disponer", "mantener",
+    "elegibilidad", "producto", "sprint", "backend", "frontend",
+    "scrum", "demo", "api", "formacion", "formación",
+}
 
 
 def _extract_entities_fallback(text: str) -> tuple[list[str], list[str]]:

@@ -38,3 +38,13 @@ SPACY_MODEL = "es_core_news_md"
 # ─── Keywords ─────────────────────────────────────────────────────
 YAKE_MAX_KEYWORDS = 8
 YAKE_LANGUAGE = "es"
+
+# ─── LLM (Groq) ───────────────────────────────────────────────────
+import os
+from dotenv import load_dotenv
+load_dotenv(ROOT_DIR / ".env")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = "llama-3.1-8b-instant"
+
+# ─── DuckDB ───────────────────────────────────────────────────────
+DUCKDB_PATH = DATA_DIR / "tables.duckdb"

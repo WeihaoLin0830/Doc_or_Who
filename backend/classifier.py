@@ -17,6 +17,7 @@ DOC_TYPES = [
     "memo",
     "contrato",
     "factura",
+    "informe",
     "listado",
     "tickets",
     "inventario",
@@ -47,24 +48,51 @@ def classify_document(text: str, filename: str, df: pd.DataFrame | None = None) 
         return "tabla"
 
     # ── Texto: clasificar por contenido ──
+    # ORDEN IMPORTA: reglas más específicas primero
     t = text.lower()
+    fname = filename.lower()
 
-    if re.search(r"acta de reuni[oó]n|sprint review|asistentes:", t):
+    # 1. Por nombre de fichero (alta confianza)
+    if "acta" in fname and "reunion" in fname:
         return "acta_reunion"
+    if "memo" in fname:
+        return "memo"
+    if "factura" in fname or "invoice" in fname:
+        return "factura"
+    if "contrato" in fname or "nda" in fname:
+        return "contrato"
+    if "proveedores" in fname:
+        return "listado"
+    if "ficha" in fname or "manual" in fname or "catalogo" in fname:
+        return "documento"
+    if "presupuesto" in fname or "nomina" in fname:
+        return "tabla"
+    if "informe" in fname or "auditoria" in fname:
+        return "informe"
+    if "certificado" in fname or "pliego" in fname or "licitacion" in fname:
+        return "documento"
+    if "pedido" in fname or "order" in fname:
+        return "factura"
+    if "offer" in fname or "propuesta" in fname:
+        return "contrato"
 
-    if re.search(r"^de:\s*.+\n.*para:", t, re.MULTILINE):
-        return "email"
+    # 2. Por contenido (menor confianza, reglas estrechas)
+    if re.search(r"acta de reuni[oó]n|sprint review|sprint #\d+", t):
+        return "acta_reunion"
 
     if re.search(r"memorándum|memorando|circular interna", t):
         return "memo"
 
-    if re.search(r"contrato|cláusula|firmado por|otorgante", t):
-        return "contrato"
+    if re.search(r"^de:\s*.+\n.*para:", t, re.MULTILINE):
+        return "email"
 
-    if re.search(r"factura|base imponible|iva|importe total", t):
+    if re.search(r"base imponible|n\.?º\s*factura|importe total", t):
         return "factura"
 
-    if re.search(r"proveedor|cif:|rating:", t):
+    if re.search(r"cláusula\s+\d|firmado por ambas|las partes acuerdan", t):
+        return "contrato"
+
+    if re.search(r"listado de proveedores|rating:|cif:", t):
         return "listado"
 
     return "documento"

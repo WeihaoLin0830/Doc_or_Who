@@ -128,7 +128,13 @@ def parse_file(filepath: Path) -> tuple[str, pd.DataFrame | None]:
         return text, df
 
     if ext == ".pdf":
-        return parse_pdf(filepath), None
+        text = parse_pdf(filepath)
+        # PDF escaneado: fallback a OCR
+        if not text.strip():
+            from backend.ocr import ocr_pdf
+            print(f"🔍 Aplicando OCR a: {filepath.name}")
+            text = ocr_pdf(filepath)
+        return text, None
 
     if ext in (".docx", ".doc"):
         return parse_docx(filepath), None

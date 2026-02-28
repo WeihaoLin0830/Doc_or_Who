@@ -60,7 +60,7 @@ def _get_whoosh_index(create: bool = False):
         chunk_id=ID(stored=True, unique=True),
         doc_id=ID(stored=True),
         title=TEXT(stored=True),
-        content=TEXT(stored=False),
+        content=TEXT(stored=True),
         doc_type=TEXT(stored=True),
         filename=TEXT(stored=True),
         section=TEXT(stored=True),
