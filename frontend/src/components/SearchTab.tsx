@@ -5,9 +5,9 @@ import * as api from "@/lib/api";
 import type { SearchResult, SearchFacets, GroupedResult, DocListItem } from "@/lib/types";
 import type { SearchFilters } from "@/lib/api";
 import { formatScore, formatHighlight, formatDateFacet, langLabel, typeColor } from "@/lib/utils";
+import { DocumentModal } from "@/components/DocumentModal";
 
 interface Props {
-    onViewDoc: (docId: string) => void;
     documents: DocListItem[];
 }
 
@@ -35,7 +35,7 @@ function groupResults(results: SearchResult[]): GroupedResult[] {
     return Array.from(map.values());
 }
 
-export function SearchTab({ onViewDoc, documents }: Props) {
+export function SearchTab({ documents }: Props) {
     const [query, setQuery] = useState("");
     const [lastQuery, setLastQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -46,6 +46,9 @@ export function SearchTab({ onViewDoc, documents }: Props) {
     // Document browser filters (always visible in sidebar)
     const [browseType, setBrowseType] = useState("");
     const [browseCategory, setBrowseCategory] = useState("");
+
+    // Document modal
+    const [modalDocId, setModalDocId] = useState<string | null>(null);
 
     const docTypes = useMemo(() => [...new Set(documents.map((d) => d.doc_type).filter(Boolean))].sort(), [documents]);
     const categories = useMemo(() => [...new Set(documents.map((d) => d.category).filter(Boolean))].sort(), [documents]);
@@ -245,7 +248,7 @@ export function SearchTab({ onViewDoc, documents }: Props) {
                                 {grouped.length > 0 && (
                                     <div className="space-y-3">
                                         {grouped.map((group) => (
-                                            <ResultCard key={group.doc_id} group={group} onView={onViewDoc} onToggle={toggleExpand} />
+                                            <ResultCard key={group.doc_id} group={group} onView={setModalDocId} onToggle={toggleExpand} />
                                         ))}
                                     </div>
                                 )}
@@ -261,7 +264,7 @@ export function SearchTab({ onViewDoc, documents }: Props) {
                         {!isSearchMode && (
                             <div className="space-y-1.5">
                                 {browsed.length > 0 ? browsed.map((doc) => (
-                                    <div key={doc.doc_id} onClick={() => onViewDoc(doc.doc_id)}
+                                    <div key={doc.doc_id} onClick={() => setModalDocId(doc.doc_id)}
                                         className="flex items-center gap-3 px-4 py-3 bg-white border border-surface-3 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all cursor-pointer group">
                                         <svg className="w-4 h-4 text-ink-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -286,6 +289,8 @@ export function SearchTab({ onViewDoc, documents }: Props) {
                     </div>
                 </div>
             </div>
+
+            <DocumentModal docId={modalDocId} onClose={() => setModalDocId(null)} />
         </section>
     );
 }

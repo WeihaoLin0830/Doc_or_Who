@@ -63,6 +63,7 @@ export interface DocDetail {
     organizations: string[];
     keywords: string[];
     dates: string[];
+    has_file?: boolean;
     chunks: { chunk_id: string; text: string; section?: string }[];
 }
 

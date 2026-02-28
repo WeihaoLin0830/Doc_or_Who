@@ -568,15 +568,56 @@ def get_document(doc_id: str):
     if not chunks:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
+    # Aggregate entities / keywords / dates from chunk metadata + graph
+    persons_set: set[str] = set()
+    orgs_set: set[str] = set()
+    kw_set: set[str] = set()
+    dates_set: set[str] = set()
+    for ch in chunks:
+        cm = ch.get("metadata", {})
+        for field, target in [("persons", persons_set), ("organizations", orgs_set),
+                              ("keywords", kw_set), ("dates", dates_set)]:
+            raw = cm.get(field, "")
+            if isinstance(raw, str) and raw:
+                for v in raw.split(","):
+                    v = v.strip()
+                    if v:
+                        target.add(v)
+            elif isinstance(raw, list):
+                for v in raw:
+                    if v:
+                        target.add(str(v).strip())
+
+    # Enrich from entity graph
+    try:
+        graph_data = load_graph()
+        for node in graph_data.get("nodes", []):
+            docs = node.get("documents", [])
+            if any(d.get("doc_id") == doc_id for d in docs):
+                ent_type = node.get("entity_type", "")
+                ent_name = node.get("name", "")
+                if ent_type == "person":
+                    persons_set.add(ent_name)
+                elif ent_type == "organization":
+                    orgs_set.add(ent_name)
+    except Exception:
+        pass
+
+    filename = meta.get("filename", "")
     return {
         "doc_id": doc_id,
         "title": meta.get("title", ""),
-        "filename": meta.get("filename", ""),
+        "filename": filename,
         "doc_type": meta.get("doc_type", ""),
         "language": meta.get("language", ""),
+        "summary": meta.get("summary", ""),
+        "persons": sorted(persons_set),
+        "organizations": sorted(orgs_set),
+        "keywords": sorted(kw_set),
+        "dates": sorted(dates_set),
         "num_chunks": len(chunks),
         "chunks": chunks,
-        "has_file": _find_original_file(meta.get("filename", "")) is not None,
+        "has_file": _find_original_file(filename) is not None,
         "backend": backend_used,
     }
 

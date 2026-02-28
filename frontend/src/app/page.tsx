@@ -123,7 +123,7 @@ export default function Home() {
 
             <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 py-6">
                 {activeTab === "ask" && <AskTab />}
-                {activeTab === "search" && <SearchTab documents={documents} onViewDoc={(id) => { setActiveTab("documents"); }} />}
+                {activeTab === "search" && <SearchTab documents={documents} />}
                 {activeTab === "documents" && <DocumentsTab documents={documents} />}
                 {activeTab === "graph" && <GraphTab entities={entities} documents={documents} />}
                 {activeTab === "dashboard" && <DashboardTab stats={stats} documents={documents} entities={entities} />}
