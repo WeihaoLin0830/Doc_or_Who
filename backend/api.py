@@ -666,13 +666,22 @@ def ingest():
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
     """Sube un fichero nuevo, lo valida y lo procesa sin bloquear el event loop."""
-    from backend.ingestion.ingest import ingest_file, SUPPORTED_EXTENSIONS
+    from backend.ingestion.ingest import ingest_file, SUPPORTED_EXTENSIONS, _file_id
+    from backend.graph.graph import _documents
 
     # No permitir uploads mientras hay una re-ingestión en curso (evita carreras)
     if _ingest_state.get("running"):
         raise HTTPException(
             status_code=409,
             detail="Re-ingestión en curso. Espera a que termine antes de subir documentos."
+        )
+
+    # Detectar duplicados: si el archivo ya existe en el sistema, rechazar
+    doc_id = _file_id(Path(file.filename))
+    if doc_id in _documents:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Documento '{file.filename}' ya está indexado. Si deseas reemplazarlo, usa 'Re-indexar todo'."
         )
 
     # Validar extensión antes de leer
