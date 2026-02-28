@@ -92,10 +92,12 @@ def _get_whoosh_index(create: bool = False):
 
     WHOOSH_DIR.mkdir(parents=True, exist_ok=True)
 
-    if create or not whoosh_index.exists_in(str(WHOOSH_DIR)):
-        _whoosh_index = whoosh_index.create_in(str(WHOOSH_DIR), schema)
-    else:
+    if whoosh_index.exists_in(str(WHOOSH_DIR)):
+        print(f"📖 Opening existing Whoosh index at {WHOOSH_DIR}")
         _whoosh_index = whoosh_index.open_dir(str(WHOOSH_DIR))
+    else:
+        print(f"🆕 Creating Whoosh index at {WHOOSH_DIR}")
+        _whoosh_index = whoosh_index.create_in(str(WHOOSH_DIR), schema)
 
     return _whoosh_index
 
@@ -157,29 +159,43 @@ def _index_chroma(chunks: list[Chunk]) -> int:
 
 def _index_whoosh(chunks: list[Chunk]) -> int:
     """Indexa chunks en Whoosh (BM25 full-text search)."""
-    ix = _get_whoosh_index(create=True)
+    ix = _get_whoosh_index()
     writer = ix.writer()
+    committed = False
 
-    for chunk in chunks:
-        meta = chunk.metadata
-        writer.update_document(
-            chunk_id=chunk.chunk_id,
-            doc_id=meta["doc_id"],
-            title=meta["title"],
-            content=chunk.text,
-            doc_type=meta["doc_type"],
-            language=meta["language"],
-            filename=meta["filename"],
-            section=meta["section"],
-            level=meta["level"],
-            persons=meta["persons"],
-            organizations=meta["organizations"],
-            keywords=meta["keywords"],
-            dates=meta["dates"],
-            emails=meta.get("emails", ""),
-        )
+    try:
+        # Replace all chunks for each incoming document so stale chunk rows do not
+        # remain when a document is re-chunked with fewer fragments.
+        for doc_id in sorted({chunk.doc_id or chunk.metadata["doc_id"] for chunk in chunks}):
+            writer.delete_by_term("doc_id", doc_id)
 
-    writer.commit()
+        for chunk in chunks:
+            meta = chunk.metadata
+            writer.update_document(
+                chunk_id=chunk.chunk_id,
+                doc_id=meta["doc_id"],
+                title=meta["title"],
+                content=chunk.text,
+                doc_type=meta["doc_type"],
+                language=meta["language"],
+                filename=meta["filename"],
+                section=meta["section"],
+                level=meta["level"],
+                persons=meta["persons"],
+                organizations=meta["organizations"],
+                keywords=meta["keywords"],
+                dates=meta["dates"],
+                emails=meta.get("emails", ""),
+            )
+
+        writer.commit()
+        committed = True
+    finally:
+        if not committed:
+            writer.cancel()
+
+    with ix.searcher() as searcher:
+        print(f"📚 Whoosh doc_count after batch: {searcher.doc_count()}")
     return len(chunks)
 
 
