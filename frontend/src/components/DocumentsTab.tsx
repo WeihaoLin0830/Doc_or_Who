@@ -1,35 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import * as api from "@/lib/api";
 import type { DocListItem, DocDetail, DuplicatePair } from "@/lib/types";
 import { typeColor } from "@/lib/utils";
 
 interface Props {
     documents: DocListItem[];
-    onRefresh?: () => void;
 }
 
-export function DocumentsTab({ documents: initialDocuments, onRefresh }: Props) {
-    // Keep a local copy so the tab always shows the freshest data,
-    // even if the parent hasn't re-fetched yet.
-    const [documents, setDocuments] = useState<DocListItem[]>(initialDocuments);
+// DocumentsTab is a pure display component — the parent (page.tsx) owns the
+// documents state and refreshes it after every upload / ingest.
+export function DocumentsTab({ documents }: Props) {
     const [detail, setDetail] = useState<DocDetail | null>(null);
     const [summary, setSummary] = useState<string | null>(null);
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [duplicates, setDuplicates] = useState<DuplicatePair[]>([]);
     const [dupLoading, setDupLoading] = useState(false);
     const [dupChecked, setDupChecked] = useState(false);
-
-    // Fetch fresh data every time this tab mounts (guarantees post-upload count is correct).
-    useEffect(() => {
-        api.listDocuments().then(setDocuments).catch(() => {});
-    }, []);
-
-    // Also sync if parent refreshes (e.g. after ingest completes).
-    useEffect(() => {
-        if (initialDocuments.length > 0) setDocuments(initialDocuments);
-    }, [initialDocuments]);
 
     async function viewDoc(docId: string) {
         setSummary(null);
