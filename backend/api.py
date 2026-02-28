@@ -1,236 +1,239 @@
-"""
-api.py — API REST con FastAPI.
-
-Endpoints:
-  GET  /api/search?q=...&type=...&top_k=10   → Búsqueda híbrida
-  GET  /api/documents                         → Lista de documentos indexados
-  GET  /api/documents/{doc_id}                → Detalle de un documento
-  GET  /api/graph                             → Grafo de entidades (vis-network)
-  GET  /api/graph/entities                    → Lista de entidades
-  GET  /api/graph/entity/{name}               → Detalle + relaciones de entidad
-  GET  /api/stats                             → Estadísticas del dashboard
-  POST /api/ingest                            → Re-ejecutar pipeline de ingestión
-  POST /api/upload                            → Subir y procesar un documento nuevo
-  GET  /                                      → Servir frontend
-
-Ejecutar:  uvicorn backend.api:app --reload --port 8000
-"""
-
 from __future__ import annotations
 
-import shutil
+from contextlib import asynccontextmanager
+from dataclasses import asdict
+import hashlib
 from pathlib import Path
-from typing import Optional
 
-from fastapi import FastAPI, Query, UploadFile, File, HTTPException
+from fastapi import APIRouter, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import ROOT_DIR, UPLOAD_DIR, DATASET_DIR, DATA_DIR
-from backend.searcher import hybrid_search
-from backend.graph import (
-    get_graph_data,
-    get_all_entities,
-    get_entity,
-    get_related_entities,
-    get_related_docs,
-    get_stats as graph_stats,
-    load_graph,
+from backend.config import get_settings
+from backend.db import bootstrap_database, session_scope
+from backend.fts import fetch_facets
+from backend.graph import get_doc_graph, get_entity_graph, get_overview_graph
+from backend.ingest import IngestService, run_ingest
+from backend.repositories import get_document_detail, list_documents, metadata_for_document
+from backend.schemas import (
+    DocumentDetailResponse,
+    DocumentsListResponse,
+    DocumentSummary,
+    HealthResponse,
+    IngestRequest,
+    IngestResponse,
 )
+from backend.searcher import SearchService
+from backend.types import SearchParams
+from backend.utils import safe_filename
+from backend.vector import get_vector_index
 
-# ─── Crear app ───────────────────────────────────────────────────
-app = FastAPI(
-    title="DocumentWho",
-    description="Búsqueda inteligente de documentos corporativos",
-    version="1.0.0",
-)
+service = IngestService()
+search_service = SearchService()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# ─── Startup: cargar grafo ───────────────────────────────────────
-@app.on_event("startup")
-def startup():
-    load_graph()
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    bootstrap_database()
+    get_settings().ensure_directories()
+    yield
 
 
-# ─── Búsqueda ────────────────────────────────────────────────────
-@app.get("/api/search")
-def search(
-    q: str = Query(..., min_length=1, description="Consulta de búsqueda"),
-    type: Optional[str] = Query(None, description="Filtrar por tipo de documento"),
-    top_k: int = Query(10, ge=1, le=50),
-):
-    """Búsqueda híbrida BM25 + semántica con fusión RRF."""
-    results = hybrid_search(query=q, doc_type=type, top_k=top_k)
-    return {
-        "query": q,
-        "filter": type,
-        "count": len(results),
-        "results": [r.to_dict() for r in results],
-    }
+app = FastAPI(title="DocumentWho", version="2.0.0", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
-# ─── Documentos ──────────────────────────────────────────────────
-@app.get("/api/documents")
-def list_documents():
-    """Lista todos los documentos indexados (metadatos del grafo)."""
-    from backend.graph import _documents
-    docs = list(_documents.values())
-    return {"count": len(docs), "documents": docs}
+def build_router() -> APIRouter:
+    router = APIRouter()
 
+    @router.post("/ingest", response_model=IngestResponse)
+    def ingest(request: IngestRequest | None = None) -> IngestResponse:
+        request = request or IngestRequest()
+        settings = get_settings()
+        source_dir = Path(request.source_dir).resolve() if request.source_dir else settings.dataset_dir
+        stats, duration = run_ingest(source_dir, rebuild_graph=request.rebuild_graph, recompute_pagerank=request.recompute_pagerank)
+        payload = asdict(stats)
+        payload.pop("changed", None)
+        return IngestResponse(source_dir=str(source_dir), duration_seconds=duration, **payload)
 
-@app.get("/api/documents/{doc_id}")
-def get_document(doc_id: str):
-    """Detalle de un documento: busca sus chunks en ChromaDB."""
-    from backend.indexer import _get_chroma_collection
-
-    collection = _get_chroma_collection()
-
-    # Buscar todos los chunks de este documento
-    try:
-        results = collection.get(
-            where={"doc_id": doc_id},
-            include=["documents", "metadatas"],
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    if not results["ids"]:
-        raise HTTPException(status_code=404, detail="Documento no encontrado")
-
-    chunks = []
-    meta = results["metadatas"][0] if results["metadatas"] else {}
-    for i, chunk_id in enumerate(results["ids"]):
-        chunks.append({
-            "chunk_id": chunk_id,
-            "text": results["documents"][i],
-            "metadata": results["metadatas"][i],
-        })
-
-    # Ordenar por chunk_id para mantener orden original
-    chunks.sort(key=lambda c: c["chunk_id"])
-
-    return {
-        "doc_id": doc_id,
-        "title": meta.get("title", ""),
-        "filename": meta.get("filename", ""),
-        "doc_type": meta.get("doc_type", ""),
-        "num_chunks": len(chunks),
-        "chunks": chunks,
-    }
-
-
-# ─── Grafo de entidades ─────────────────────────────────────────
-@app.get("/api/graph")
-def graph():
-    """Grafo completo en formato vis-network (nodos + aristas)."""
-    return get_graph_data()
-
-
-@app.get("/api/graph/entities")
-def entities():
-    """Lista de todas las entidades ordenadas por menciones."""
-    return {"entities": get_all_entities()}
-
-
-@app.get("/api/graph/entity/{name}")
-def entity_detail(name: str):
-    """Detalle de una entidad: info + relaciones + documentos."""
-    node = get_entity(name)
-    if not node:
-        raise HTTPException(status_code=404, detail="Entidad no encontrada")
-    return {
-        "entity": node.to_dict(),
-        "related": get_related_entities(name),
-        "documents": get_related_docs(name),
-    }
-
-
-# ─── Dashboard stats ────────────────────────────────────────────
-@app.get("/api/stats")
-def stats():
-    """Estadísticas globales para el dashboard."""
-    gs = graph_stats()
-
-    from backend.graph import _documents
-    type_counts: dict[str, int] = {}
-    for doc in _documents.values():
-        t = doc.get("doc_type", "unknown")
-        type_counts[t] = type_counts.get(t, 0) + 1
-
-    return {
-        "documents": gs["total_documents"],
-        "entities": gs["total_entities"],
-        "edges": gs["total_edges"],
-        "entities_by_type": gs["entities_by_type"],
-        "documents_by_type": type_counts,
-    }
-
-
-# ─── Ingestión ───────────────────────────────────────────────────
-@app.post("/api/ingest")
-def ingest():
-    """Re-ejecuta el pipeline completo de ingestión."""
-    from backend.ingest import run_full_pipeline
-    docs = run_full_pipeline()
-    return {"status": "ok", "documents_processed": len(docs)}
-
-
-@app.post("/api/upload")
-async def upload(file: UploadFile = File(...)):
-    """Sube un fichero nuevo y lo procesa."""
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-    dest = UPLOAD_DIR / file.filename
-    with open(dest, "wb") as f:
+    @router.post("/upload")
+    async def upload(file: UploadFile = File(...)) -> dict[str, object]:
+        settings = get_settings()
         content = await file.read()
-        f.write(content)
+        if len(content) > settings.file_size_limit_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded file exceeds size limit")
+        digest = hashlib.sha256(content).hexdigest()[:12]
+        safe_name = safe_filename(file.filename or "upload")
+        destination = settings.upload_dir / f"{digest}_{safe_name}"
+        destination.write_bytes(content)
+        stats, duration = service.ingest_directory(
+            settings.upload_dir,
+            source_type="upload",
+            rebuild_graph=True,
+            recompute_pagerank=True,
+            mark_missing=False,
+            filename_overrides={str(destination.resolve()): safe_name},
+        )
+        return {
+            "filename": safe_name,
+            "stored_path": str(destination),
+            "processed": stats.processed,
+            "failed": stats.failed,
+            "needs_ocr": stats.needs_ocr,
+            "duration_seconds": duration,
+        }
 
-    from backend.ingest import ingest_file
-    doc = ingest_file(dest)
-    if not doc:
-        raise HTTPException(status_code=400, detail="Formato no soportado o sin contenido")
+    @router.get("/search")
+    def search(
+        q: str = Query(""),
+        ext: str | None = None,
+        language: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        entity: str | None = None,
+        tag: str | None = None,
+        top_k: int = Query(10, ge=1, le=50),
+        debug: bool = False,
+    ):
+        params = SearchParams(
+            query=q,
+            ext=ext,
+            language=language,
+            date_from=date_from,
+            date_to=date_to,
+            entity=entity,
+            tag=tag,
+            top_k=top_k,
+            debug=debug,
+        )
+        return search_service.search(params)
 
-    # Actualizar grafo con el nuevo documento
-    from backend.graph import build_graph, _documents
-    from backend.graph import _entity_nodes
-    # Reconstruir solo el documento nuevo es complejo, así que rehacemos el grafo
-    # En producción optimizaríamos esto
-    from backend.ingest import ingest_directory
-    from backend.graph import build_graph as _bg
-    # Simple approach: return success, graph updates on next full ingest
-    load_graph()
+    @router.get("/facets")
+    def facets(
+        q: str = Query(""),
+        ext: str | None = None,
+        language: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        entity: str | None = None,
+        tag: str | None = None,
+    ):
+        if q.strip():
+            params = SearchParams(
+                query=q,
+                ext=ext,
+                language=language,
+                date_from=date_from,
+                date_to=date_to,
+                entity=entity,
+                tag=tag,
+                top_k=50,
+                debug=False,
+            )
+            return search_service.search(params).facets
+        with session_scope() as session:
+            return fetch_facets(
+                session,
+                {
+                    "ext": ext,
+                    "language": language,
+                    "date_from": date_from,
+                    "date_to": date_to,
+                    "entity": entity,
+                    "tag": tag,
+                },
+            )
 
-    return {
-        "status": "ok",
-        "filename": file.filename,
-        "doc_id": doc.doc_id,
-        "doc_type": doc.doc_type,
-        "title": doc.title,
-    }
+    @router.get("/documents", response_model=DocumentsListResponse)
+    def documents() -> DocumentsListResponse:
+        with session_scope() as session:
+            docs = list_documents(session)
+            return DocumentsListResponse(
+                count=len(docs),
+                documents=[
+                    DocumentSummary(
+                        doc_id=document.doc_id,
+                        filename=document.filename,
+                        title=document.title,
+                        ext=document.ext,
+                        status=document.status,
+                        updated_at=document.updated_at,
+                    )
+                    for document in docs
+                ],
+            )
+
+    @router.get("/documents/{doc_id}", response_model=DocumentDetailResponse)
+    def document_detail(doc_id: str) -> DocumentDetailResponse:
+        with session_scope() as session:
+            payload = get_document_detail(session, doc_id)
+            if payload is None:
+                raise HTTPException(status_code=404, detail="Document not found")
+            document = payload["document"]
+            return DocumentDetailResponse(
+                doc_id=document.doc_id,
+                filename=document.filename,
+                title=document.title,
+                ext=document.ext,
+                mime=document.mime,
+                language=document.language,
+                status=document.status,
+                error=document.error,
+                author=document.author,
+                metadata=metadata_for_document(document),
+                chunks=[
+                    {
+                        "chunk_id": chunk.chunk_id,
+                        "chunk_index": chunk.chunk_index,
+                        "text": chunk.text,
+                        "token_count": chunk.token_count,
+                        "char_start": chunk.char_start,
+                        "char_end": chunk.char_end,
+                        "section_title": chunk.section_title,
+                        "entity_texts": chunk.entity_texts,
+                        "tag_texts": chunk.tag_texts,
+                    }
+                    for chunk in payload["chunks"]
+                ],
+            )
+
+    @router.get("/graph")
+    def overview_graph():
+        return get_overview_graph()
+
+    @router.get("/graph/doc/{doc_id}")
+    def graph_doc(doc_id: str):
+        graph = get_doc_graph(doc_id)
+        if graph is None:
+            raise HTTPException(status_code=404, detail="Document graph not found")
+        return graph
+
+    @router.get("/graph/entity/{entity_id}")
+    def graph_entity(entity_id: str):
+        graph = get_entity_graph(entity_id)
+        if graph is None:
+            raise HTTPException(status_code=404, detail="Entity graph not found")
+        return graph
+
+    @router.get("/health", response_model=HealthResponse)
+    def health() -> HealthResponse:
+        return HealthResponse(status="ok", database_ready=True, vector_ready=get_vector_index().is_ready())
+
+    return router
 
 
-# ─── Servir frontend ────────────────────────────────────────────
-FRONTEND_DIR = ROOT_DIR / "frontend"
+api_router = build_router()
+app.include_router(api_router)
+app.include_router(api_router, prefix="/api")
+
+frontend_dir = get_settings().root_dir / "frontend"
+if frontend_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")
 
 
 @app.get("/")
-def serve_frontend():
-    """Sirve el fichero index.html del frontend."""
-    index = FRONTEND_DIR / "index.html"
-    if index.exists():
-        return FileResponse(index)
-    return {"message": "DocumentWho API — frontend no encontrado, usa /docs para la API"}
-
-
-# Servir archivos estáticos del frontend (CSS, JS, etc.)
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+def root() -> FileResponse:
+    index_path = frontend_dir / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Frontend not found")
+    return FileResponse(index_path)

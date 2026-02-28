@@ -1,557 +1,576 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full">
-
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DocumentWho — Búsqueda Inteligente</title>
-
-    <!-- Tailwind CSS -->
+    <title>DocumentWho</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- vis-network for graph -->
     <script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
-    <!-- marked for markdown rendering (highlights) -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
     <style>
-        [x-cloak] {
-            display: none !important;
+        :root {
+            --ink: #102129;
+            --muted: #59707d;
+            --sand: #f6f2e8;
+            --paper: #fffdf8;
+            --accent: #0e7c86;
+            --accent-soft: #d7f0ec;
+            --line: #d7ded5;
         }
 
-        .fade-in {
-            animation: fadeIn 0.2s ease-in;
+        body {
+            background:
+                radial-gradient(circle at top right, rgba(14, 124, 134, 0.12), transparent 32%),
+                linear-gradient(180deg, #f9f7f2 0%, #f0ebe0 100%);
+            color: var(--ink);
+            min-height: 100vh;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(8px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        #graph-container {
-            width: 100%;
-            height: 500px;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
-        }
-
-        .doc-type-badge {
-            @apply px-2 py-0.5 rounded-full text-xs font-medium;
+        .panel {
+            background: rgba(255, 253, 248, 0.92);
+            border: 1px solid var(--line);
+            border-radius: 1.25rem;
+            box-shadow: 0 18px 48px rgba(16, 33, 41, 0.08);
+            backdrop-filter: blur(10px);
         }
 
         .tab-active {
-            border-bottom: 2px solid #6366f1;
-            color: #6366f1;
-            font-weight: 600;
+            background: var(--ink);
+            color: white;
+        }
+
+        .facet-button.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        #graphCanvas {
+            height: 560px;
+            border-radius: 1rem;
+            border: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(245,247,243,0.96));
+        }
+
+        mark {
+            background: #fff0a8;
+            padding: 0 0.15rem;
         }
     </style>
-
-    <!-- Alpine.js for reactivity -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-
-<body class="h-full bg-gray-50 text-gray-800" x-data="documentWho()" x-init="init()">
-
-    <!-- ═══════ NAVBAR ═══════ -->
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3 cursor-pointer" @click="switchTab('search')">
-                <span class="text-2xl">🔍</span>
-                <h1 class="text-xl font-bold text-indigo-600">Document<span class="text-gray-800">Who</span></h1>
+<body>
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <header class="panel px-6 py-6 mb-6">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Document Search Platform</p>
+                    <h1 class="text-4xl font-black tracking-tight">DocumentWho</h1>
+                    <p class="text-sm text-slate-600 max-w-2xl mt-2">
+                        Hybrid retrieval over local documents with chunk search, facets, entity graph navigation, and PageRank-aware ranking.
+                    </p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <button class="tab px-4 py-2 rounded-full border border-slate-300 text-sm font-medium tab-active" data-tab="search">Search</button>
+                    <button class="tab px-4 py-2 rounded-full border border-slate-300 text-sm font-medium" data-tab="documents">Documents</button>
+                    <button class="tab px-4 py-2 rounded-full border border-slate-300 text-sm font-medium" data-tab="graph">Graph</button>
+                </div>
             </div>
-            <div class="flex gap-1">
-                <button @click="switchTab('search')" :class="tab === 'search' ? 'tab-active' : ''"
-                    class="px-4 py-2 text-sm rounded-t hover:text-indigo-600 transition">
-                    Búsqueda
-                </button>
-                <button @click="switchTab('documents')" :class="tab === 'documents' ? 'tab-active' : ''"
-                    class="px-4 py-2 text-sm rounded-t hover:text-indigo-600 transition">
-                    Documentos
-                </button>
-                <button @click="switchTab('graph')" :class="tab === 'graph' ? 'tab-active' : ''"
-                    class="px-4 py-2 text-sm rounded-t hover:text-indigo-600 transition">
-                    Grafo
-                </button>
-                <button @click="switchTab('dashboard')" :class="tab === 'dashboard' ? 'tab-active' : ''"
-                    class="px-4 py-2 text-sm rounded-t hover:text-indigo-600 transition">
-                    Dashboard
-                </button>
-            </div>
-        </div>
-    </nav>
+        </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-6">
-
-        <!-- ═══════ TAB: BÚSQUEDA ═══════ -->
-        <div x-show="tab === 'search'" x-cloak class="fade-in">
-
-            <!-- Search Bar -->
-            <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
-                <form @submit.prevent="doSearch()" class="flex gap-3">
-                    <input type="text" x-model="query"
-                        placeholder="Buscar documentos... (ej: entrega componentes ShenTech)"
-                        class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
-                        autofocus>
-                    <button type="submit"
-                        class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium"
-                        :disabled="loading">
-                        <span x-show="!loading">Buscar</span>
-                        <span x-show="loading" class="flex items-center gap-2">
-                            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"
-                                    opacity="0.25" />
-                                <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                            Buscando...
-                        </span>
-                    </button>
+        <section id="searchTab" class="space-y-6">
+            <div class="panel p-6">
+                <form id="searchForm" class="space-y-4">
+                    <div class="flex flex-col gap-3 lg:flex-row">
+                        <input id="queryInput" class="flex-1 rounded-2xl border border-slate-300 px-4 py-3 text-lg bg-white" placeholder="Search documents, entities, terms, or topics" value="Aurora">
+                        <button class="rounded-2xl bg-slate-900 text-white px-6 py-3 font-semibold" type="submit">Run Search</button>
+                        <button id="ingestButton" class="rounded-2xl bg-teal-700 text-white px-6 py-3 font-semibold" type="button">Re-ingest</button>
+                    </div>
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+                        <input id="uploadInput" type="file" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 bg-white">
+                        <button id="uploadButton" class="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold" type="button">Upload File</button>
+                        <p class="text-xs text-slate-500 lg:max-w-md">Sube archivos desde aqu&iacute;. La ingesta muestra `skipped` cuando el corpus no cambi&oacute;, y eso es normal.</p>
+                    </div>
+                    <div class="grid gap-3 md:grid-cols-5">
+                        <input id="extFilter" class="rounded-xl border border-slate-300 px-3 py-2 bg-white" placeholder="ext e.g. pdf">
+                        <input id="languageFilter" class="rounded-xl border border-slate-300 px-3 py-2 bg-white" placeholder="language">
+                        <input id="dateFromFilter" type="date" class="rounded-xl border border-slate-300 px-3 py-2 bg-white">
+                        <input id="dateToFilter" type="date" class="rounded-xl border border-slate-300 px-3 py-2 bg-white">
+                        <input id="entityFilter" class="rounded-xl border border-slate-300 px-3 py-2 bg-white" placeholder="entity/tag">
+                    </div>
                 </form>
-
-                <!-- Filters -->
-                <div class="flex gap-2 mt-3 flex-wrap">
-                    <span class="text-xs text-gray-500 py-1">Filtrar:</span>
-                    <template x-for="t in docTypes" :key="t">
-                        <button @click="toggleFilter(t)"
-                            :class="filterType === t ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-                            class="px-3 py-1 rounded-full text-xs transition" x-text="t">
-                        </button>
-                    </template>
-                    <button x-show="filterType" @click="filterType = null; doSearch()"
-                        class="px-3 py-1 rounded-full text-xs bg-red-50 text-red-600 hover:bg-red-100 transition">
-                        ✕ Limpiar
-                    </button>
-                </div>
+                <div id="notice" class="mt-4 text-sm text-slate-600"></div>
             </div>
 
-            <!-- Results count -->
-            <div x-show="searchDone" class="mb-4 text-sm text-gray-500" x-cloak>
-                <span x-text="results.length"></span> resultados para "<span x-text="lastQuery"
-                    class="font-medium"></span>"
-                <span x-show="searchTime"> en <span x-text="searchTime"></span>ms</span>
-            </div>
-
-            <!-- Results list -->
-            <div class="space-y-4">
-                <template x-for="(r, i) in results" :key="r.chunk_id">
-                    <div class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition fade-in cursor-pointer"
-                        @click="viewDocument(r.doc_id)">
-                        <div class="flex items-start justify-between mb-2">
-                            <div class="flex items-center gap-2">
-                                <span x-text="getDocIcon(r.doc_type)" class="text-lg"></span>
-                                <h3 class="font-semibold text-gray-900" x-text="r.title || r.filename"></h3>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span :class="getTypeColor(r.doc_type)" class="doc-type-badge"
-                                    x-text="r.doc_type"></span>
-                                <span class="text-xs text-gray-400" x-text="(r.score * 100).toFixed(0) + '%'"></span>
-                            </div>
-                        </div>
-                        <p class="text-sm text-gray-600 leading-relaxed mb-3"
-                            x-html="renderHighlight(r.highlight || r.text)"></p>
-                        <div class="flex flex-wrap gap-2">
-                            <template x-for="kw in (r.keywords || []).slice(0, 5)" :key="kw">
-                                <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs" x-text="kw"></span>
-                            </template>
-                            <template x-for="p in (r.persons || []).slice(0, 3)" :key="p">
-                                <span class="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs">👤 <span
-                                        x-text="p"></span></span>
-                            </template>
-                            <template x-for="o in (r.organizations || []).slice(0, 3)" :key="o">
-                                <span class="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs">🏢 <span
-                                        x-text="o"></span></span>
-                            </template>
-                        </div>
-                        <div class="mt-2 text-xs text-gray-400" x-show="r.section">
-                            📑 Sección: <span x-text="r.section"></span>
-                        </div>
+            <div class="grid gap-6 lg:grid-cols-[1.1fr_2fr]">
+                <aside class="panel p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Facets</h2>
+                        <button id="clearFilters" class="text-sm text-teal-700">Clear</button>
                     </div>
-                </template>
-            </div>
-
-            <!-- Empty state -->
-            <div x-show="searchDone && results.length === 0" class="text-center py-16 text-gray-400" x-cloak>
-                <p class="text-5xl mb-4">📭</p>
-                <p class="text-lg">No se encontraron resultados</p>
-                <p class="text-sm mt-1">Intenta con otros términos o quita los filtros</p>
-            </div>
-
-            <!-- Initial state -->
-            <div x-show="!searchDone && results.length === 0" class="text-center py-16 text-gray-400">
-                <p class="text-5xl mb-4">🔎</p>
-                <p class="text-lg">Escribe una consulta para buscar en tus documentos</p>
-                <p class="text-sm mt-2 text-gray-300">
-                    Búsqueda híbrida: combina coincidencia léxica (BM25) + semántica (embeddings)
-                </p>
-            </div>
-        </div>
-
-        <!-- ═══════ TAB: DOCUMENTOS ═══════ -->
-        <div x-show="tab === 'documents'" x-cloak class="fade-in">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-bold">Documentos Indexados</h2>
-                <button @click="reIngest()" :disabled="ingesting"
-                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
-                    <span x-show="!ingesting">🔄 Re-indexar</span>
-                    <span x-show="ingesting">⏳ Procesando...</span>
-                </button>
-            </div>
-
-            <!-- Document detail modal -->
-            <div x-show="selectedDoc" x-cloak class="mb-6">
-                <div class="bg-white rounded-xl shadow border p-6">
-                    <div class="flex justify-between items-start mb-4">
+                    <div class="space-y-5 text-sm">
                         <div>
-                            <h3 class="text-lg font-bold" x-text="selectedDoc?.title || selectedDoc?.filename"></h3>
-                            <p class="text-sm text-gray-500" x-text="selectedDoc?.filename"></p>
+                            <h3 class="font-semibold mb-2">File Type</h3>
+                            <div id="extFacets" class="flex flex-wrap gap-2"></div>
                         </div>
-                        <button @click="selectedDoc = null" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-                    </div>
-                    <div class="flex gap-2 mb-4">
-                        <span :class="getTypeColor(selectedDoc?.doc_type)" class="doc-type-badge"
-                            x-text="selectedDoc?.doc_type"></span>
-                        <span class="text-xs text-gray-400" x-text="selectedDoc?.num_chunks + ' chunks'"></span>
-                    </div>
-                    <div class="space-y-3 max-h-96 overflow-y-auto">
-                        <template x-for="(chunk, i) in (selectedDoc?.chunks || [])" :key="chunk.chunk_id">
-                            <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-indigo-300">
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-xs font-medium text-indigo-600" x-text="'Chunk #' + (i+1)"></span>
-                                    <span class="text-xs text-gray-400" x-text="chunk.metadata?.section || ''"></span>
-                                </div>
-                                <p class="text-sm text-gray-700 whitespace-pre-wrap" x-text="chunk.text"></p>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Document list -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <template x-for="doc in documents" :key="doc.doc_id">
-                    <div class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition cursor-pointer"
-                        @click="viewDocument(doc.doc_id)">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span x-text="getDocIcon(doc.doc_type)" class="text-2xl"></span>
-                            <h3 class="font-semibold text-sm" x-text="doc.title || doc.filename"></h3>
+                        <div>
+                            <h3 class="font-semibold mb-2">Entity Tags</h3>
+                            <div id="tagFacets" class="flex flex-wrap gap-2"></div>
                         </div>
-                        <div class="flex gap-2">
-                            <span :class="getTypeColor(doc.doc_type)" class="doc-type-badge"
-                                x-text="doc.doc_type"></span>
-                            <span x-show="doc.category" class="text-xs text-gray-400" x-text="doc.category"></span>
+                        <div>
+                            <h3 class="font-semibold mb-2">Entities</h3>
+                            <div id="entityFacets" class="space-y-3"></div>
                         </div>
                     </div>
-                </template>
+                </aside>
+
+                <main class="space-y-4">
+                    <div id="searchMeta" class="text-sm text-slate-600"></div>
+                    <div id="results" class="space-y-4"></div>
+                </main>
             </div>
+        </section>
 
-            <div x-show="documents.length === 0" class="text-center py-16 text-gray-400">
-                <p class="text-5xl mb-4">📂</p>
-                <p>No hay documentos indexados. Ejecuta la ingestión primero.</p>
-            </div>
-        </div>
-
-        <!-- ═══════ TAB: GRAFO ═══════ -->
-        <div x-show="tab === 'graph'" x-cloak class="fade-in">
-            <h2 class="text-xl font-bold mb-4">Grafo de Entidades</h2>
-            <p class="text-sm text-gray-500 mb-4">
-                Nodos = personas y organizaciones. Aristas = co-ocurrencia en documentos.
-                <span class="inline-block w-3 h-3 rounded-full bg-green-500 ml-3"></span> Personas
-                <span class="inline-block w-3 h-3 rounded-full bg-blue-500 ml-2"></span> Organizaciones
-            </p>
-            <div id="graph-container" class="bg-white"></div>
-
-            <!-- Entity list -->
-            <div class="mt-6">
-                <h3 class="font-semibold mb-3">Entidades detectadas</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <template x-for="e in entityList" :key="e.name">
-                        <div
-                            class="bg-white rounded-lg border p-3 flex items-center justify-between hover:shadow-sm transition">
-                            <div class="flex items-center gap-2">
-                                <span x-text="e.type === 'person' ? '👤' : '🏢'"></span>
-                                <span class="text-sm font-medium" x-text="e.name"></span>
-                            </div>
-                            <div class="flex gap-2 text-xs text-gray-400">
-                                <span x-text="e.mentions + ' menciones'"></span>
-                                <span x-text="e.num_docs + ' docs'"></span>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </div>
-
-        <!-- ═══════ TAB: DASHBOARD ═══════ -->
-        <div x-show="tab === 'dashboard'" x-cloak class="fade-in">
-            <h2 class="text-xl font-bold mb-6">Dashboard</h2>
-
-            <!-- KPI Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white rounded-xl shadow-sm border p-5 text-center">
-                    <p class="text-3xl font-bold text-indigo-600" x-text="dashStats.documents || 0"></p>
-                    <p class="text-sm text-gray-500 mt-1">Documentos</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border p-5 text-center">
-                    <p class="text-3xl font-bold text-green-600" x-text="dashStats.entities || 0"></p>
-                    <p class="text-sm text-gray-500 mt-1">Entidades</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border p-5 text-center">
-                    <p class="text-3xl font-bold text-purple-600" x-text="dashStats.edges || 0"></p>
-                    <p class="text-sm text-gray-500 mt-1">Relaciones</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border p-5 text-center">
-                    <p class="text-3xl font-bold text-amber-600"
-                        x-text="Object.keys(dashStats.documents_by_type || {}).length"></p>
-                    <p class="text-sm text-gray-500 mt-1">Tipos Doc.</p>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Documents by Type -->
-                <div class="bg-white rounded-xl shadow-sm border p-5">
-                    <h3 class="font-semibold mb-4">Documentos por tipo</h3>
-                    <div class="space-y-2">
-                        <template x-for="(count, type) in dashStats.documents_by_type || {}" :key="type">
-                            <div class="flex items-center gap-3">
-                                <span class="text-sm w-28 truncate" x-text="type"></span>
-                                <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                                    <div class="bg-indigo-500 h-full rounded-full transition-all"
-                                        :style="'width: ' + (count / Math.max(...Object.values(dashStats.documents_by_type || {1:1})) * 100) + '%'">
-                                    </div>
-                                </div>
-                                <span class="text-sm font-medium w-8 text-right" x-text="count"></span>
-                            </div>
-                        </template>
+        <section id="documentsTab" class="hidden">
+            <div class="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                <div class="panel p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Documents</h2>
+                        <span id="documentsCount" class="text-sm text-slate-500"></span>
                     </div>
+                    <div id="documentsList" class="space-y-3"></div>
                 </div>
+                <div class="panel p-5">
+                    <h2 class="text-lg font-bold mb-4">Document Detail</h2>
+                    <div id="documentDetail" class="text-sm text-slate-600">Select a document to inspect chunks, offsets, and metadata.</div>
+                </div>
+            </div>
+        </section>
 
-                <!-- Entities by Type -->
-                <div class="bg-white rounded-xl shadow-sm border p-5">
-                    <h3 class="font-semibold mb-4">Entidades por tipo</h3>
-                    <div class="space-y-2">
-                        <template x-for="(count, type) in dashStats.entities_by_type || {}" :key="type">
-                            <div class="flex items-center gap-3">
-                                <span class="text-sm w-28"
-                                    x-text="type === 'person' ? '👤 Personas' : '🏢 Organizaciones'"></span>
-                                <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                                    <div class="h-full rounded-full transition-all"
-                                        :class="type === 'person' ? 'bg-green-500' : 'bg-blue-500'"
-                                        :style="'width: ' + (count / Math.max(...Object.values(dashStats.entities_by_type || {1:1})) * 100) + '%'">
-                                    </div>
-                                </div>
-                                <span class="text-sm font-medium w-8 text-right" x-text="count"></span>
-                            </div>
-                        </template>
+        <section id="graphTab" class="hidden space-y-4">
+            <div class="panel p-5">
+                <div class="grid gap-3 lg:grid-cols-2">
+                    <div class="flex gap-3">
+                        <input id="docGraphInput" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 bg-white" placeholder="Document ID">
+                        <button id="loadDocGraph" class="rounded-xl bg-slate-900 text-white px-4 py-2 font-semibold">Load Document Graph</button>
+                    </div>
+                    <div class="flex gap-3">
+                        <input id="entityGraphInput" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 bg-white" placeholder="Entity text or entity ID">
+                        <button id="loadEntityGraph" class="rounded-xl bg-teal-700 text-white px-4 py-2 font-semibold">Load Entity Graph</button>
                     </div>
                 </div>
             </div>
-        </div>
+            <div class="panel p-5">
+                <div id="graphCanvas"></div>
+            </div>
+        </section>
+    </div>
 
-    </main>
-
-    <!-- ═══════ FOOTER ═══════ -->
-    <footer class="mt-12 py-6 border-t text-center text-xs text-gray-400">
-        DocumentWho v1.0 — Búsqueda híbrida BM25 + Semántica + Grafos
-    </footer>
-
-    <!-- ═══════ ALPINE.JS APP ═══════ -->
     <script>
-        const API = '';  // Same origin
+        const state = {
+            filters: {
+                ext: '',
+                language: '',
+                date_from: '',
+                date_to: '',
+                entity: '',
+                tag: '',
+            },
+            lastResponse: null,
+            selectedDocId: null,
+        };
 
-        function documentWho() {
+        const resultsEl = document.getElementById('results');
+        const searchMetaEl = document.getElementById('searchMeta');
+        const documentsListEl = document.getElementById('documentsList');
+        const documentDetailEl = document.getElementById('documentDetail');
+        const noticeEl = document.getElementById('notice');
+        const docGraphInputEl = document.getElementById('docGraphInput');
+        const entityGraphInputEl = document.getElementById('entityGraphInput');
+        let graphNetwork = null;
+
+        function setNotice(message, tone = 'neutral') {
+            noticeEl.textContent = message || '';
+            noticeEl.className = 'mt-4 text-sm';
+            if (tone === 'error') {
+                noticeEl.classList.add('text-red-700');
+                return;
+            }
+            if (tone === 'success') {
+                noticeEl.classList.add('text-teal-700');
+                return;
+            }
+            noticeEl.classList.add('text-slate-600');
+        }
+
+        function switchTab(name) {
+            document.getElementById('searchTab').classList.toggle('hidden', name !== 'search');
+            document.getElementById('documentsTab').classList.toggle('hidden', name !== 'documents');
+            document.getElementById('graphTab').classList.toggle('hidden', name !== 'graph');
+            document.querySelectorAll('.tab').forEach((button) => {
+                button.classList.toggle('tab-active', button.dataset.tab === name);
+            });
+        }
+
+        document.querySelectorAll('.tab').forEach((button) => {
+            button.addEventListener('click', () => switchTab(button.dataset.tab));
+        });
+
+        function currentFilters() {
             return {
-                // ── State ──
-                tab: 'search',
-                query: '',
-                filterType: null,
-                results: [],
-                searchDone: false,
-                lastQuery: '',
-                searchTime: null,
-                loading: false,
-                documents: [],
-                selectedDoc: null,
-                entityList: [],
-                dashStats: {},
-                ingesting: false,
-                graphRendered: false,
-                docTypes: ['acta_reunion', 'email', 'memo', 'tickets', 'inventario', 'ventas', 'listado', 'documento'],
-
-                // ── Init ──
-                init() {
-                    this.loadDocuments();
-                    this.loadStats();
-                },
-
-                // ── Navigation ──
-                switchTab(t) {
-                    this.tab = t;
-                    if (t === 'documents') this.loadDocuments();
-                    if (t === 'graph') this.$nextTick(() => this.loadGraph());
-                    if (t === 'dashboard') this.loadStats();
-                },
-
-                // ── Search ──
-                async doSearch() {
-                    if (!this.query.trim()) return;
-                    this.loading = true;
-                    this.searchDone = false;
-                    const t0 = performance.now();
-                    try {
-                        let url = `${API}/api/search?q=${encodeURIComponent(this.query)}&top_k=20`;
-                        if (this.filterType) url += `&type=${encodeURIComponent(this.filterType)}`;
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        this.results = data.results || [];
-                        this.lastQuery = this.query;
-                        this.searchTime = Math.round(performance.now() - t0);
-                    } catch (e) {
-                        console.error('Search error:', e);
-                        this.results = [];
-                    }
-                    this.searchDone = true;
-                    this.loading = false;
-                },
-
-                toggleFilter(type) {
-                    this.filterType = (this.filterType === type) ? null : type;
-                    if (this.query.trim()) this.doSearch();
-                },
-
-                // ── Documents ──
-                async loadDocuments() {
-                    try {
-                        const res = await fetch(`${API}/api/documents`);
-                        const data = await res.json();
-                        this.documents = data.documents || [];
-                    } catch (e) {
-                        console.error('Documents error:', e);
-                    }
-                },
-
-                async viewDocument(docId) {
-                    try {
-                        const res = await fetch(`${API}/api/documents/${docId}`);
-                        const data = await res.json();
-                        this.selectedDoc = data;
-                        this.tab = 'documents';
-                    } catch (e) {
-                        console.error('Document detail error:', e);
-                    }
-                },
-
-                // ── Graph ──
-                async loadGraph() {
-                    try {
-                        // Load entity list
-                        const entRes = await fetch(`${API}/api/graph/entities`);
-                        const entData = await entRes.json();
-                        this.entityList = entData.entities || [];
-
-                        // Load graph data
-                        const graphRes = await fetch(`${API}/api/graph`);
-                        const graphData = await graphRes.json();
-
-                        // Render vis-network
-                        const container = document.getElementById('graph-container');
-                        if (!container) return;
-
-                        const data = {
-                            nodes: new vis.DataSet(graphData.nodes || []),
-                            edges: new vis.DataSet(graphData.edges || []),
-                        };
-
-                        const options = {
-                            nodes: {
-                                shape: 'dot',
-                                font: { size: 12, color: '#374151' },
-                                borderWidth: 2,
-                                shadow: true,
-                            },
-                            edges: {
-                                color: { color: '#d1d5db', highlight: '#6366f1' },
-                                smooth: { type: 'continuous' },
-                            },
-                            physics: {
-                                stabilization: { iterations: 200 },
-                                barnesHut: { gravitationalConstant: -3000, springLength: 150 },
-                            },
-                            interaction: {
-                                hover: true,
-                                tooltipDelay: 100,
-                            },
-                        };
-
-                        new vis.Network(container, data, options);
-                        this.graphRendered = true;
-                    } catch (e) {
-                        console.error('Graph error:', e);
-                    }
-                },
-
-                // ── Dashboard ──
-                async loadStats() {
-                    try {
-                        const res = await fetch(`${API}/api/stats`);
-                        this.dashStats = await res.json();
-                    } catch (e) {
-                        console.error('Stats error:', e);
-                    }
-                },
-
-                // ── Re-ingest ──
-                async reIngest() {
-                    this.ingesting = true;
-                    try {
-                        const res = await fetch(`${API}/api/ingest`, { method: 'POST' });
-                        const data = await res.json();
-                        alert(`✅ Pipeline completado: ${data.documents_processed} documentos procesados`);
-                        this.loadDocuments();
-                        this.loadStats();
-                    } catch (e) {
-                        alert('❌ Error en la ingestión: ' + e.message);
-                    }
-                    this.ingesting = false;
-                },
-
-                // ── Helpers ──
-                getDocIcon(type) {
-                    const icons = {
-                        'acta_reunion': '📋', 'email': '📧', 'memo': '📝',
-                        'tickets': '🎫', 'inventario': '💻', 'ventas': '💰',
-                        'listado': '📃', 'documento': '📄', 'contrato': '📑',
-                    };
-                    return icons[type] || '📄';
-                },
-
-                getTypeColor(type) {
-                    const colors = {
-                        'acta_reunion': 'bg-blue-100 text-blue-700',
-                        'email': 'bg-amber-100 text-amber-700',
-                        'memo': 'bg-green-100 text-green-700',
-                        'tickets': 'bg-red-100 text-red-700',
-                        'inventario': 'bg-cyan-100 text-cyan-700',
-                        'ventas': 'bg-emerald-100 text-emerald-700',
-                        'listado': 'bg-violet-100 text-violet-700',
-                        'documento': 'bg-gray-100 text-gray-700',
-                    };
-                    return colors[type] || 'bg-gray-100 text-gray-700';
-                },
-
-                renderHighlight(text) {
-                    if (!text) return '';
-                    // Convert **bold** to <strong>
-                    return text.replace(/\*\*(.+?)\*\*/g, '<strong class="text-indigo-700 bg-indigo-50 px-0.5 rounded">$1</strong>');
-                },
+                ext: document.getElementById('extFilter').value.trim(),
+                language: document.getElementById('languageFilter').value.trim(),
+                date_from: document.getElementById('dateFromFilter').value,
+                date_to: document.getElementById('dateToFilter').value,
+                entity: document.getElementById('entityFilter').value.trim(),
+                tag: state.filters.tag,
             };
         }
+
+        function updateFilterInputs() {
+            document.getElementById('extFilter').value = state.filters.ext || '';
+            document.getElementById('languageFilter').value = state.filters.language || '';
+            document.getElementById('dateFromFilter').value = state.filters.date_from || '';
+            document.getElementById('dateToFilter').value = state.filters.date_to || '';
+            document.getElementById('entityFilter').value = state.filters.entity || '';
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || `Request failed: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        function renderFacetButtons(containerId, buckets, onClick, activeValue) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            buckets.forEach((bucket) => {
+                const button = document.createElement('button');
+                button.className = 'facet-button rounded-full border border-slate-300 px-3 py-1 text-xs bg-white';
+                if (bucket.value === activeValue) button.classList.add('active');
+                button.innerHTML = `${bucket.value} <span class="opacity-70">(${bucket.count})</span>`;
+                button.addEventListener('click', async () => {
+                    try {
+                        await onClick(bucket.value);
+                    } catch (error) {
+                        setNotice(error.message || 'Facet update failed.', 'error');
+                    }
+                });
+                container.appendChild(button);
+            });
+        }
+
+        function renderEntityFacets(facets) {
+            const container = document.getElementById('entityFacets');
+            container.innerHTML = '';
+            Object.entries(facets || {}).forEach(([entityType, buckets]) => {
+                const block = document.createElement('div');
+                const title = document.createElement('p');
+                title.className = 'font-semibold text-slate-700 mb-2 capitalize';
+                title.textContent = entityType;
+                block.appendChild(title);
+                const wrap = document.createElement('div');
+                wrap.className = 'flex flex-wrap gap-2';
+                buckets.forEach((bucket) => {
+                    const button = document.createElement('button');
+                    button.className = 'facet-button rounded-full border border-slate-300 px-3 py-1 text-xs bg-white';
+                    if (bucket.value === state.filters.entity) button.classList.add('active');
+                    button.textContent = `${bucket.value} (${bucket.count})`;
+                    button.addEventListener('click', async () => {
+                        state.filters.entity = bucket.value;
+                        updateFilterInputs();
+                        entityGraphInputEl.value = bucket.value;
+                        try {
+                            await runSearch();
+                        } catch (error) {
+                            setNotice(error.message || 'Search failed.', 'error');
+                        }
+                    });
+                    wrap.appendChild(button);
+                });
+                block.appendChild(wrap);
+                container.appendChild(block);
+            });
+        }
+
+        function renderResults(response) {
+            state.lastResponse = response;
+            resultsEl.innerHTML = '';
+            searchMetaEl.textContent = response.query
+                ? `${response.results.length} grouped results for "${response.query}"`
+                : `${response.results.length} grouped results with current filters`;
+            if (!response.results.length) {
+                resultsEl.innerHTML = '<div class="panel p-5 text-sm text-slate-600">No matching documents for the current query and filters.</div>';
+                return;
+            }
+            response.results.forEach((result) => {
+                const article = document.createElement('article');
+                article.className = 'panel p-5 cursor-pointer hover:-translate-y-0.5 transition';
+                article.innerHTML = `
+                    <div class="flex flex-col gap-4 lg:flex-row lg:justify-between">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="inline-flex rounded-full bg-slate-900 text-white px-3 py-1 text-xs uppercase tracking-wide">${result.ext.replace('.', '')}</span>
+                                <span class="inline-flex rounded-full bg-slate-200 text-slate-700 px-3 py-1 text-xs">${result.status}</span>
+                                <span class="inline-flex rounded-full bg-slate-100 text-slate-700 px-3 py-1 text-xs">${result.language || 'unknown'}</span>
+                            </div>
+                            <h3 class="text-2xl font-bold">${result.title || result.filename}</h3>
+                            <p class="text-sm text-slate-500">${result.filename}</p>
+                            <p class="text-sm text-slate-700">${result.why_this_result}</p>
+                        </div>
+                        <div class="grid gap-2 text-sm min-w-[220px]">
+                            <div class="rounded-2xl bg-[var(--accent-soft)] px-3 py-2">Score <strong>${result.score.toFixed(3)}</strong></div>
+                            <div class="rounded-2xl bg-white px-3 py-2 border border-slate-200">Keyword ${result.keyword_score.toFixed(3)}</div>
+                            <div class="rounded-2xl bg-white px-3 py-2 border border-slate-200">Semantic ${result.semantic_score.toFixed(3)}</div>
+                            <div class="rounded-2xl bg-white px-3 py-2 border border-slate-200">PageRank ${result.pagerank_score.toFixed(3)}</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        ${result.retrieval_modes.map((mode) => `<span class="rounded-full border border-teal-300 bg-teal-50 px-3 py-1 text-xs">${mode}</span>`).join('')}
+                        ${result.matched_terms.map((term) => `<span class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs">${term}</span>`).join('')}
+                        ${result.matched_entities.map((entity) => `<button type="button" class="entity-chip rounded-full border border-indigo-300 bg-indigo-50 px-3 py-1 text-xs" data-entity="${entity}">${entity}</button>`).join('')}
+                    </div>
+                    <div class="mt-4 space-y-3">
+                        ${result.snippets.map((snippet) => `
+                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                                <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+                                    <span>${snippet.section_title || 'Chunk'}</span>
+                                    <span>${snippet.char_start}-${snippet.char_end}</span>
+                                </div>
+                                <p class="text-sm leading-6">${snippet.highlight}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                article.addEventListener('click', () => loadDocument(result.doc_id, true));
+                article.querySelectorAll('.entity-chip').forEach((button) => {
+                    button.addEventListener('click', async (event) => {
+                        event.stopPropagation();
+                        const entity = button.dataset.entity;
+                        try {
+                            entityGraphInputEl.value = entity;
+                            switchTab('graph');
+                            await loadGraph(`/graph/entity/${encodeURIComponent(entity)}`);
+                        } catch (error) {
+                            setNotice(error.message || 'Entity graph failed to load.', 'error');
+                        }
+                    });
+                });
+                resultsEl.appendChild(article);
+            });
+        }
+
+        async function runSearch() {
+            state.filters = currentFilters();
+            const query = document.getElementById('queryInput').value.trim();
+            const params = new URLSearchParams({ q: query, top_k: '10', debug: 'true' });
+            Object.entries(state.filters).forEach(([key, value]) => {
+                if (value) params.set(key, value);
+            });
+            const response = await fetchJson(`/search?${params.toString()}`);
+            renderResults(response);
+            renderFacetButtons('extFacets', response.facets.ext, async (value) => {
+                state.filters.ext = value;
+                updateFilterInputs();
+                await runSearch();
+            }, state.filters.ext);
+            renderFacetButtons('tagFacets', response.facets.tags, async (value) => {
+                state.filters.tag = value;
+                await runSearch();
+            }, state.filters.tag);
+            renderEntityFacets(response.facets.entities_by_type);
+            setNotice(
+                query
+                    ? 'Los facets reflejan el conjunto de resultados actual.'
+                    : 'Sin query textual: se muestran documentos filtrados y ordenados principalmente por PageRank.',
+            );
+        }
+
+        async function loadDocuments() {
+            const payload = await fetchJson('/documents');
+            document.getElementById('documentsCount').textContent = `${payload.count} documents`;
+            documentsListEl.innerHTML = '';
+            payload.documents.forEach((doc) => {
+                const button = document.createElement('button');
+                button.className = 'w-full text-left rounded-2xl border border-slate-200 bg-white px-4 py-3 hover:border-slate-400';
+                button.innerHTML = `
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="font-semibold">${doc.title || doc.filename}</p>
+                            <p class="text-xs text-slate-500">${doc.filename}</p>
+                        </div>
+                        <div class="text-right text-xs text-slate-500">
+                            <div>${doc.ext}</div>
+                            <div>${doc.status}</div>
+                        </div>
+                    </div>
+                `;
+                button.addEventListener('click', () => loadDocument(doc.doc_id, false));
+                documentsListEl.appendChild(button);
+            });
+        }
+
+        async function loadDocument(docId, jumpToDocs) {
+            state.selectedDocId = docId;
+            if (jumpToDocs) switchTab('documents');
+            const payload = await fetchJson(`/documents/${docId}`);
+            docGraphInputEl.value = docId;
+            documentDetailEl.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.25em] text-slate-500">${payload.ext} · ${payload.status}</p>
+                        <h3 class="text-2xl font-bold">${payload.title || payload.filename}</h3>
+                        <p class="text-sm text-slate-500">${payload.filename}</p>
+                    </div>
+                    <pre class="rounded-2xl bg-slate-900 text-slate-100 p-4 text-xs overflow-auto">${JSON.stringify(payload.metadata, null, 2)}</pre>
+                    <div class="space-y-3">
+                        ${payload.chunks.map((chunk) => `
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div class="flex justify-between text-xs text-slate-500 mb-2">
+                                    <span>${chunk.section_title || `Chunk ${chunk.chunk_index}`}</span>
+                                    <span>${chunk.char_start}-${chunk.char_end}</span>
+                                </div>
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    ${chunk.entity_texts ? chunk.entity_texts.split(',').map((entity) => entity.trim()).filter(Boolean).map((entity) => `<button type="button" class="detail-entity rounded-full border border-indigo-300 bg-indigo-50 px-3 py-1 text-xs" data-entity="${entity}">${entity}</button>`).join('') : ''}
+                                    ${chunk.tag_texts ? chunk.tag_texts.split(',').map((tag) => tag.trim()).filter(Boolean).map((tag) => `<span class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs">${tag}</span>`).join('') : ''}
+                                </div>
+                                <p class="whitespace-pre-wrap text-sm leading-6">${chunk.text}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            documentDetailEl.querySelectorAll('.detail-entity').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const entity = button.dataset.entity;
+                    try {
+                        entityGraphInputEl.value = entity;
+                        switchTab('graph');
+                        await loadGraph(`/graph/entity/${encodeURIComponent(entity)}`);
+                    } catch (error) {
+                        setNotice(error.message || 'Entity graph failed to load.', 'error');
+                    }
+                });
+            });
+        }
+
+        async function loadGraph(url) {
+            const payload = await fetchJson(url);
+            const nodes = new vis.DataSet(payload.nodes.map((node) => ({
+                id: node.id,
+                label: node.label,
+                group: node.node_type,
+                value: Math.max(node.pagerank * 4000, 10),
+                title: `${node.node_type}\nPageRank: ${node.pagerank.toFixed(5)}`,
+            })));
+            const edges = new vis.DataSet(payload.edges.map((edge) => ({
+                id: edge.id,
+                from: edge.source,
+                to: edge.target,
+                label: edge.edge_type,
+                value: Math.max(edge.weight, 1),
+            })));
+            const container = document.getElementById('graphCanvas');
+            graphNetwork = new vis.Network(container, { nodes, edges }, {
+                physics: { stabilization: true },
+                groups: {
+                    doc: { color: '#102129', font: { color: '#ffffff' } },
+                    chunk: { color: '#0e7c86', font: { color: '#ffffff' } },
+                    entity: { color: '#e7a733', font: { color: '#102129' } },
+                },
+                edges: { arrows: 'to', smooth: true },
+            });
+            setNotice(`Loaded graph with ${payload.nodes.length} nodes and ${payload.edges.length} edges.`, 'success');
+        }
+
+        document.getElementById('searchForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                await runSearch();
+            } catch (error) {
+                setNotice(error.message || 'Search failed.', 'error');
+            }
+        });
+
+        document.getElementById('clearFilters').addEventListener('click', async () => {
+            state.filters = { ext: '', language: '', date_from: '', date_to: '', entity: '', tag: '' };
+            updateFilterInputs();
+            try {
+                await runSearch();
+            } catch (error) {
+                setNotice(error.message || 'Search failed.', 'error');
+            }
+        });
+
+        document.getElementById('ingestButton').addEventListener('click', async () => {
+            try {
+                const result = await fetchJson('/ingest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                setNotice(
+                    `Ingest completed. Processed ${result.processed}, skipped ${result.skipped}, needs OCR ${result.needs_ocr}. Si ves muchos skipped, significa que esos archivos no cambiaron.`,
+                    'success',
+                );
+                await loadDocuments();
+                await runSearch();
+            } catch (error) {
+                setNotice(error.message || 'Ingest failed.', 'error');
+            }
+        });
+
+        document.getElementById('uploadButton').addEventListener('click', async () => {
+            const input = document.getElementById('uploadInput');
+            const file = input.files[0];
+            if (!file) {
+                setNotice('Selecciona un archivo antes de subirlo.', 'error');
+                return;
+            }
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const result = await fetchJson('/upload', { method: 'POST', body: formData });
+                input.value = '';
+                setNotice(
+                    `Upload completed for ${result.filename}. Processed ${result.processed}, failed ${result.failed}, needs OCR ${result.needs_ocr}.`,
+                    'success',
+                );
+                await loadDocuments();
+                await runSearch();
+            } catch (error) {
+                setNotice(error.message || 'Upload failed.', 'error');
+            }
+        });
+
+        document.getElementById('loadDocGraph').addEventListener('click', async () => {
+            const value = docGraphInputEl.value.trim();
+            if (!value) return;
+            try {
+                switchTab('graph');
+                await loadGraph(`/graph/doc/${encodeURIComponent(value)}`);
+            } catch (error) {
+                setNotice(error.message || 'Document graph failed to load.', 'error');
+            }
+        });
+
+        document.getElementById('loadEntityGraph').addEventListener('click', async () => {
+            const value = entityGraphInputEl.value.trim();
+            if (!value) return;
+            try {
+                switchTab('graph');
+                await loadGraph(`/graph/entity/${encodeURIComponent(value)}`);
+            } catch (error) {
+                setNotice(error.message || 'Entity graph failed to load.', 'error');
+            }
+        });
+
+        (async () => {
+            updateFilterInputs();
+            try {
+                await loadDocuments();
+                await runSearch();
+            } catch (error) {
+                setNotice(error.message || 'Initial load failed.', 'error');
+            }
+        })();
     </script>
 </body>
-
 </html>

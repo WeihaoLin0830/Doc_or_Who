@@ -1,110 +1,113 @@
-"""
-models.py — Estructuras de datos del proyecto.
-
-Usamos dataclasses simples. Nada de ORMs complejos.
-Cada clase tiene un método to_dict() para serializar a JSON fácilmente.
-"""
-
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
-from typing import Optional
+from sqlalchemy import Float, ForeignKey, Integer, LargeBinary, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from backend.utils import utcnow_text
 
 
-@dataclass
-class Document:
-    """Un documento completo tal como se ingesta."""
-
-    doc_id: str                              # Identificador único (hash del path)
-    filename: str                            # Nombre del fichero original
-    filepath: str                            # Ruta absoluta
-    raw_text: str                            # Texto completo extraído
-    doc_type: str = "documento"              # acta_reunion | email | memo | csv | ...
-    language: str = "es"                     # Código ISO 639-1
-    title: str = ""                          # Título inferido
-    summary: str = ""                        # Resumen automático (2-3 frases)
-    keywords: list[str] = field(default_factory=list)
-    persons: list[str] = field(default_factory=list)       # NER: personas
-    organizations: list[str] = field(default_factory=list)  # NER: organizaciones
-    dates: list[str] = field(default_factory=list)          # Fechas encontradas
-    category: str = ""                       # Departamento / área temática
-
-    def to_dict(self) -> dict:
-        return asdict(self)
+class Base(DeclarativeBase):
+    pass
 
 
-@dataclass
-class Chunk:
-    """Un fragmento de un documento, listo para indexar."""
+class DocumentRecord(Base):
+    __tablename__ = "documents"
 
-    chunk_id: str                # doc_id + sufijo secuencial
-    doc_id: str = ""             # Referencia al documento padre (se rellena en chunk_document)
-    text: str = ""               # Contenido del chunk
-    chunk_index: int = 0         # Posición dentro del documento
-    section: str = ""            # Nombre de sección si aplica
-    level: str = "default"       # micro | meso | macro | default
+    doc_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    filename: Mapped[str] = mapped_column(Text, nullable=False)
+    ext: Mapped[str] = mapped_column(Text, nullable=False)
+    mime: Mapped[str] = mapped_column(Text, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    mtime_epoch: Mapped[float] = mapped_column(Float, nullable=False)
+    sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    author: Mapped[str | None] = mapped_column(Text, nullable=True)
+    language: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, default=utcnow_text)
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, default=utcnow_text)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    is_deleted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # Metadatos heredados del documento padre (denormalizados para búsqueda)
-    doc_type: str = ""
-    title: str = ""
-    language: str = "es"
-    filename: str = ""
-    persons: list[str] = field(default_factory=list)
-    organizations: list[str] = field(default_factory=list)
-    keywords: list[str] = field(default_factory=list)
-    dates: list[str] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-    @property
-    def metadata(self) -> dict:
-        """Metadatos para ChromaDB / Whoosh (solo tipos simples)."""
-        return {
-            "doc_id": self.doc_id,
-            "doc_type": self.doc_type,
-            "title": self.title,
-            "language": self.language,
-            "filename": self.filename,
-            "section": self.section,
-            "level": self.level,
-            "persons": ", ".join(self.persons),
-            "organizations": ", ".join(self.organizations),
-            "keywords": ", ".join(self.keywords),
-            "dates": ", ".join(self.dates),
-        }
+    chunks: Mapped[list["ChunkRecord"]] = relationship(back_populates="document", cascade="all, delete-orphan")
 
 
-@dataclass
-class SearchResult:
-    """Un resultado de búsqueda fusionado."""
+class ChunkRecord(Base):
+    __tablename__ = "chunks"
 
-    chunk_id: str
-    doc_id: str
-    text: str
-    score: float = 0.0
-    title: str = ""
-    doc_type: str = ""
-    filename: str = ""
-    section: str = ""
-    persons: list[str] = field(default_factory=list)
-    organizations: list[str] = field(default_factory=list)
-    keywords: list[str] = field(default_factory=list)
-    dates: list[str] = field(default_factory=list)
-    highlight: str = ""          # Snippet con los términos resaltados
+    chunk_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    doc_id: Mapped[str] = mapped_column(Text, ForeignKey("documents.doc_id", ondelete="CASCADE"), nullable=False, index=True)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    char_start: Mapped[int] = mapped_column(Integer, nullable=False)
+    char_end: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entity_texts: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    tag_texts: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    bm25_indexed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, default=utcnow_text)
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, default=utcnow_text)
 
-    def to_dict(self) -> dict:
-        return asdict(self)
+    document: Mapped[DocumentRecord] = relationship(back_populates="chunks")
+    embedding: Mapped["ChunkEmbeddingRecord | None"] = relationship(back_populates="chunk", cascade="all, delete-orphan")
+    entity_links: Mapped[list["ChunkEntityRecord"]] = relationship(back_populates="chunk", cascade="all, delete-orphan")
 
 
-@dataclass
-class EntityNode:
-    """Un nodo del grafo de entidades."""
+class ChunkEmbeddingRecord(Base):
+    __tablename__ = "chunk_embeddings"
 
-    name: str
-    entity_type: str             # person | organization | product | project
-    doc_ids: list[str] = field(default_factory=list)
-    mentions: int = 0
+    chunk_id: Mapped[str] = mapped_column(Text, ForeignKey("chunks.chunk_id", ondelete="CASCADE"), primary_key=True)
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    model_name: Mapped[str] = mapped_column(Text, nullable=False)
+    dim: Mapped[int] = mapped_column(Integer, nullable=False)
+    vector_blob: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, default=utcnow_text)
 
-    def to_dict(self) -> dict:
-        return asdict(self)
+    chunk: Mapped[ChunkRecord] = relationship(back_populates="embedding")
+
+
+class EntityRecord(Base):
+    __tablename__ = "entities"
+
+    entity_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    canonical_text: Mapped[str] = mapped_column(Text, nullable=False)
+    display_text: Mapped[str] = mapped_column(Text, nullable=False)
+    type: Mapped[str] = mapped_column(Text, nullable=False)
+    importance_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    chunk_links: Mapped[list["ChunkEntityRecord"]] = relationship(back_populates="entity", cascade="all, delete-orphan")
+
+
+class ChunkEntityRecord(Base):
+    __tablename__ = "chunk_entities"
+
+    chunk_id: Mapped[str] = mapped_column(Text, ForeignKey("chunks.chunk_id", ondelete="CASCADE"), primary_key=True)
+    entity_id: Mapped[str] = mapped_column(Text, ForeignKey("entities.entity_id", ondelete="CASCADE"), primary_key=True)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+
+    chunk: Mapped[ChunkRecord] = relationship(back_populates="entity_links")
+    entity: Mapped[EntityRecord] = relationship(back_populates="chunk_links")
+
+
+class EdgeRecord(Base):
+    __tablename__ = "edges"
+
+    edge_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    src_type: Mapped[str] = mapped_column(Text, nullable=False)
+    src_id: Mapped[str] = mapped_column(Text, nullable=False)
+    dst_type: Mapped[str] = mapped_column(Text, nullable=False)
+    dst_id: Mapped[str] = mapped_column(Text, nullable=False)
+    edge_type: Mapped[str] = mapped_column(Text, nullable=False)
+    weight: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class PageRankScoreRecord(Base):
+    __tablename__ = "pagerank_scores"
+
+    node_type: Mapped[str] = mapped_column(Text, primary_key=True)
+    node_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    pagerank: Mapped[float] = mapped_column(Float, nullable=False)

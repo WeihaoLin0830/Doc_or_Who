@@ -1,333 +1,169 @@
-"""
-chunker.py — Fragmentación adaptativa de documentos.
-
-Cada tipo de documento tiene su propia estrategia de chunking.
-Los chunks se crean con metadatos heredados del documento padre.
-"""
-
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from bisect import bisect_left
 
-import pandas as pd
+from backend.config import get_settings
+from backend.types import ChunkPayload, ExtractionResult
 
-from backend.config import MAX_CHUNK_TOKENS
-from backend.models import Chunk, Document
-
-if TYPE_CHECKING:
-    pass
+TOKEN_RE = re.compile(r"\S+")
+HEADING_RE = re.compile(r"^(?:#{1,6}\s+.+|[A-Z0-9][A-Z0-9 \-:]{3,}|(?:\d+\.|\d+\))\s+.+)$")
 
 
-def chunk_document(doc: Document, df: pd.DataFrame | None = None) -> list[Chunk]:
-    """
-    Dispatcher: elige la estrategia de chunking según doc.doc_type.
-    Devuelve una lista de Chunks listos para indexar.
-    """
-    strategy = {
-        "acta_reunion": _chunk_acta,
-        "email": _chunk_email,
-        "memo": _chunk_memo,
-        "listado": _chunk_listado,
-        "tickets": lambda d, **kw: _chunk_csv(d, df, "tickets"),
-        "inventario": lambda d, **kw: _chunk_csv(d, df, "inventario"),
-        "ventas": lambda d, **kw: _chunk_csv(d, df, "ventas"),
-        "tabla": lambda d, **kw: _chunk_csv(d, df, "tabla"),
-    }
-
-    func = strategy.get(doc.doc_type, _chunk_generic)
-    chunks = func(doc)
-
-    # Inyectar metadatos del padre en cada chunk
-    for chunk in chunks:
-        chunk.doc_id = doc.doc_id
-        chunk.doc_type = doc.doc_type
-        chunk.title = doc.title
-        chunk.language = doc.language
-        chunk.filename = doc.filename
-        chunk.persons = doc.persons
-        chunk.organizations = doc.organizations
-        chunk.keywords = doc.keywords
-        chunk.dates = doc.dates
-
-    return chunks
+def tokenize_with_offsets(text: str) -> list[tuple[str, int, int]]:
+    return [(match.group(0), match.start(), match.end()) for match in TOKEN_RE.finditer(text)]
 
 
-# ─── ACTAS DE REUNIÓN ────────────────────────────────────────────
-def _chunk_acta(doc: Document) -> list[Chunk]:
-    """
-    Divide un acta por secciones numeradas (1. TITULO, 2. TITULO...).
-    Incluye el header del acta como prefijo de contexto en cada chunk.
-    """
-    text = doc.raw_text
-    chunks: list[Chunk] = []
-
-    # Extraer header (todo antes de la primera sección numerada)
-    header_match = re.search(r"^(.*?)(?=\n\d+\.\s)", text, re.DOTALL)
-    header = header_match.group(1).strip() if header_match else ""
-
-    # Dividir por secciones numeradas
-    sections = re.split(r"\n(?=\d+\.\s)", text)
-
-    for i, section in enumerate(sections):
-        section = section.strip()
-        if not section:
-            continue
-
-        # Extraer nombre de sección
-        sec_match = re.match(r"\d+\.\s*(.+?)(?:\n|$)", section)
-        sec_name = sec_match.group(1).strip() if sec_match else f"Sección {i}"
-
-        # Prefijo de contexto: header + nombre sección
-        chunk_text = f"[Contexto: {header[:200]}]\n\n{section}" if header else section
-
-        chunks.append(Chunk(
-            chunk_id=f"{doc.doc_id}_sec{i}",
-            text=chunk_text,
-            chunk_index=i,
-            section=sec_name,
-        ))
-
-    # Si no se encontraron secciones, chunk genérico
-    if not chunks:
-        return _chunk_generic(doc)
-
-    return chunks
+def approximate_token_count(text: str) -> int:
+    return len(TOKEN_RE.findall(text))
 
 
-# ─── EMAILS ──────────────────────────────────────────────────────
-def _chunk_email(doc: Document) -> list[Chunk]:
-    """
-    Divide un hilo de emails por mensaje individual.
-    Cada mensaje conserva sus headers (De, Para, Fecha, Asunto).
-    """
-    text = doc.raw_text
-    chunks: list[Chunk] = []
-
-    # Separar mensajes por línea "---" o "De:" al inicio de línea
-    messages = re.split(r"\n---\n", text)
-
-    for i, msg in enumerate(messages):
-        msg = msg.strip()
-        if not msg:
-            continue
-
-        chunks.append(Chunk(
-            chunk_id=f"{doc.doc_id}_msg{i}",
-            text=msg,
-            chunk_index=i,
-            section=f"Mensaje {i + 1}",
-            level="micro",
-        ))
-
-    # Chunk extra: resumen del hilo completo
-    if len(messages) > 1:
-        chunks.append(Chunk(
-            chunk_id=f"{doc.doc_id}_thread",
-            text=f"[Hilo completo de email — {len(messages)} mensajes]\n\n{text}",
-            chunk_index=len(messages),
-            section="Hilo completo",
-            level="macro",
-        ))
-
-    return chunks if chunks else _chunk_generic(doc)
+def _heading_positions(text: str) -> list[tuple[int, str]]:
+    headings: list[tuple[int, str]] = []
+    cursor = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped and len(stripped) <= 140 and HEADING_RE.match(stripped):
+            headings.append((cursor, stripped.lstrip("#").strip()))
+        cursor += len(line)
+    return headings
 
 
-# ─── MEMOS / COMUNICADOS ────────────────────────────────────────
-def _chunk_memo(doc: Document) -> list[Chunk]:
-    """
-    Si el memo es corto (< MAX_CHUNK_TOKENS), un solo chunk.
-    Si es largo, dividir por secciones numeradas o por párrafos.
-    """
-    text = doc.raw_text
-    word_count = len(text.split())
-
-    # Memo corto: indexar el documento completo como un solo chunk
-    if word_count < MAX_CHUNK_TOKENS:
-        return [Chunk(
-            chunk_id=f"{doc.doc_id}_full",
-            text=text,
-            chunk_index=0,
-            section="Documento completo",
-        )]
-
-    # Memo largo: intentar dividir por secciones
-    sections = re.split(r"\n(?=[A-ZÁÉÍÓÚÑ]{3,})", text)
-    if len(sections) < 2:
-        sections = re.split(r"\n\s*\d+\.\s", text)
-
-    chunks: list[Chunk] = []
-    for i, sec in enumerate(sections):
-        sec = sec.strip()
-        if len(sec) < 20:
-            continue
-        chunks.append(Chunk(
-            chunk_id=f"{doc.doc_id}_sec{i}",
-            text=sec,
-            chunk_index=i,
-            section=f"Sección {i}",
-        ))
-
-    return chunks if chunks else _chunk_generic(doc)
+def _boundary_token_indices(text: str, token_starts: list[int]) -> list[int]:
+    boundaries: set[int] = set()
+    for match in re.finditer(r"\n\s*\n+", text):
+        boundaries.add(bisect_left(token_starts, match.end()))
+    for position, _title in _heading_positions(text):
+        boundaries.add(bisect_left(token_starts, position))
+    return sorted(boundaries)
 
 
-# ─── LISTADOS (Proveedores, etc.) ───────────────────────────────
-def _chunk_listado(doc: Document) -> list[Chunk]:
-    """
-    Un chunk por bloque de entidad (cada proveedor = 1 chunk).
-    Detecta bloques por numeración (1. Nombre, 2. Nombre...).
-    """
-    text = doc.raw_text
-    chunks: list[Chunk] = []
-
-    # Separar por entradas numeradas
-    entries = re.split(r"\n(?=\d{1,2}\.\s)", text)
-
-    # El primer bloque es normalmente el header
-    header = entries[0].strip() if entries else ""
-
-    for i, entry in enumerate(entries[1:], start=1):
-        entry = entry.strip()
-        if not entry:
-            continue
-
-        # Extraer nombre de la entidad (primera línea del bloque)
-        first_line = entry.split("\n")[0]
-        name = re.sub(r"^\d+\.\s*", "", first_line).strip()
-
-        chunks.append(Chunk(
-            chunk_id=f"{doc.doc_id}_ent{i}",
-            text=f"[{header[:150]}]\n\n{entry}",
-            chunk_index=i,
-            section=name,
-            level="micro",
-        ))
-
-    # Chunk de resumen con el header completo
-    if header:
-        chunks.insert(0, Chunk(
-            chunk_id=f"{doc.doc_id}_header",
-            text=header,
-            chunk_index=0,
-            section="Resumen listado",
-            level="macro",
-        ))
-
-    return chunks if chunks else _chunk_generic(doc)
+def _section_for_token(token_index: int, heading_tokens: list[tuple[int, str]]) -> str | None:
+    current = None
+    for heading_index, title in heading_tokens:
+        if heading_index <= token_index:
+            current = title
+        else:
+            break
+    return current
 
 
-# ─── CSV / DATOS TABULARES ───────────────────────────────────────
-def _chunk_csv(doc: Document, df: pd.DataFrame | None, subtype: str) -> list[Chunk]:
-    """
-    Triple nivel de chunking para datos tabulares:
-    - Nivel 1 (micro): cada fila como texto natural
-    - Nivel 2 (meso): agrupación por entidad clave
-    - Nivel 3 (macro): resumen estadístico del fichero
-    """
-    if df is None or df.empty:
-        return _chunk_generic(doc)
-
-    chunks: list[Chunk] = []
-
-    # ── Nivel 1: fila a texto natural ──
-    for idx, row in df.iterrows():
-        parts = [f"{col}: {val}" for col, val in row.items() if pd.notna(val)]
-        row_text = " | ".join(parts)
-        chunks.append(Chunk(
-            chunk_id=f"{doc.doc_id}_row{idx}",
-            text=row_text,
-            chunk_index=int(idx) if isinstance(idx, (int, float)) else 0,
-            section=f"Fila {idx}",
-            level="micro",
-        ))
-
-    # ── Nivel 2: agrupación por entidad clave ──
-    group_col = _find_group_column(df, subtype)
-    if group_col and group_col in df.columns:
-        for name, group in df.groupby(group_col):
-            summary_lines = []
-            for _, row in group.iterrows():
-                parts = [f"{c}: {v}" for c, v in row.items() if pd.notna(v) and c != group_col]
-                summary_lines.append(" | ".join(parts))
-            group_text = f"{group_col}: {name} ({len(group)} registros)\n" + "\n".join(summary_lines[:20])
-            chunks.append(Chunk(
-                chunk_id=f"{doc.doc_id}_grp_{str(name)[:30]}",
-                text=group_text,
+def chunk_text_document(text: str) -> list[ChunkPayload]:
+    settings = get_settings()
+    tokens = tokenize_with_offsets(text)
+    if not tokens:
+        return []
+    if len(tokens) <= settings.chunk_max_tokens:
+        return [
+            ChunkPayload(
                 chunk_index=0,
-                section=f"{group_col}: {name}",
-                level="meso",
-            ))
+                text=text,
+                token_count=len(tokens),
+                char_start=0,
+                char_end=len(text),
+                section_title=_heading_positions(text)[0][1] if _heading_positions(text) else None,
+            )
+        ]
 
-    # ── Nivel 3: resumen global ──
-    stats_text = _generate_csv_summary(df, subtype, doc.filename)
-    chunks.append(Chunk(
-        chunk_id=f"{doc.doc_id}_summary",
-        text=stats_text,
-        chunk_index=0,
-        section="Resumen estadístico",
-        level="macro",
-    ))
-
+    token_starts = [start for _token, start, _end in tokens]
+    boundaries = _boundary_token_indices(text, token_starts)
+    heading_tokens = [(bisect_left(token_starts, position), title) for position, title in _heading_positions(text)]
+    chunks: list[ChunkPayload] = []
+    start_index = 0
+    chunk_index = 0
+    while start_index < len(tokens):
+        min_end = min(len(tokens), start_index + settings.chunk_min_tokens)
+        target_end = min(len(tokens), start_index + settings.chunk_target_tokens)
+        max_end = min(len(tokens), start_index + settings.chunk_max_tokens)
+        boundary_candidates = [candidate for candidate in boundaries if min_end <= candidate <= max_end]
+        if boundary_candidates:
+            end_index = min(boundary_candidates, key=lambda candidate: abs(candidate - target_end))
+        else:
+            end_index = max_end
+        if end_index <= start_index:
+            end_index = min(len(tokens), start_index + settings.chunk_target_tokens)
+        char_start = tokens[start_index][1]
+        char_end = tokens[end_index - 1][2]
+        chunks.append(
+            ChunkPayload(
+                chunk_index=chunk_index,
+                text=text[char_start:char_end].strip(),
+                token_count=end_index - start_index,
+                char_start=char_start,
+                char_end=char_end,
+                section_title=_section_for_token(start_index, heading_tokens),
+            )
+        )
+        if end_index >= len(tokens):
+            break
+        start_index = max(0, end_index - settings.chunk_overlap_tokens)
+        chunk_index += 1
     return chunks
 
 
-def _find_group_column(df: pd.DataFrame, subtype: str) -> str | None:
-    """Elige la columna de agrupación según el tipo de CSV."""
-    col_map = {
-        "tickets": "cliente",
-        "inventario": "departamento",
-        "ventas": "cliente",
-    }
-    preferred = col_map.get(subtype)
-    if preferred and preferred in df.columns:
-        return preferred
-    return None
-
-
-def _generate_csv_summary(df: pd.DataFrame, subtype: str, filename: str) -> str:
-    """Genera un resumen estadístico en texto natural del DataFrame."""
-    lines = [f"Resumen de '{filename}': {len(df)} filas, {len(df.columns)} columnas."]
-
-    # Contar valores únicos de columnas categóricas
-    for col in df.columns:
-        if df[col].dtype == "object" and df[col].nunique() < 30:
-            top = df[col].value_counts().head(5)
-            top_str = ", ".join(f"{k} ({v})" for k, v in top.items())
-            lines.append(f"  {col}: {df[col].nunique()} valores únicos. Top: {top_str}")
-
-    # Columnas numéricas
-    numeric = df.select_dtypes(include="number")
-    for col in numeric.columns:
-        lines.append(f"  {col}: min={numeric[col].min()}, max={numeric[col].max()}, "
-                     f"media={numeric[col].mean():.1f}")
-
+def _summarize_rows(rows: list[dict[str, str]], label: str) -> str:
+    lines = [f"{label} ({len(rows)} rows)"]
+    for row in rows[:20]:
+        lines.append(" | ".join(f"{key}: {value}" for key, value in row.items()))
     return "\n".join(lines)
 
 
-# ─── GENÉRICO (fallback) ─────────────────────────────────────────
-def _chunk_generic(doc: Document) -> list[Chunk]:
-    """
-    Chunking genérico por ventana de palabras con solapamiento.
-    Usado como fallback si no hay estrategia específica.
-    """
-    text = doc.raw_text
-    words = text.split()
-    chunks: list[Chunk] = []
+def chunk_tabular_document(extraction: ExtractionResult) -> list[ChunkPayload]:
+    rows = extraction.table_rows
+    if not rows:
+        return chunk_text_document(extraction.text)
+    chunks: list[ChunkPayload] = []
+    for index, row in enumerate(rows):
+        row_text = " | ".join(f"{key}: {value}" for key, value in row.items())
+        start, end = extraction.row_spans[index] if index < len(extraction.row_spans) else (0, len(extraction.text))
+        chunks.append(
+            ChunkPayload(
+                chunk_index=len(chunks),
+                text=row_text,
+                token_count=approximate_token_count(row_text),
+                char_start=start,
+                char_end=end,
+                section_title=f"Row {index}",
+            )
+        )
 
-    step = MAX_CHUNK_TOKENS
-    overlap = 50
-    i = 0
-    idx = 0
+    group_key = extraction.table_group_key
+    if group_key:
+        grouped: dict[str, list[tuple[int, dict[str, str]]]] = {}
+        for index, row in enumerate(rows):
+            group_value = row.get(group_key, "unknown")
+            grouped.setdefault(group_value, []).append((index, row))
+        for group_value, grouped_rows in grouped.items():
+            content = _summarize_rows([row for _index, row in grouped_rows], f"{group_key}: {group_value}")
+            start = extraction.row_spans[grouped_rows[0][0]][0]
+            end = extraction.row_spans[grouped_rows[-1][0]][1]
+            chunks.append(
+                ChunkPayload(
+                    chunk_index=len(chunks),
+                    text=content,
+                    token_count=approximate_token_count(content),
+                    char_start=start,
+                    char_end=end,
+                    section_title=f"{group_key}: {group_value}",
+                )
+            )
 
-    while i < len(words):
-        chunk_words = words[i: i + step]
-        chunk_text = " ".join(chunk_words)
-        chunks.append(Chunk(
-            chunk_id=f"{doc.doc_id}_chunk{idx}",
-            text=chunk_text,
-            chunk_index=idx,
-        ))
-        i += step - overlap
-        idx += 1
-
+    summary = _summarize_rows(rows, f"Document summary for {extraction.path.name}")
+    chunks.append(
+        ChunkPayload(
+            chunk_index=len(chunks),
+            text=summary,
+            token_count=approximate_token_count(summary),
+            char_start=0,
+            char_end=len(extraction.text),
+            section_title="Document summary",
+        )
+    )
     return chunks
+
+
+class Chunker:
+    def chunk(self, _document, text: str, extraction: ExtractionResult | None = None) -> list[ChunkPayload]:
+        if extraction and extraction.table_rows:
+            return chunk_tabular_document(extraction)
+        return chunk_text_document(text)

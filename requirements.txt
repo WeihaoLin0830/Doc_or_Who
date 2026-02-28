@@ -1,29 +1,20 @@
-# DocumentWho — Dependencies
-# pip install -r requirements.txt
-
-# --- API ---
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
-
-# --- Parsing ---
 PyMuPDF==1.24.10
 python-docx==1.1.2
-
-# --- NLP / Embeddings ---
+python-pptx==0.6.23
 sentence-transformers==3.1.0
-chromadb==0.5.7
 spacy==3.8.2
-
-# --- Full-text search ---
-whoosh==2.7.4
-
-# --- Enrichment ---
 yake==0.4.8
 langdetect==1.0.9
 ftfy==6.2.3
-
-# --- Data ---
 pandas==2.2.3
-
-# --- Utils ---
+numpy==1.26.4
+faiss-cpu==1.8.0.post1
+sqlalchemy==2.0.36
+alembic==1.13.3
+networkx==3.4.2
 python-multipart==0.0.12
+openpyxl==3.1.5
+pytesseract==0.3.13
+Pillow==10.4.0

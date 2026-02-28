@@ -1,51 +1,36 @@
-"""
-cleaning.py — Limpieza de texto y detección de idioma.
-
-Normaliza whitespace, arregla encoding roto, elimina ruido de PDF/OCR.
-"""
+from __future__ import annotations
 
 import re
 
-try:
-    import ftfy
-except ImportError:
-    ftfy = None  # type: ignore
+import ftfy
+from langdetect import detect
+
+from backend.config import get_settings
+
+CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")
+PAGE_NOISE_RE = re.compile(r"(?:^|\n)\s*(?:page|p[aá]gina)\s+\d+(?:\s+of\s+\d+|\s+de\s+\d+)?\s*(?=\n|$)", re.IGNORECASE)
 
 
 def clean_text(raw: str) -> str:
-    """
-    Pipeline de limpieza de texto extraído.
-    1. Fix encoding con ftfy
-    2. Normalizar whitespace
-    3. Eliminar ruido de headers/footers de PDF
-    4. Strip final
-    """
-    text = raw
-
-    # 1. Reparar problemas de encoding (caracteres rotos del CSV/OCR)
-    if ftfy is not None:
-        text = ftfy.fix_text(text)
-
-    # 2. Normalizar whitespace
-    text = re.sub(r"\n{3,}", "\n\n", text)        # Máximo 2 saltos de línea
-    text = re.sub(r"[ \t]{2,}", " ", text)        # Múltiples espacios → 1
-    text = re.sub(r"[ \t]+\n", "\n", text)        # Trailing spaces antes de newline
-
-    # 3. Quitar ruido típico de PDFs: "Página 1 de 5", números de página solos
-    text = re.sub(r"[Pp]ágina\s+\d+\s+de\s+\d+", "", text)
-    text = re.sub(r"^\s*\d{1,3}\s*$", "", text, flags=re.MULTILINE)
-
+    text = ftfy.fix_text(raw)
+    text = CONTROL_CHARS_RE.sub(" ", text)
+    text = PAGE_NOISE_RE.sub("\n", text)
+    lines: list[str] = []
+    for line in text.splitlines():
+        line = re.sub(r"[ \t]+", " ", line).strip()
+        if len(line) > 1200:
+            line = line[:1200]
+        lines.append(line)
+    text = "\n".join(lines)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
     return text.strip()
 
 
 def detect_language(text: str) -> str:
-    """
-    Detecta el idioma del texto usando langdetect.
-    Solo analiza los primeros 500 caracteres (suficiente y rápido).
-    Devuelve código ISO 639-1: 'es', 'ca', 'en', etc.
-    """
+    if not text.strip():
+        return get_settings().default_language
     try:
-        from langdetect import detect
-        return detect(text[:500])
+        return detect(text[:1200])
     except Exception:
-        return "es"  # Fallback: español
+        return get_settings().default_language

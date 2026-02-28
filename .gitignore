@@ -144,6 +144,13 @@ ENV/
 env.bak/
 venv.bak/
 
+# DocumentWho generated data
+data/documentwho.db
+data/chroma_db/
+data/vector/
+data/whoosh_index/
+uploads/
+
 # Spyder project settings
 .spyderproject
 .spyproject
