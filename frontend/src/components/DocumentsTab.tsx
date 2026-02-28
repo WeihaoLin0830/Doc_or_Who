@@ -768,6 +768,8 @@ export function DocumentsTab({ documents }: Props) {
                                                         const cOpen = expandedClusters.has(cKey);
                                                         const subColor = CC[(cluster.cluster_id * 3 + child.cluster_id + 1) % CC.length];
                                                         const isSubDropTarget = dragOverTarget === cKey && dragDocId !== null;
+                                                        const cSummary = clusterSummaries[cKey];
+                                                        const isCChildSummarizing = summaryLoadingId === cKey;
                                                         return (
                                                             <div key={child.cluster_id}
                                                                 className={`bg-white/70 border border-white/80 rounded-lg overflow-hidden transition-all ${isSubDropTarget ? "ring-2 ring-brand-300 bg-brand-50/30" : ""}`}
@@ -792,7 +794,29 @@ export function DocumentsTab({ documents }: Props) {
                                                                     </span>
                                                                 </button>
                                                                 {cOpen && (
-                                                                    <div className="px-4 pb-3 space-y-1">
+                                                                    <div className="px-4 pb-3 space-y-2">
+                                                                        {/* Summary for child cluster */}
+                                                                        <div className="flex items-start gap-2 mb-2">
+                                                                            {cSummary ? (
+                                                                                <div className="flex-1 text-xs text-ink-1 bg-white/60 rounded-lg px-3 py-2 leading-relaxed">{cSummary}</div>
+                                                                            ) : (
+                                                                                <button onClick={(e) => { e.stopPropagation(); summarizeCluster(child, cKey); }}
+                                                                                    disabled={isCChildSummarizing}
+                                                                                    className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${subColor.text} hover:opacity-80 disabled:opacity-50 transition-opacity`}>
+                                                                                    {isCChildSummarizing ? (
+                                                                                        <><svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                                                        </svg>Generando resumen...</>
+                                                                                    ) : (
+                                                                                        <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                                        </svg>Generar resumen</>
+                                                                                    )}
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                         {child.documents.map((doc) => (
                                                                             <DraggableDocRow key={doc.doc_id} doc={doc}
                                                                                 onView={setModalDocId}
