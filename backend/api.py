@@ -630,7 +630,7 @@ def cluster_documents(n_clusters: Optional[int] = None):
             "category": doc_info.get("category", ""),
         })
 
-    # Generar etiquetas para cada cluster basadas en los tipos más frecuentes
+    # Generar etiquetas y keywords para cada cluster
     cluster_list = []
     for cid in sorted(cluster_docs.keys()):
         docs = cluster_docs[cid]
@@ -642,9 +642,27 @@ def cluster_documents(n_clusters: Optional[int] = None):
         top_type = max(type_counts, key=type_counts.get) if type_counts else "documentos"
         label = f"{top_type.replace('_', ' ').title()}" if len(type_counts) == 1 else \
                 f"{top_type.replace('_', ' ').title()} y otros"
+
+        # Keywords: aggregate from document metadata
+        kw_freq: dict[str, int] = {}
+        categories_set: set[str] = set()
+        for d in docs:
+            doc_id = d["doc_id"]
+            doc_info = _documents.get(doc_id, {})
+            for kw in doc_info.get("keywords", []):
+                kw_lower = kw.lower().strip()
+                if kw_lower:
+                    kw_freq[kw_lower] = kw_freq.get(kw_lower, 0) + 1
+            cat = d.get("category") or doc_info.get("category", "")
+            if cat:
+                categories_set.add(cat)
+        top_keywords = sorted(kw_freq, key=kw_freq.get, reverse=True)[:8]
+
         cluster_list.append({
             "cluster_id": cid,
             "label": label,
+            "keywords": top_keywords,
+            "categories": sorted(categories_set),
             "documents": docs,
         })
 

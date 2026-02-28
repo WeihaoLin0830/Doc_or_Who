@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import * as api from "@/lib/api";
-import type { SearchResult, SearchFacets, GroupedResult } from "@/lib/types";
+import type { SearchResult, SearchFacets, GroupedResult, DocListItem } from "@/lib/types";
 import type { SearchFilters } from "@/lib/api";
 import { formatScore, formatHighlight, formatDateFacet, langLabel, typeColor } from "@/lib/utils";
 
 interface Props {
     onViewDoc: (docId: string) => void;
+    documents: DocListItem[];
 }
+
+type SortKey = "title" | "doc_type" | "category";
+type SortDir = "asc" | "desc";
 
 function groupResults(results: SearchResult[]): GroupedResult[] {
     const map = new Map<string, GroupedResult>();
@@ -34,13 +38,52 @@ function groupResults(results: SearchResult[]): GroupedResult[] {
     return Array.from(map.values());
 }
 
-export function SearchTab({ onViewDoc }: Props) {
+export function SearchTab({ onViewDoc, documents }: Props) {
     const [query, setQuery] = useState("");
     const [lastQuery, setLastQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [facets, setFacets] = useState<SearchFacets | null>(null);
     const [filters, setFilters] = useState<SearchFilters>({});
     const [grouped, setGrouped] = useState<GroupedResult[]>([]);
+
+    // ─── Document browser filters ────────────────────────────────
+    const [browseSearch, setBrowseSearch] = useState("");
+    const [browseType, setBrowseType] = useState("");
+    const [browseCategory, setBrowseCategory] = useState("");
+    const [browseSortKey, setBrowseSortKey] = useState<SortKey>("title");
+    const [browseSortDir, setBrowseSortDir] = useState<SortDir>("asc");
+    const [browseView, setBrowseView] = useState<"table" | "grid">("table");
+
+    const docTypes = useMemo(() => [...new Set(documents.map((d) => d.doc_type).filter(Boolean))].sort(), [documents]);
+    const categories = useMemo(() => [...new Set(documents.map((d) => d.category).filter(Boolean))].sort(), [documents]);
+
+    const browsed = useMemo(() => {
+        let docs = [...documents];
+        if (browseSearch.trim()) {
+            const q = browseSearch.toLowerCase();
+            docs = docs.filter((d) =>
+                d.title?.toLowerCase().includes(q) || d.filename?.toLowerCase().includes(q) ||
+                d.doc_type?.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q),
+            );
+        }
+        if (browseType) docs = docs.filter((d) => d.doc_type === browseType);
+        if (browseCategory) docs = docs.filter((d) => d.category === browseCategory);
+        docs.sort((a, b) => {
+            const va = (a[browseSortKey] || "").toLowerCase();
+            const vb = (b[browseSortKey] || "").toLowerCase();
+            return browseSortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+        return docs;
+    }, [documents, browseSearch, browseType, browseCategory, browseSortKey, browseSortDir]);
+
+    const browseActiveFilters = [browseType, browseCategory, browseSearch.trim()].filter(Boolean).length;
+    const isSearchMode = lastQuery.length > 0;
+
+    function toggleBrowseSort(key: SortKey) {
+        if (browseSortKey === key) setBrowseSortDir((d) => d === "asc" ? "desc" : "asc");
+        else { setBrowseSortKey(key); setBrowseSortDir("asc"); }
+    }
+    const sortIcon = (key: SortKey) => browseSortKey !== key ? "↕" : browseSortDir === "asc" ? "↑" : "↓";
 
     async function doSearch(overrideFilters?: SearchFilters) {
         const q = query.trim();
@@ -123,7 +166,121 @@ export function SearchTab({ onViewDoc }: Props) {
                     )}
                 </div>
 
+                {/* ─── Document browser (pre-search default) ──────── */}
+                {!isSearchMode && (
+                    <div className="mb-6">
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                            <div className="relative flex-1 min-w-[200px] max-w-sm">
+                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" value={browseSearch} onChange={(e) => setBrowseSearch(e.target.value)}
+                                    placeholder="Filtrar documentos..."
+                                    className="w-full pl-9 pr-3 py-2 text-sm border border-surface-3 rounded-lg bg-white outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all" />
+                            </div>
+                            <select value={browseType} onChange={(e) => setBrowseType(e.target.value)}
+                                className="px-3 py-2 text-sm border border-surface-3 rounded-lg bg-white outline-none focus:border-brand-400 transition-colors">
+                                <option value="">Todos los tipos</option>
+                                {docTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <select value={browseCategory} onChange={(e) => setBrowseCategory(e.target.value)}
+                                className="px-3 py-2 text-sm border border-surface-3 rounded-lg bg-white outline-none focus:border-brand-400 transition-colors">
+                                <option value="">Todas las categorías</option>
+                                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            {browseActiveFilters > 0 && (
+                                <button onClick={() => { setBrowseSearch(""); setBrowseType(""); setBrowseCategory(""); }}
+                                    className="text-xs text-ink-3 hover:text-ink-0 px-2 py-2 transition-colors">
+                                    Limpiar ({browseActiveFilters})
+                                </button>
+                            )}
+                            <div className="flex-1" />
+                            <span className="text-xs text-ink-3">{browsed.length} de {documents.length}</span>
+                            <div className="flex items-center border border-surface-3 rounded-lg overflow-hidden">
+                                <button onClick={() => setBrowseView("table")}
+                                    className={`p-2 transition-colors ${browseView === "table" ? "bg-brand-50 text-brand-600" : "text-ink-3 hover:text-ink-0"}`}>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                    </svg>
+                                </button>
+                                <button onClick={() => setBrowseView("grid")}
+                                    className={`p-2 transition-colors ${browseView === "grid" ? "bg-brand-50 text-brand-600" : "text-ink-3 hover:text-ink-0"}`}>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                            d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Table view */}
+                        {browseView === "table" && (
+                            <div className="bg-white border border-surface-3 rounded-lg overflow-hidden">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-surface-3 bg-surface-1">
+                                            <th onClick={() => toggleBrowseSort("title")} className="text-left text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-ink-0 select-none">
+                                                Documento {sortIcon("title")}
+                                            </th>
+                                            <th onClick={() => toggleBrowseSort("doc_type")} className="text-left text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-ink-0 select-none">
+                                                Tipo {sortIcon("doc_type")}
+                                            </th>
+                                            <th onClick={() => toggleBrowseSort("category")} className="text-left text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-ink-0 select-none">
+                                                Categoría {sortIcon("category")}
+                                            </th>
+                                            <th className="text-right text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-surface-3">
+                                        {browsed.map((doc) => (
+                                            <tr key={doc.doc_id} className="hover:bg-surface-1 transition-colors">
+                                                <td className="px-4 py-3">
+                                                    <div className="text-sm font-medium text-ink-0">{doc.title || doc.filename}</div>
+                                                    <div className="text-xs text-ink-3">{doc.filename}</div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-ink-2">{doc.category || "—"}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <button onClick={() => onViewDoc(doc.doc_id)} className="text-xs text-brand-600 hover:text-brand-700 font-medium">Ver detalle</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {browsed.length === 0 && (
+                                            <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-ink-3">Sin documentos.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Grid view */}
+                        {browseView === "grid" && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {browsed.map((doc) => (
+                                    <div key={doc.doc_id} onClick={() => onViewDoc(doc.doc_id)}
+                                        className="bg-white border border-surface-3 rounded-lg p-4 hover:shadow-md hover:border-brand-200 transition-all cursor-pointer group">
+                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                            <h3 className="text-sm font-medium text-ink-0 line-clamp-2 group-hover:text-brand-700 transition-colors">
+                                                {doc.title || doc.filename}
+                                            </h3>
+                                            <span className={`shrink-0 inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
+                                        </div>
+                                        <p className="text-xs text-ink-3 truncate">{doc.filename}</p>
+                                        {doc.category && <span className="inline-flex mt-2 px-2 py-0.5 rounded-full text-xs bg-surface-2 text-ink-2">{doc.category}</span>}
+                                    </div>
+                                ))}
+                                {browsed.length === 0 && (
+                                    <div className="col-span-full text-center py-8 text-sm text-ink-3">Sin documentos.</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Results + Facets */}
+                {isSearchMode && (
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Facets sidebar */}
                     {facets && lastQuery && (
@@ -157,10 +314,14 @@ export function SearchTab({ onViewDoc }: Props) {
                     <div className={facets && lastQuery ? "lg:col-span-3" : "lg:col-span-4"}>
                         {grouped.length > 0 && (
                             <div className="space-y-4">
-                                <p className="text-sm text-ink-2 mb-2">
-                                    <span className="font-medium">{grouped.length}</span> documentos encontrados
-                                    <span className="text-ink-3"> ({results.length} fragmentos)</span>
-                                </p>
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-sm text-ink-2">
+                                        <span className="font-medium">{grouped.length}</span> documentos encontrados
+                                        <span className="text-ink-3"> ({results.length} fragmentos)</span>
+                                    </p>
+                                    <button onClick={() => { setLastQuery(""); setResults([]); setGrouped([]); setFacets(null); setQuery(""); setFilters({}); }}
+                                        className="text-xs text-ink-3 hover:text-ink-0 transition-colors">← Volver a explorar</button>
+                                </div>
                                 {grouped.map((group) => (
                                     <ResultCard key={group.doc_id} group={group} onView={onViewDoc} onToggle={toggleExpand} />
                                 ))}
@@ -169,10 +330,15 @@ export function SearchTab({ onViewDoc }: Props) {
                         {results.length === 0 && lastQuery && (
                             <div className="text-center py-12 text-ink-3 text-sm">
                                 Sin resultados para &quot;{lastQuery}&quot;
+                                <div className="mt-2">
+                                    <button onClick={() => { setLastQuery(""); setQuery(""); setFilters({}); }}
+                                        className="text-xs text-brand-600 hover:text-brand-700">← Volver a explorar</button>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
+                )}
             </div>
         </section>
     );

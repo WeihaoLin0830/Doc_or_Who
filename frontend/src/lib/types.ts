@@ -201,6 +201,8 @@ export interface ChatSession {
 export interface DocCluster {
     cluster_id: number;
     label: string;
+    keywords?: string[];
+    categories?: string[];
     documents: DocListItem[];
 }
 

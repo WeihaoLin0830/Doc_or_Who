@@ -7,7 +7,6 @@ const TABS: { id: TabId; label: string }[] = [
     { id: "ask", label: "Preguntar" },
     { id: "search", label: "Buscar" },
     { id: "documents", label: "Documentos" },
-    { id: "sql", label: "SQL" },
     { id: "graph", label: "Grafo" },
     { id: "dashboard", label: "Dashboard" },
 ];

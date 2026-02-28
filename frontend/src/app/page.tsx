@@ -6,16 +6,15 @@ import { Navbar } from "@/components/Navbar";
 import { AskTab } from "@/components/AskTab";
 import { SearchTab } from "@/components/SearchTab";
 import { DocumentsTab } from "@/components/DocumentsTab";
-import { SqlTab } from "@/components/SqlTab";
 import { GraphTab } from "@/components/GraphTab";
 import { DashboardTab } from "@/components/DashboardTab";
 import { UploadModal } from "@/components/UploadModal";
 import { Toast } from "@/components/Toast";
 
 import * as api from "@/lib/api";
-import type { DocListItem, EntityItem, SqlTable, Stats, IngestStatus } from "@/lib/types";
+import type { DocListItem, EntityItem, Stats, IngestStatus } from "@/lib/types";
 
-export type TabId = "ask" | "search" | "documents" | "sql" | "graph" | "dashboard";
+export type TabId = "ask" | "search" | "documents" | "graph" | "dashboard";
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState<TabId>("ask");
@@ -24,7 +23,6 @@ export default function Home() {
     // Shared data loaded once and refreshed on upload/ingest
     const [documents, setDocuments] = useState<DocListItem[]>([]);
     const [entities, setEntities] = useState<EntityItem[]>([]);
-    const [sqlTables, setSqlTables] = useState<SqlTable[]>([]);
     const [stats, setStats] = useState<Stats>({ documents: 0, entities: 0, edges: 0, documents_by_type: {}, entities_by_type: {} });
 
     // Toast
@@ -47,10 +45,6 @@ export default function Home() {
         try { setEntities(await api.listEntities()); } catch { /* ignore */ }
     }, []);
 
-    const loadSqlTables = useCallback(async () => {
-        try { setSqlTables(await api.listSqlTables()); } catch { /* ignore */ }
-    }, []);
-
     const loadStats = useCallback(async () => {
         try { setStats(await api.getStats()); } catch { /* ignore */ }
     }, []);
@@ -59,9 +53,8 @@ export default function Home() {
     const refreshAll = useCallback(() => {
         loadDocs();
         loadEntities();
-        loadSqlTables();
         loadStats();
-    }, [loadDocs, loadEntities, loadSqlTables, loadStats]);
+    }, [loadDocs, loadEntities, loadStats]);
 
     // Initial load
     useEffect(() => { refreshAll(); }, [refreshAll]);
@@ -113,10 +106,9 @@ export default function Home() {
     const onUploadComplete = useCallback(async () => {
         await loadDocs();
         loadEntities();
-        loadSqlTables();
         loadStats();
         showToast("Documento subido y procesado correctamente");
-    }, [loadDocs, loadEntities, loadSqlTables, loadStats, showToast]);
+    }, [loadDocs, loadEntities, loadStats, showToast]);
 
     return (
         <>
@@ -131,11 +123,10 @@ export default function Home() {
 
             <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 py-6">
                 {activeTab === "ask" && <AskTab />}
-                {activeTab === "search" && <SearchTab onViewDoc={(id) => { setActiveTab("documents"); /* could pass docId */ }} />}
+                {activeTab === "search" && <SearchTab documents={documents} onViewDoc={(id) => { setActiveTab("documents"); }} />}
                 {activeTab === "documents" && <DocumentsTab documents={documents} />}
-                {activeTab === "sql" && <SqlTab tables={sqlTables} />}
                 {activeTab === "graph" && <GraphTab entities={entities} documents={documents} />}
-                {activeTab === "dashboard" && <DashboardTab stats={stats} />}
+                {activeTab === "dashboard" && <DashboardTab stats={stats} documents={documents} entities={entities} />}
             </main>
 
             {showUpload && (
