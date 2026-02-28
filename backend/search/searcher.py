@@ -14,7 +14,19 @@ import re
 from collections import Counter
 from typing import Optional
 
-from backend.config import FINAL_TOP_K, FUZZY, LEXICAL_STRICT, MAX_CHUNKS_PER_DOC, RRF_K, SEARCH_TOP_K, SEMANTIC_MIN_SCORE, WHOOSH_DIR
+from backend.config import (
+    FINAL_TOP_K,
+    FUSION_MODE,
+    FUZZY,
+    LEXICAL_STRICT,
+    MAX_CHUNKS_PER_DOC,
+    RRF_K,
+    SEARCH_TOP_K,
+    SEMANTIC_MIN_SCORE,
+    WEIGHT_LEXICAL,
+    WEIGHT_SEMANTIC,
+    WHOOSH_DIR,
+)
 from backend.models import SearchResult
 from backend.text_normalize import _fold_with_mapping, char_ngrams, fold_text, normalize_numbers_in_text
 
@@ -118,6 +130,54 @@ def _query_has_numeric_signal(query: str, normalized_numeric_query: str) -> bool
     return False
 
 
+def _has_folded_term_match(value: str, terms: list[str]) -> bool:
+    folded_value = fold_text(value)
+    return any(term and term in folded_value for term in terms)
+
+
+def _approximate_lexical_matched_fields(
+    hit,
+    normalized_query: str,
+    normalized_numeric_query: str,
+    *,
+    folded_mode: bool,
+    fuzzy_char3: bool,
+    numeric_norm: bool,
+) -> list[str]:
+    fields: list[str] = []
+    query_terms = [term for term in normalized_query.split() if len(term) > 1]
+
+    title_field = "title_folded" if folded_mode else "title"
+    content_field = "content_folded" if folded_mode else "content"
+
+    if _has_folded_term_match(hit.get("title", ""), query_terms):
+        fields.append(title_field)
+    if _has_folded_term_match(hit.get("content", ""), query_terms):
+        fields.append(content_field)
+    if _has_folded_term_match(hit.get("keywords", ""), query_terms):
+        fields.append("keywords")
+    if _has_folded_term_match(hit.get("persons", ""), query_terms):
+        fields.append("persons")
+    if _has_folded_term_match(hit.get("organizations", ""), query_terms):
+        fields.append("organizations")
+
+    if numeric_norm and normalized_numeric_query:
+        normalized_content = normalize_numbers_in_text(
+            hit.get("content", ""),
+            language=hit.get("language", ""),
+            include_original=True,
+        )
+        numeric_terms = [term for term in normalized_numeric_query.split() if term]
+        if any(term in normalized_content for term in numeric_terms):
+            fields.append("content_num_norm")
+
+    if fuzzy_char3:
+        fields.append("content_char3")
+
+    # Preserve order while deduplicating
+    return list(dict.fromkeys(fields))
+
+
 def _is_entity_query(query: str) -> bool:
     """
     Returns True when the query looks like a named entity (person/org),
@@ -163,6 +223,7 @@ def hybrid_search(
     organization: Optional[str] = None,
     date: Optional[str] = None,
     top_k: int = FINAL_TOP_K,
+    debug: bool = False,
 ) -> list[SearchResult]:
     """
     Búsqueda híbrida: combina BM25 + semántica con RRF.
@@ -179,18 +240,49 @@ def hybrid_search(
         "date": date,
     }.items() if v}
 
-    bm25_results = _search_whoosh(query, filters=filters, top_k=SEARCH_TOP_K)
+    bm25_results, whoosh_trace = _search_whoosh(
+        query,
+        filters=filters,
+        top_k=SEARCH_TOP_K,
+        return_trace=True,
+    )
 
     # Skip semantic search for entity name queries — names have no vector meaning
     if _is_entity_query(query):
         semantic_results: list[SearchResult] = []
+        chroma_trace = {"hits": 0, "skipped": True}
     else:
-        semantic_results = _search_chroma(query, filters=filters, top_k=SEARCH_TOP_K)
+        semantic_results, chroma_trace = _search_chroma(
+            query,
+            filters=filters,
+            top_k=SEARCH_TOP_K,
+            return_trace=True,
+        )
 
-    fused = _reciprocal_rank_fusion(bm25_results, semantic_results, k=RRF_K)
+    fused = _fuse_results(
+        bm25_results,
+        semantic_results,
+        fusion_mode=FUSION_MODE,
+        debug=debug,
+        k=RRF_K,
+    )
 
     for result in fused:
+        fallback_used = result.explanation.setdefault(
+            "fallback_used",
+            {"fuzzy_char3": False, "numeric_norm": False},
+        )
+        fallback_used["fuzzy_char3"] = fallback_used["fuzzy_char3"] or whoosh_trace["fallbacks"]["fuzzy_char3"]
+        fallback_used["numeric_norm"] = fallback_used["numeric_norm"] or whoosh_trace["fallbacks"]["numeric_norm"]
+        result.explanation["fusion_mode"] = FUSION_MODE
         result.highlight = _generate_highlight(result.text, query)
+
+    print(
+        "🔀 Hybrid search "
+        f"fusion_mode={FUSION_MODE} whoosh_hits={whoosh_trace['hits']} "
+        f"chroma_hits={chroma_trace['hits']} merged_hits={len(fused)} "
+        f"fallbacks={whoosh_trace['fallbacks']}"
+    )
 
     return fused[:top_k]
 
@@ -203,6 +295,7 @@ def hybrid_search_with_facets(
     organization: Optional[str] = None,
     date: Optional[str] = None,
     top_k: int = FINAL_TOP_K,
+    debug: bool = False,
 ) -> dict:
     """
     Búsqueda híbrida que devuelve resultados + facets dinámicos.
@@ -210,7 +303,7 @@ def hybrid_search_with_facets(
     mostrar qué opciones están disponibles en el universo de la query.
     """
     # Resultados sin filtros para calcular facets (hasta 50)
-    all_results = hybrid_search(query=query, top_k=max(top_k, 50))
+    all_results = hybrid_search(query=query, top_k=max(top_k, 50), debug=debug)
     facets = _compute_facets(all_results)
 
     # Resultados CON filtros aplicados
@@ -223,6 +316,7 @@ def hybrid_search_with_facets(
             organization=organization,
             date=date,
             top_k=top_k,
+            debug=debug,
         )
     else:
         filtered_results = all_results[:top_k]
@@ -345,10 +439,23 @@ def _hit_to_search_result(hit) -> SearchResult:
         keywords=_split_meta(hit.get("keywords", "")),
         dates=_split_meta(hit.get("dates", "")),
         emails=_split_meta(hit.get("emails", "")),
+        source="lexical",
+        scores={"whoosh": hit.score, "chroma": None, "fused": hit.score},
     )
 
 
-def _collect_whoosh_results(hits, filters: dict, top_k: int, seen_chunk_ids: set[str] | None = None) -> list[SearchResult]:
+def _collect_whoosh_results(
+    hits,
+    filters: dict,
+    top_k: int,
+    *,
+    normalized_query: str,
+    normalized_numeric_query: str,
+    folded_mode: bool,
+    fuzzy_char3: bool = False,
+    numeric_norm: bool = False,
+    seen_chunk_ids: set[str] | None = None,
+) -> list[SearchResult]:
     results: list[SearchResult] = []
     seen = seen_chunk_ids if seen_chunk_ids is not None else set()
 
@@ -357,7 +464,37 @@ def _collect_whoosh_results(hits, filters: dict, top_k: int, seen_chunk_ids: set
             continue
         if not _hit_matches_filters(hit, filters):
             continue
-        results.append(_hit_to_search_result(hit))
+        result = _hit_to_search_result(hit)
+        matched_fields = _approximate_lexical_matched_fields(
+            hit,
+            normalized_query,
+            normalized_numeric_query,
+            folded_mode=folded_mode,
+            fuzzy_char3=fuzzy_char3,
+            numeric_norm=numeric_norm,
+        )
+        notes: list[str] = []
+        if numeric_norm:
+            notes.append("Matched via numeric normalization fallback.")
+        if fuzzy_char3:
+            notes.append("Matched via character 3-gram fuzzy fallback.")
+        if not matched_fields:
+            notes.append("Matched via lexical search; fields are approximated.")
+        result.explanation = {
+            "matched_fields": matched_fields,
+            "fallback_used": {
+                "fuzzy_char3": fuzzy_char3,
+                "numeric_norm": numeric_norm,
+            },
+            "notes": notes,
+            "fusion_mode": FUSION_MODE,
+        }
+        result.score_detail = {
+            **result.score_detail,
+            "engine": "whoosh",
+            "lexical_mode": "folded" if folded_mode else "raw",
+        }
+        results.append(result)
         seen.add(hit["chunk_id"])
         if len(results) >= top_k:
             break
@@ -371,14 +508,17 @@ def _search_whoosh(
     query: str,
     filters: dict | None = None,
     top_k: int = SEARCH_TOP_K,
-) -> list[SearchResult]:
+    return_trace: bool = False,
+) -> list[SearchResult] | tuple[list[SearchResult], dict]:
     """Búsqueda full-text con Whoosh (BM25). Aplica filtros a nivel de query."""
     from whoosh import index as whoosh_index
     from whoosh.qparser import AndGroup, MultifieldParser, OrGroup, QueryParser
     from whoosh.query import And, Term
 
     if not whoosh_index.exists_in(str(WHOOSH_DIR)):
-        return []
+        empty = []
+        trace = {"hits": 0, "fallbacks": {"fuzzy_char3": False, "numeric_norm": False}, "lexical_mode": "missing"}
+        return (empty, trace) if return_trace else empty
 
     ix = whoosh_index.open_dir(str(WHOOSH_DIR))
     filters = filters or {}
@@ -414,11 +554,17 @@ def _search_whoosh(
         language=None,
         include_original=False,
     )
+    trace = {
+        "hits": 0,
+        "fallbacks": {"fuzzy_char3": False, "numeric_norm": False},
+        "lexical_mode": "strict-raw" if LEXICAL_STRICT else ("folded" if has_folded_fields else "raw-fallback"),
+    }
 
     try:
         parsed_query = parser.parse(normalized_query)
     except Exception:
-        return []
+        empty = []
+        return (empty, trace) if return_trace else empty
 
     # Construir filtros como query terms (se aplican ANTES de la búsqueda)
     filter_queries = []
@@ -452,11 +598,19 @@ def _search_whoosh(
             except Exception:
                 pass
 
-        results = _collect_whoosh_results(normal_hits, filters, top_k)
+        results = _collect_whoosh_results(
+            normal_hits,
+            filters,
+            top_k,
+            normalized_query=normalized_query,
+            normalized_numeric_query=normalized_numeric_query,
+            folded_mode=not LEXICAL_STRICT and has_folded_fields,
+        )
         base_results_count = len(results)
 
         numeric_signal = _query_has_numeric_signal(query, normalized_numeric_query)
         if base_results_count <= 2 and numeric_signal and has_num_norm_field:
+            trace["fallbacks"]["numeric_norm"] = True
             numeric_parser = QueryParser("content_num_norm", schema=ix.schema, group=AndGroup)
             try:
                 numeric_query = numeric_parser.parse(normalized_numeric_query)
@@ -472,6 +626,10 @@ def _search_whoosh(
                         numeric_hits,
                         filters,
                         max(top_k - len(results), 0),
+                        normalized_query=normalized_query,
+                        normalized_numeric_query=normalized_numeric_query,
+                        folded_mode=not LEXICAL_STRICT and has_folded_fields,
+                        numeric_norm=True,
                         seen_chunk_ids={result.chunk_id for result in results},
                     )
                 )
@@ -487,6 +645,7 @@ def _search_whoosh(
         use_char3, char3_reason = _should_use_char3_fallback(query, current_results_count)
         fuzzy_hits_count = 0
         if use_char3 and has_char3_field:
+            trace["fallbacks"]["fuzzy_char3"] = True
             q_fold = _folded_query(query)
             q_ng = " ".join(char_ngrams(q_fold, 3))
             if q_ng:
@@ -506,6 +665,10 @@ def _search_whoosh(
                             fuzzy_hits,
                             filters,
                             max(top_k - len(results), 0),
+                            normalized_query=normalized_query,
+                            normalized_numeric_query=normalized_numeric_query,
+                            folded_mode=not LEXICAL_STRICT and has_folded_fields,
+                            fuzzy_char3=True,
                             seen_chunk_ids={result.chunk_id for result in results},
                         )
                     )
@@ -517,10 +680,10 @@ def _search_whoosh(
                 "does not include content_char3. Rebuild lexical indexes."
             )
 
-    base_mode = "strict-raw" if LEXICAL_STRICT else ("folded" if has_folded_fields else "raw-fallback")
-    print(f"🔎 Whoosh lexical mode={base_mode} query={normalized_query!r} hits={len(results)}")
+    trace["hits"] = len(results)
+    print(f"🔎 Whoosh lexical mode={trace['lexical_mode']} query={normalized_query!r} hits={len(results)}")
 
-    return results
+    return (results, trace) if return_trace else results
 
 
 # ─── Semántica con ChromaDB ──────────────────────────────────────
@@ -528,7 +691,8 @@ def _search_chroma(
     query: str,
     filters: dict | None = None,
     top_k: int = SEARCH_TOP_K,
-) -> list[SearchResult]:
+    return_trace: bool = False,
+) -> list[SearchResult] | tuple[list[SearchResult], dict]:
     """Búsqueda semántica con ChromaDB (cosine similarity) con filtros."""
     from backend.search.indexer import _get_embedding_model, _get_chroma_collection
 
@@ -559,12 +723,15 @@ def _search_chroma(
             include=["documents", "metadatas", "distances"],
         )
     except Exception:
-        return []
+        empty = []
+        trace = {"hits": 0, "skipped": False}
+        return (empty, trace) if return_trace else empty
 
     results: list[SearchResult] = []
 
     if not chroma_results["ids"] or not chroma_results["ids"][0]:
-        return results
+        trace = {"hits": 0, "skipped": False}
+        return (results, trace) if return_trace else results
 
     for i, chunk_id in enumerate(chroma_results["ids"][0]):
         meta = chroma_results["metadatas"][0][i]
@@ -598,7 +765,7 @@ def _search_chroma(
         if score < SEMANTIC_MIN_SCORE:
             continue
 
-        results.append(SearchResult(
+        semantic_result = SearchResult(
             chunk_id=chunk_id,
             doc_id=meta.get("doc_id", ""),
             text=text,
@@ -613,12 +780,83 @@ def _search_chroma(
             keywords=_split_meta(meta.get("keywords", "")),
             dates=_split_meta(meta.get("dates", "")),
             emails=_split_meta(meta.get("emails", "")),
-        ))
+            source="semantic",
+            scores={"whoosh": None, "chroma": score, "fused": score},
+            explanation={
+                "matched_fields": [],
+                "fallback_used": {"fuzzy_char3": False, "numeric_norm": False},
+                "notes": ["Matched via semantic vector similarity."],
+                "fusion_mode": FUSION_MODE,
+            },
+            score_detail={"engine": "chroma", "semantic_distance": distance},
+        )
+        results.append(semantic_result)
 
         if len(results) >= top_k:
             break
 
-    return results
+    trace = {"hits": len(results), "skipped": False}
+    return (results, trace) if return_trace else results
+
+
+def _merge_explanations(
+    lexical: dict,
+    semantic: dict,
+    *,
+    source: str,
+    fused_score: float,
+    fusion_mode: str,
+    debug: bool,
+) -> dict:
+    matched_fields = list(
+        dict.fromkeys((lexical.get("matched_fields") or []) + (semantic.get("matched_fields") or []))
+    )
+    fallback_used = {
+        "fuzzy_char3": bool((lexical.get("fallback_used") or {}).get("fuzzy_char3")),
+        "numeric_norm": bool((lexical.get("fallback_used") or {}).get("numeric_norm")),
+    }
+    notes = list(
+        dict.fromkeys((lexical.get("notes") or []) + (semantic.get("notes") or []))
+    )
+    if source == "hybrid":
+        notes.append("Combined lexical and semantic evidence.")
+    explanation = {
+        "matched_fields": matched_fields,
+        "fallback_used": fallback_used,
+        "notes": notes,
+        "fusion_mode": fusion_mode,
+    }
+    if not debug:
+        explanation.pop("notes", None)
+        explanation["matched_fields"] = matched_fields[:5]
+    return explanation
+
+
+def _normalize_score_map(score_map: dict[str, float]) -> dict[str, float]:
+    if not score_map:
+        return {}
+    values = list(score_map.values())
+    min_value = min(values)
+    max_value = max(values)
+    if max_value == min_value:
+        return {key: 1.0 for key in score_map}
+    return {
+        key: (value - min_value) / (max_value - min_value)
+        for key, value in score_map.items()
+    }
+
+
+def _fuse_results(
+    bm25_results: list[SearchResult],
+    semantic_results: list[SearchResult],
+    *,
+    fusion_mode: str,
+    debug: bool,
+    k: int = RRF_K,
+) -> list[SearchResult]:
+    if fusion_mode == "weighted":
+        return _weighted_fusion(bm25_results, semantic_results, debug=debug)
+    return _reciprocal_rank_fusion(bm25_results, semantic_results, k=k, debug=debug)
 
 
 # ─── Reciprocal Rank Fusion ──────────────────────────────────────
@@ -626,6 +864,7 @@ def _reciprocal_rank_fusion(
     bm25_results: list[SearchResult],
     semantic_results: list[SearchResult],
     k: int = RRF_K,
+    debug: bool = False,
 ) -> list[SearchResult]:
     """
     Combina dos listas de resultados usando Reciprocal Rank Fusion.
@@ -635,6 +874,8 @@ def _reciprocal_rank_fusion(
     result_map: dict[str, SearchResult] = {}
     bm25_ranks: dict[str, int] = {}     # chunk_id → posición 1-based en lista BM25
     semantic_ranks: dict[str, int] = {}  # chunk_id → posición 1-based en lista semántica
+    lexical_score_map = {result.chunk_id: result.scores.get("whoosh", result.score) for result in bm25_results}
+    semantic_score_map = {result.chunk_id: result.scores.get("chroma", result.score) for result in semantic_results}
 
     # Acumular scores de BM25
     for rank, result in enumerate(bm25_results):
@@ -671,12 +912,97 @@ def _reciprocal_rank_fusion(
         # Explicabilidad: qué sistema(s) encontraron este resultado y en qué posición
         sources = (["bm25"] if chunk_id in bm25_ranks else []) + \
                   (["semantic"] if chunk_id in semantic_ranks else [])
+        source = "hybrid" if len(sources) == 2 else ("lexical" if "bm25" in sources else "semantic")
+        lexical_result = next((item for item in bm25_results if item.chunk_id == chunk_id), SearchResult(chunk_id=chunk_id, doc_id=r.doc_id, text=""))
+        semantic_result = next((item for item in semantic_results if item.chunk_id == chunk_id), SearchResult(chunk_id=chunk_id, doc_id=r.doc_id, text=""))
+        r.source = source
+        r.scores = {
+            "whoosh": lexical_score_map.get(chunk_id),
+            "chroma": semantic_score_map.get(chunk_id),
+            "fused": r.score,
+        }
+        r.explanation = _merge_explanations(
+            lexical_result.explanation,
+            semantic_result.explanation,
+            source=source,
+            fused_score=r.score,
+            fusion_mode="rrf",
+            debug=debug,
+        )
         r.score_detail = {
             "sources": sources,
             "bm25_rank": bm25_ranks.get(chunk_id),
             "semantic_rank": semantic_ranks.get(chunk_id),
+            "fusion_mode": "rrf",
         }
         results.append(r)
+
+    return results
+
+
+def _weighted_fusion(
+    bm25_results: list[SearchResult],
+    semantic_results: list[SearchResult],
+    *,
+    debug: bool = False,
+) -> list[SearchResult]:
+    lexical_raw = {result.chunk_id: result.scores.get("whoosh", result.score) for result in bm25_results}
+    semantic_raw = {result.chunk_id: result.scores.get("chroma", result.score) for result in semantic_results}
+    lexical_norm = _normalize_score_map(lexical_raw)
+    semantic_norm = _normalize_score_map(semantic_raw)
+
+    result_map: dict[str, SearchResult] = {}
+    for result in bm25_results + semantic_results:
+        result_map.setdefault(result.chunk_id, result)
+
+    scores: dict[str, float] = {}
+    bm25_ranks = {result.chunk_id: rank + 1 for rank, result in enumerate(bm25_results)}
+    semantic_ranks = {result.chunk_id: rank + 1 for rank, result in enumerate(semantic_results)}
+
+    for chunk_id in result_map:
+        lexical_component = lexical_norm.get(chunk_id, 0.0) * WEIGHT_LEXICAL
+        semantic_component = semantic_norm.get(chunk_id, 0.0) * WEIGHT_SEMANTIC
+        scores[chunk_id] = lexical_component + semantic_component
+
+    ranked_ids = sorted(scores, key=scores.get, reverse=True)
+    results: list[SearchResult] = []
+    doc_chunk_count: dict[str, int] = {}
+
+    for chunk_id in ranked_ids:
+        result = result_map[chunk_id]
+        n = doc_chunk_count.get(result.doc_id, 0)
+        if n >= MAX_CHUNKS_PER_DOC:
+            continue
+        doc_chunk_count[result.doc_id] = n + 1
+        result.score = scores[chunk_id]
+        sources = (["bm25"] if chunk_id in bm25_ranks else []) + (["semantic"] if chunk_id in semantic_ranks else [])
+        source = "hybrid" if len(sources) == 2 else ("lexical" if "bm25" in sources else "semantic")
+        lexical_result = next((item for item in bm25_results if item.chunk_id == chunk_id), SearchResult(chunk_id=chunk_id, doc_id=result.doc_id, text=""))
+        semantic_result = next((item for item in semantic_results if item.chunk_id == chunk_id), SearchResult(chunk_id=chunk_id, doc_id=result.doc_id, text=""))
+        result.source = source
+        result.scores = {
+            "whoosh": lexical_raw.get(chunk_id),
+            "chroma": semantic_raw.get(chunk_id),
+            "fused": result.score,
+            "whoosh_norm": lexical_norm.get(chunk_id),
+            "chroma_norm": semantic_norm.get(chunk_id),
+        }
+        result.explanation = _merge_explanations(
+            lexical_result.explanation,
+            semantic_result.explanation,
+            source=source,
+            fused_score=result.score,
+            fusion_mode="weighted",
+            debug=debug,
+        )
+        result.score_detail = {
+            "sources": sources,
+            "bm25_rank": bm25_ranks.get(chunk_id),
+            "semantic_rank": semantic_ranks.get(chunk_id),
+            "fusion_mode": "weighted",
+            "weights": {"lexical": WEIGHT_LEXICAL, "semantic": WEIGHT_SEMANTIC},
+        }
+        results.append(result)
 
     return results
 

@@ -8,7 +8,6 @@ Cada clase tiene un método to_dict() para serializar a JSON fácilmente.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
-from typing import Optional
 
 
 @dataclass
@@ -97,6 +96,9 @@ class SearchResult:
     dates: list[str] = field(default_factory=list)
     emails: list[str] = field(default_factory=list)
     highlight: str = ""          # Snippet con los términos resaltados
+    source: str = ""             # lexical | semantic | hybrid
+    scores: dict = field(default_factory=dict)      # {whoosh, chroma, fused}
+    explanation: dict = field(default_factory=dict) # trazabilidad por motor/campos/fallbacks
     # Explicabilidad del score: qué sistemas contribuyeron y en qué posición
     score_detail: dict = field(default_factory=dict)  # {sources, bm25_rank, semantic_rank}
 

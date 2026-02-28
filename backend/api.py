@@ -22,21 +22,17 @@ Ejecutar:  uvicorn backend.api:app --reload --port 8000
 """
 
 from __future__ import annotations
-
-import shutil
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Query, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend.config import ROOT_DIR, UPLOAD_DIR, DATASET_DIR, DATA_DIR
+from backend.config import ROOT_DIR, UPLOAD_DIR, DATASET_DIR
 from backend.graph import (
-    get_graph_data,
-    get_graph_data_filtered,
     get_all_entities,
     get_entity,
     get_related_entities,
@@ -78,6 +74,113 @@ class SqlAskRequest(BaseModel):
     question: str
 
 
+def _get_document_chunks_from_chroma(doc_id: str) -> tuple[list[dict], dict]:
+    """Resuelve chunks y metadatos del documento desde ChromaDB."""
+    from backend.search.indexer import _get_chroma_collection
+
+    collection = _get_chroma_collection()
+    results = collection.get(
+        where={"doc_id": doc_id},
+        include=["documents", "metadatas"],
+    )
+
+    if not results["ids"]:
+        return [], {}
+
+    chunks = []
+    meta = results["metadatas"][0] if results["metadatas"] else {}
+    for i, chunk_id in enumerate(results["ids"]):
+        chunks.append({
+            "chunk_id": chunk_id,
+            "text": results["documents"][i],
+            "metadata": results["metadatas"][i],
+        })
+    chunks.sort(key=lambda c: c["chunk_id"])
+    return chunks, meta
+
+
+def _get_document_chunks_from_whoosh(doc_id: str) -> tuple[list[dict], dict]:
+    """Fallback robusto usando Whoosh, que almacena los chunks completos."""
+    from whoosh import index as whoosh_index
+    from backend.config import WHOOSH_DIR
+
+    if not whoosh_index.exists_in(str(WHOOSH_DIR)):
+        return [], {}
+
+    ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+    with ix.searcher() as searcher:
+        stored_docs = list(searcher.documents(doc_id=doc_id))
+
+    if not stored_docs:
+        return [], {}
+
+    chunks = []
+    for stored in stored_docs:
+        metadata = {
+            "doc_id": stored.get("doc_id", ""),
+            "doc_type": stored.get("doc_type", ""),
+            "title": stored.get("title", ""),
+            "language": stored.get("language", ""),
+            "filename": stored.get("filename", ""),
+            "section": stored.get("section", ""),
+            "level": stored.get("level", ""),
+            "persons": stored.get("persons", ""),
+            "organizations": stored.get("organizations", ""),
+            "keywords": stored.get("keywords", ""),
+            "dates": stored.get("dates", ""),
+            "emails": stored.get("emails", ""),
+        }
+        chunks.append({
+            "chunk_id": stored.get("chunk_id", ""),
+            "text": stored.get("content", ""),
+            "metadata": metadata,
+        })
+
+    chunks.sort(key=lambda c: c["chunk_id"])
+    meta = chunks[0]["metadata"] if chunks else {}
+    return chunks, meta
+
+
+def _get_document_chunks(doc_id: str) -> tuple[list[dict], dict, str]:
+    """Busca un documento por doc_id con fallback Chroma -> Whoosh."""
+    try:
+        chunks, meta = _get_document_chunks_from_chroma(doc_id)
+        if chunks:
+            return chunks, meta, "chroma"
+    except Exception as exc:
+        print(f"⚠️  Error resolving document {doc_id} from Chroma: {exc}")
+
+    chunks, meta = _get_document_chunks_from_whoosh(doc_id)
+    if chunks:
+        return chunks, meta, "whoosh"
+    return [], {}, "missing"
+
+
+def _list_documents_from_whoosh() -> list[dict]:
+    """Fallback para listar documentos únicos desde Whoosh si el grafo no está cargado."""
+    from whoosh import index as whoosh_index
+    from backend.config import WHOOSH_DIR
+
+    if not whoosh_index.exists_in(str(WHOOSH_DIR)):
+        return []
+
+    ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+    documents: dict[str, dict] = {}
+    with ix.searcher() as searcher:
+        for stored in searcher.all_stored_fields():
+            doc_id = stored.get("doc_id")
+            if not doc_id or doc_id in documents:
+                continue
+            documents[doc_id] = {
+                "doc_id": doc_id,
+                "title": stored.get("title", ""),
+                "filename": stored.get("filename", ""),
+                "doc_type": stored.get("doc_type", ""),
+                "category": "",
+            }
+    return list(documents.values())
+
+
 # ─── Startup: cargar grafo + tablas SQL ──────────────────────────
 @app.on_event("startup")
 def startup():
@@ -114,6 +217,7 @@ def search(
     organization: Optional[str] = Query(None, description="Filtrar por organización"),
     date: Optional[str] = Query(None, description="Filtrar por fecha (ej: 2025, 2025-01, enero)"),
     top_k: int = Query(10, ge=1, le=50),
+    debug: bool = Query(False, description="Incluir explicación ampliada de ranking"),
 ):
     """Búsqueda híbrida BM25 + semántica con fusión RRF + facets dinámicos."""
     from backend.search.searcher import hybrid_search_with_facets
@@ -125,6 +229,7 @@ def search(
         organization=organization,
         date=date,
         top_k=top_k,
+        debug=debug,
     )
     return {
         "query": q,
@@ -150,39 +255,18 @@ def list_documents():
     """Lista todos los documentos indexados (metadatos del grafo)."""
     from backend.graph.graph import _documents
     docs = list(_documents.values())
+    if not docs:
+        docs = _list_documents_from_whoosh()
     return {"count": len(docs), "documents": docs}
 
 
 @app.get("/api/documents/{doc_id}")
 def get_document(doc_id: str):
-    """Detalle de un documento: busca sus chunks en ChromaDB."""
-    from backend.search.indexer import _get_chroma_collection
+    """Detalle de un documento: resuelve sus chunks desde Chroma y cae a Whoosh si hace falta."""
+    chunks, meta, backend_used = _get_document_chunks(doc_id)
 
-    collection = _get_chroma_collection()
-
-    # Buscar todos los chunks de este documento
-    try:
-        results = collection.get(
-            where={"doc_id": doc_id},
-            include=["documents", "metadatas"],
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    if not results["ids"]:
+    if not chunks:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
-
-    chunks = []
-    meta = results["metadatas"][0] if results["metadatas"] else {}
-    for i, chunk_id in enumerate(results["ids"]):
-        chunks.append({
-            "chunk_id": chunk_id,
-            "text": results["documents"][i],
-            "metadata": results["metadatas"][i],
-        })
-
-    # Ordenar por chunk_id para mantener orden original
-    chunks.sort(key=lambda c: c["chunk_id"])
 
     return {
         "doc_id": doc_id,
@@ -193,6 +277,7 @@ def get_document(doc_id: str):
         "num_chunks": len(chunks),
         "chunks": chunks,
         "has_file": _find_original_file(meta.get("filename", "")) is not None,
+        "backend": backend_used,
     }
 
 
@@ -210,21 +295,11 @@ def _find_original_file(filename: str) -> Path | None:
 @app.get("/api/documents/{doc_id}/file")
 def get_document_file(doc_id: str):
     """Sirve el fichero original para previsualización."""
-    from backend.search.indexer import _get_chroma_collection
-
-    collection = _get_chroma_collection()
-    try:
-        results = collection.get(
-            where={"doc_id": doc_id},
-            include=["metadatas"],
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    if not results["ids"]:
+    _, meta, _ = _get_document_chunks(doc_id)
+    if not meta:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
-    filename = results["metadatas"][0].get("filename", "") if results["metadatas"] else ""
+    filename = meta.get("filename", "")
     filepath = _find_original_file(filename)
 
     if not filepath:
@@ -489,14 +564,7 @@ async def upload(file: UploadFile = File(...)):
     if not doc:
         raise HTTPException(status_code=400, detail="Formato no soportado o sin contenido")
 
-    # Actualizar grafo con el nuevo documento
-    from backend.graph import build_graph
-    from backend.graph.graph import _documents, _entity_nodes
-    # Reconstruir solo el documento nuevo es complejo, así que rehacemos el grafo
-    # En producción optimizaríamos esto
-    from backend.ingestion.ingest import ingest_directory
-    from backend.graph import build_graph as _bg
-    # Simple approach: return success, graph updates on next full ingest
+    # Simple approach: reload the persisted graph snapshot; full rebuild runs on ingest.
     load_graph()
 
     return {
