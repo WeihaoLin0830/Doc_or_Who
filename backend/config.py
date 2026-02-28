@@ -45,10 +45,16 @@ CHUNK_OVERLAP_TOKENS = 50     # Solapamiento entre chunks contiguos
 SEARCH_TOP_K = 20             # Resultados por índice antes de fusionar
 FINAL_TOP_K = 10              # Resultados finales después de RRF
 RRF_K = 60                    # Constante para Reciprocal Rank Fusion
-SEMANTIC_MIN_SCORE = float(os.getenv("SEMANTIC_MIN_SCORE", "0.20"))
+SEMANTIC_MIN_SCORE = float(os.getenv("SEMANTIC_MIN_SCORE", "0.36"))
                               # MiniLM-L12-v2 sobre corpus corporativo español:
-                              # 0.20 es permisivo para maximizar recall semántico en demos
+                              # Calibrado: palabras ajenas al corpus puntúan ≤0.355 (p.ej. "espagueti"→0.354)
+                              # Queries semánticas reales puntúan ≥0.41 (p.ej. "trabajo remoto"→0.461)
+                              # Umbral 0.36 separa ruido semántico de coincidencias reales
 MAX_CHUNKS_PER_DOC = 3        # Máximo de chunks del mismo documento en resultados
+CHAR3_MIN_COVERAGE = float(os.getenv("CHAR3_MIN_COVERAGE", "0.40"))
+                              # Fracción mínima de trigramas del query que deben aparecer en resultado char3
+                              # 0.40 filtra falsos positivos (p.ej. "espagueti"→"ESP32": 1/7=14%)
+                              # y mantiene typos reales (p.ej. "teletrabaj0"→"teletrabajo": 8/9=89%)
 GRAPH_BOOST = float(os.getenv("GRAPH_BOOST", "0.15"))  # Multiplicador extra si el doc contiene entidades de la query
 
 # ─── NER / spaCy ──────────────────────────────────────────────────

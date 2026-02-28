@@ -15,6 +15,7 @@ from collections import Counter
 from typing import Optional
 
 from backend.config import (
+    CHAR3_MIN_COVERAGE,
     FINAL_TOP_K,
     FUSION_MODE,
     FUZZY,
@@ -87,6 +88,14 @@ def _looks_noisy_query(query: str) -> bool:
             return True
         if len(token) >= 10 and re.search(r"[bcdfghjklmnpqrstvwxyz]{6,}", token):
             return True
+        # OCR artifact: digits embedded inside a long alphabetic word (e.g. "t3l3trabaj0")
+        # Digits in isolation (zip codes, years, prices) are NOT noisy.
+        has_alpha = any(ch.isalpha() for ch in token)
+        has_digit = any(ch.isdigit() for ch in token)
+        if has_alpha and has_digit and len(token) >= 7:
+            digit_ratio = sum(1 for ch in token if ch.isdigit()) / len(token)
+            if 0 < digit_ratio <= 0.5:
+                return True
     return False
 
 
@@ -95,8 +104,10 @@ def _should_use_char3_fallback(query: str, base_results_count: int) -> tuple[boo
         return True, "env"
     if _looks_noisy_query(query):
         return True, "noisy_query"
-    if base_results_count <= 2:
-        return True, "low_recall"
+    # NOTE: No disparar char3 solo porque base_results_count <= 2.
+    # Palabras limpias no presentes en el corpus deben devolver 0 resultados,
+    # no falsos positivos por trigramas comunes (p.ej. "espagueti" → "ESP32").
+    # Char3 solo sirve para ruido OCR detectado por _looks_noisy_query.
     return False, "not_needed"
 
 
@@ -740,24 +751,51 @@ def _search_whoosh(
                     fuzzy_query = fuzzy_parser.parse(q_ng)
                     if filter_queries:
                         fuzzy_query = And([fuzzy_query] + filter_queries)
-                    fuzzy_hits = searcher.search(fuzzy_query, limit=max(top_k * 5, 15))
+                    fuzzy_hits = searcher.search(fuzzy_query, limit=max(top_k * 5, 50))
                     fuzzy_hits_count = len(fuzzy_hits)
+
+                    # ── Filtro de cobertura de trigramas ────────────────────────
+                    # Solo conservar resultados donde al menos CHAR3_MIN_COVERAGE
+                    # fracción de los trigramas del query aparecen en el contenido.
+                    # Esto elimina falsos positivos donde solo un trigram aleatorio
+                    # coincide (p.ej. "esp" de "espagueti" matcheando "ESP32").
+                    query_ngrams = set(char_ngrams(q_fold, 3))
+                    if query_ngrams and CHAR3_MIN_COVERAGE > 0:
+                        covered_hits = []
+                        for hit in fuzzy_hits:
+                            # Usar el campo precomputado (trigramas separados por espacio)
+                            char3_content = hit.get("content_char3", "")
+                            if char3_content:
+                                hit_ngrams = set(char3_content.split())
+                            else:
+                                hit_ngrams = set(char_ngrams(fold_text(hit.get("content", "")), 3))
+                            coverage = len(query_ngrams & hit_ngrams) / len(query_ngrams)
+                            if coverage >= CHAR3_MIN_COVERAGE:
+                                covered_hits.append(hit)
+                        hits_to_process = covered_hits
+                    else:
+                        hits_to_process = list(fuzzy_hits)
+
+                    coverage_filtered = fuzzy_hits_count - len(hits_to_process)
                     print(
                         "🪶 Whoosh fuzzy mode=char3 "
-                        f"reason={char3_reason} base_hits={current_results_count} raw_hits={fuzzy_hits_count}"
+                        f"reason={char3_reason} base_hits={current_results_count} "
+                        f"raw_hits={fuzzy_hits_count} coverage_filtered={coverage_filtered} "
+                        f"kept={len(hits_to_process)}"
                     )
-                    results.extend(
-                        _collect_whoosh_results(
-                            fuzzy_hits,
-                            filters,
-                            max(top_k - len(results), 0),
-                            normalized_query=normalized_query,
-                            normalized_numeric_query=normalized_numeric_query,
-                            folded_mode=not LEXICAL_STRICT and has_folded_fields,
-                            fuzzy_char3=True,
-                            seen_chunk_ids={result.chunk_id for result in results},
+                    if hits_to_process:
+                        results.extend(
+                            _collect_whoosh_results(
+                                hits_to_process,
+                                filters,
+                                max(top_k - len(results), 0),
+                                normalized_query=normalized_query,
+                                normalized_numeric_query=normalized_numeric_query,
+                                folded_mode=not LEXICAL_STRICT and has_folded_fields,
+                                fuzzy_char3=True,
+                                seen_chunk_ids={result.chunk_id for result in results},
+                            )
                         )
-                    )
                 except Exception:
                     pass
         elif use_char3 and not has_char3_field:
