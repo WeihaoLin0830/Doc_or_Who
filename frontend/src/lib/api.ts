@@ -86,7 +86,7 @@ export function getDocumentFileUrl(docId: string): string {
     return `/api/documents/${docId}/file`;
 }
 
-export async function getDocumentTable(docId: string): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
+export async function getDocumentTable(docId: string): Promise<{ columns: string[]; rows: unknown[][]; total_rows: number; filename: string }> {
     return request(`/api/documents/${docId}/table`);
 }
 

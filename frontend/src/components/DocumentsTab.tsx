@@ -45,11 +45,16 @@ export function DocumentsTab({ documents }: Props) {
     const [dupLoading, setDupLoading] = useState(false);
     const [dupChecked, setDupChecked] = useState(false);
 
-    // Drag & drop state
+    // Drag & drop state — documents
     const [dragDocId, setDragDocId] = useState<string | null>(null);
     const [dragOverTarget, setDragOverTarget] = useState<DropTarget | null>(null);
     const [moveToast, setMoveToast] = useState<string | null>(null);
     const dragCounterRef = useRef(0);
+
+    // Drag & drop state — clusters (folder reorder)
+    const [dragClusterId, setDragClusterId] = useState<number | null>(null);
+    const [dragOverClusterId, setDragOverClusterId] = useState<number | null>(null);
+    const clusterDragCounterRef = useRef(0);
 
     // ─── Auto-load clusters on mount ─────────────────────────────
     const loadClusters = useCallback(async () => {
@@ -157,6 +162,65 @@ export function DocumentsTab({ documents }: Props) {
         if (dragCounterRef.current === 0) {
             setDragOverTarget(null);
         }
+    }
+
+    // ─── Cluster drag handlers ──────────────────────────────────
+    function handleClusterDragStart(e: React.DragEvent, clusterId: number) {
+        setDragClusterId(clusterId);
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("dragType", "cluster");
+        e.dataTransfer.setData("clusterId", String(clusterId));
+        if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
+    }
+
+    function handleClusterDragEnd(e: React.DragEvent) {
+        if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "1";
+        setDragClusterId(null);
+        setDragOverClusterId(null);
+        clusterDragCounterRef.current = 0;
+    }
+
+    function handleClusterDragEnter(e: React.DragEvent, clusterId: number) {
+        e.preventDefault();
+        e.stopPropagation();
+        clusterDragCounterRef.current++;
+        setDragOverClusterId(clusterId);
+    }
+
+    function handleClusterDragOver(e: React.DragEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
+    }
+
+    function handleClusterDragLeave(e: React.DragEvent) {
+        e.stopPropagation();
+        clusterDragCounterRef.current--;
+        if (clusterDragCounterRef.current <= 0) {
+            clusterDragCounterRef.current = 0;
+            setDragOverClusterId(null);
+        }
+    }
+
+    function handleClusterDrop(e: React.DragEvent, targetClusterId: number) {
+        e.preventDefault();
+        e.stopPropagation();
+        const type = e.dataTransfer.getData("dragType");
+        if (type !== "cluster") return;
+        const srcId = parseInt(e.dataTransfer.getData("clusterId") || String(dragClusterId));
+        setDragClusterId(null);
+        setDragOverClusterId(null);
+        clusterDragCounterRef.current = 0;
+        if (isNaN(srcId) || srcId === targetClusterId) return;
+        setClusters((prev) => {
+            const next = [...prev];
+            const fromIdx = next.findIndex((c) => c.cluster_id === srcId);
+            const toIdx = next.findIndex((c) => c.cluster_id === targetClusterId);
+            if (fromIdx === -1 || toIdx === -1) return prev;
+            const [item] = next.splice(fromIdx, 1);
+            next.splice(toIdx, 0, item);
+            return next;
+        });
     }
 
     function handleDrop(e: React.DragEvent, targetKey: DropTarget) {
@@ -545,19 +609,35 @@ export function DocumentsTab({ documents }: Props) {
                             const isSummarizing = summaryLoadingId === pKey;
                             const maxSize = Math.max(...clusters.map((cl) => cl.documents.length), 1);
                             const sizeBar = (cluster.documents.length / maxSize) * 100;
-                            const isDropTarget = dragOverTarget === pKey && dragDocId !== null;
+                            const isDocDropTarget = dragOverTarget === pKey && dragDocId !== null;
+                            const isClusterDragOver = dragOverClusterId === cluster.cluster_id && dragClusterId !== null && dragClusterId !== cluster.cluster_id;
+                            const isBeingDragged = dragClusterId === cluster.cluster_id;
 
                             return (
                                 <div key={cluster.cluster_id} id={`cluster-${cluster.cluster_id}`}
-                                    className={`${c.bg} border ${c.border} rounded-xl overflow-hidden transition-all ${isOpen ? "shadow-sm" : ""} ${isDropTarget ? "ring-2 ring-offset-1 ring-brand-400 scale-[1.005]" : ""}`}
-                                    onDragEnter={(e) => handleDragEnter(e, pKey)}
-                                    onDragOver={handleDragOver}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={(e) => handleDrop(e, pKey)}
+                                    draggable
+                                    onDragStart={(e) => handleClusterDragStart(e, cluster.cluster_id)}
+                                    onDragEnd={handleClusterDragEnd}
+                                    onDragEnter={(e) => { handleClusterDragEnter(e, cluster.cluster_id); if (dragDocId) handleDragEnter(e, pKey); }}
+                                    onDragOver={(e) => { handleClusterDragOver(e); if (dragDocId) handleDragOver(e); }}
+                                    onDragLeave={(e) => { handleClusterDragLeave(e); handleDragLeave(e); }}
+                                    onDrop={(e) => { if (e.dataTransfer.getData("dragType") === "cluster") { handleClusterDrop(e, cluster.cluster_id); } else { handleDrop(e, pKey); } }}
+                                    className={`${c.bg} border ${c.border} rounded-xl overflow-hidden transition-all
+                                        ${isOpen ? "shadow-sm" : ""}
+                                        ${isBeingDragged ? "opacity-50 scale-[0.98]" : ""}
+                                        ${isDocDropTarget ? "ring-2 ring-offset-1 ring-brand-400 scale-[1.005]" : ""}
+                                        ${isClusterDragOver ? `ring-2 ring-offset-2 ${c.border} scale-[1.01] shadow-md` : ""}`}
                                 >
                                     {/* Folder header */}
-                                    <button onClick={() => toggleNode(pKey)}
-                                        className="w-full flex items-center gap-3 px-5 py-4 text-left group">
+                                    <div className="w-full flex items-center gap-3 px-5 py-4 text-left group">
+                                    {/* Drag handle */}
+                                    <span className="cursor-grab active:cursor-grabbing text-ink-3 opacity-40 hover:opacity-70 shrink-0 -ml-2 pr-0.5"
+                                        title="Arrastrar para reordenar">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                        </svg>
+                                    </span>
+                                    <button onClick={() => toggleNode(pKey)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                                         <svg className={`w-4 h-4 ${c.text} shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -590,6 +670,7 @@ export function DocumentsTab({ documents }: Props) {
                                             </span>
                                         </div>
                                     </button>
+                                    </div>
 
                                     {/* Expanded content */}
                                     {isOpen && (
