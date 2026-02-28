@@ -281,63 +281,63 @@ export function SearchTab({ onViewDoc, documents }: Props) {
 
                 {/* Results + Facets */}
                 {isSearchMode && (
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* Facets sidebar */}
-                    {facets && lastQuery && (
-                        <div className="lg:col-span-1 space-y-4">
-                            <FacetBlock title="Tipo de documento" items={facets.doc_type} activeValue={filters.type}
-                                onToggle={(v) => toggleFilter("type", v)} renderLabel={(v) => <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(v)}`}>{v}</span>} />
-                            <FacetBlock title="Idioma" items={facets.language} activeValue={filters.language}
-                                onToggle={(v) => toggleFilter("language", v)} renderLabel={(v) => <span>{langLabel(v)}</span>} />
-                            <FacetBlock title="Fecha" items={facets.dates} activeValue={filters.date}
-                                onToggle={(v) => toggleFilter("date", v)} renderLabel={(v) => <span className="truncate">{formatDateFacet(v)}</span>} />
-                            <FacetBlock title="Personas" items={facets.persons} activeValue={filters.person}
-                                onToggle={(v) => toggleFilter("person", v)} renderLabel={(v) => <span className="truncate">{v}</span>} />
-                            <FacetBlock title="Organizaciones" items={facets.organizations} activeValue={filters.organization}
-                                onToggle={(v) => toggleFilter("organization", v)} renderLabel={(v) => <span className="truncate">{v}</span>} />
-                            {facets.keywords && facets.keywords.length > 0 && (
-                                <div className="bg-white border border-surface-3 rounded-lg p-3">
-                                    <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Palabras clave</h4>
-                                    <div className="flex flex-wrap gap-1">
-                                        {facets.keywords.map((f) => (
-                                            <span key={f.value} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-surface-2 text-ink-2">
-                                                {f.value} ({f.count})
-                                            </span>
-                                        ))}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        {/* Facets sidebar */}
+                        {facets && lastQuery && (
+                            <div className="lg:col-span-1 space-y-4">
+                                <FacetBlock title="Tipo de documento" items={facets.doc_type} activeValue={filters.type}
+                                    onToggle={(v) => toggleFilter("type", v)} renderLabel={(v) => <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(v)}`}>{v}</span>} />
+                                <FacetBlock title="Idioma" items={facets.language} activeValue={filters.language}
+                                    onToggle={(v) => toggleFilter("language", v)} renderLabel={(v) => <span>{langLabel(v)}</span>} />
+                                <FacetBlock title="Fecha" items={facets.dates} activeValue={filters.date}
+                                    onToggle={(v) => toggleFilter("date", v)} renderLabel={(v) => <span className="truncate">{formatDateFacet(v)}</span>} />
+                                <FacetBlock title="Personas" items={facets.persons} activeValue={filters.person}
+                                    onToggle={(v) => toggleFilter("person", v)} renderLabel={(v) => <span className="truncate">{v}</span>} />
+                                <FacetBlock title="Organizaciones" items={facets.organizations} activeValue={filters.organization}
+                                    onToggle={(v) => toggleFilter("organization", v)} renderLabel={(v) => <span className="truncate">{v}</span>} />
+                                {facets.keywords && facets.keywords.length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Palabras clave</h4>
+                                        <div className="flex flex-wrap gap-1">
+                                            {facets.keywords.map((f) => (
+                                                <span key={f.value} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-surface-2 text-ink-2">
+                                                    {f.value} ({f.count})
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Results */}
+                        <div className={facets && lastQuery ? "lg:col-span-3" : "lg:col-span-4"}>
+                            {grouped.length > 0 && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="text-sm text-ink-2">
+                                            <span className="font-medium">{grouped.length}</span> documentos encontrados
+                                            <span className="text-ink-3"> ({results.length} fragmentos)</span>
+                                        </p>
+                                        <button onClick={() => { setLastQuery(""); setResults([]); setGrouped([]); setFacets(null); setQuery(""); setFilters({}); }}
+                                            className="text-xs text-ink-3 hover:text-ink-0 transition-colors">← Volver a explorar</button>
+                                    </div>
+                                    {grouped.map((group) => (
+                                        <ResultCard key={group.doc_id} group={group} onView={onViewDoc} onToggle={toggleExpand} />
+                                    ))}
+                                </div>
+                            )}
+                            {results.length === 0 && lastQuery && (
+                                <div className="text-center py-12 text-ink-3 text-sm">
+                                    Sin resultados para &quot;{lastQuery}&quot;
+                                    <div className="mt-2">
+                                        <button onClick={() => { setLastQuery(""); setQuery(""); setFilters({}); }}
+                                            className="text-xs text-brand-600 hover:text-brand-700">← Volver a explorar</button>
                                     </div>
                                 </div>
                             )}
                         </div>
-                    )}
-
-                    {/* Results */}
-                    <div className={facets && lastQuery ? "lg:col-span-3" : "lg:col-span-4"}>
-                        {grouped.length > 0 && (
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm text-ink-2">
-                                        <span className="font-medium">{grouped.length}</span> documentos encontrados
-                                        <span className="text-ink-3"> ({results.length} fragmentos)</span>
-                                    </p>
-                                    <button onClick={() => { setLastQuery(""); setResults([]); setGrouped([]); setFacets(null); setQuery(""); setFilters({}); }}
-                                        className="text-xs text-ink-3 hover:text-ink-0 transition-colors">← Volver a explorar</button>
-                                </div>
-                                {grouped.map((group) => (
-                                    <ResultCard key={group.doc_id} group={group} onView={onViewDoc} onToggle={toggleExpand} />
-                                ))}
-                            </div>
-                        )}
-                        {results.length === 0 && lastQuery && (
-                            <div className="text-center py-12 text-ink-3 text-sm">
-                                Sin resultados para &quot;{lastQuery}&quot;
-                                <div className="mt-2">
-                                    <button onClick={() => { setLastQuery(""); setQuery(""); setFilters({}); }}
-                                        className="text-xs text-brand-600 hover:text-brand-700">← Volver a explorar</button>
-                                </div>
-                            </div>
-                        )}
                     </div>
-                </div>
                 )}
             </div>
         </section>

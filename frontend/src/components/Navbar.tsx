@@ -55,8 +55,8 @@ export function Navbar({ activeTab, setActiveTab, onUpload, onIngest, ingesting,
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === tab.id
-                                    ? "bg-brand-50 text-brand-700 font-medium"
-                                    : "text-ink-2 hover:text-ink-0 hover:bg-surface-2"
+                                ? "bg-brand-50 text-brand-700 font-medium"
+                                : "text-ink-2 hover:text-ink-0 hover:bg-surface-2"
                                 }`}
                         >
                             {tab.label}

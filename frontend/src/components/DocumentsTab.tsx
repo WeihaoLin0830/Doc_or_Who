@@ -39,6 +39,9 @@ export function DocumentsTab({ documents }: Props) {
     const [docSummary, setDocSummary] = useState<string | null>(null);
     const [docSummaryLoading, setDocSummaryLoading] = useState(false);
 
+    // ─── Diagram toggle ──────────────────────────────────────────
+    const [showDiagram, setShowDiagram] = useState(false);
+
     // ─── Duplicates ──────────────────────────────────────────────
     const [duplicates, setDuplicates] = useState<DuplicatePair[]>([]);
     const [dupLoading, setDupLoading] = useState(false);
@@ -174,6 +177,14 @@ export function DocumentsTab({ documents }: Props) {
                     </button>
                     <button onClick={expandAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Expandir todo</button>
                     <button onClick={collapseAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Colapsar todo</button>
+                    <button onClick={() => setShowDiagram((p) => !p)}
+                        className={`inline-flex items-center gap-1.5 text-xs px-2 py-2 transition-colors ${showDiagram ? "text-brand-700 font-medium" : "text-ink-2 hover:text-ink-0"}`}>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                        {showDiagram ? "Ocultar diagrama" : "Ver diagrama"}
+                    </button>
                     {Object.keys(reassignments).length > 0 && (
                         <button onClick={() => setReassignments({})}
                             className="text-xs text-amber-700 hover:text-amber-800 px-2 py-2 transition-colors">
@@ -209,6 +220,83 @@ export function DocumentsTab({ documents }: Props) {
                                 />
                             );
                         })}
+                    </div>
+                )}
+
+                {/* ─── Folder structure diagram ────────────────── */}
+                {showDiagram && effectiveClusters.length > 0 && (
+                    <div className="mb-6 bg-white border border-surface-3 rounded-xl overflow-hidden shadow-sm fade-in">
+                        <div className="px-5 py-3 border-b border-surface-3 bg-surface-1 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            <span className="text-sm font-semibold text-ink-0">Estructura de carpetas</span>
+                            <span className="text-xs text-ink-3 ml-auto">{totalDocs} documentos · {effectiveClusters.length} carpetas</span>
+                        </div>
+                        <div className="px-5 py-4 font-mono text-sm">
+                            {/* Root */}
+                            <div className="flex items-center gap-2 text-brand-700 font-semibold mb-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                        d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>DocumentWho/</span>
+                            </div>
+                            {effectiveClusters.map((cluster, ci) => {
+                                const c = CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length];
+                                const isLast = ci === effectiveClusters.length - 1;
+                                return (
+                                    <div key={cluster.cluster_id}>
+                                        {/* Cluster folder line */}
+                                        <div className="flex items-center gap-0 ml-2">
+                                            <span className="text-ink-3 select-none w-5 text-center shrink-0">
+                                                {isLast ? "└" : "├"}
+                                            </span>
+                                            <span className="text-ink-3 select-none shrink-0">── </span>
+                                            <svg className={`w-3.5 h-3.5 ${c.icon} shrink-0 mr-1`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                            </svg>
+                                            <span className={`${c.text} font-semibold`}>{cluster.label}/</span>
+                                            <span className="text-ink-3 text-xs ml-2 font-sans">
+                                                ({cluster.documents.length} doc{cluster.documents.length !== 1 ? "s" : ""})
+                                            </span>
+                                            {cluster.categories && cluster.categories.length > 0 && (
+                                                <span className="text-ink-3 text-[10px] ml-2 font-sans opacity-60">
+                                                    [{cluster.categories.join(", ")}]
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* Documents inside cluster */}
+                                        {cluster.documents.map((doc, di) => {
+                                            const isLastDoc = di === cluster.documents.length - 1;
+                                            return (
+                                                <div key={doc.doc_id} className="flex items-center gap-0 ml-2 group/tree">
+                                                    <span className="text-ink-3 select-none w-5 text-center shrink-0">
+                                                        {isLast ? " " : "│"}
+                                                    </span>
+                                                    <span className="text-ink-3 select-none w-5 text-center shrink-0">
+                                                        {isLastDoc ? "└" : "├"}
+                                                    </span>
+                                                    <span className="text-ink-3 select-none shrink-0">── </span>
+                                                    <svg className="w-3 h-3 text-ink-3 shrink-0 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                    <span className="text-ink-1 truncate max-w-xs">{doc.title || doc.filename}</span>
+                                                    <span className={`text-[10px] ml-2 px-1.5 py-0 rounded font-sans ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
+                                                    <button onClick={() => viewDoc(doc.doc_id)}
+                                                        className="opacity-0 group-hover/tree:opacity-100 text-[10px] text-brand-600 hover:text-brand-700 font-sans font-medium ml-2 transition-opacity">
+                                                        ver
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
