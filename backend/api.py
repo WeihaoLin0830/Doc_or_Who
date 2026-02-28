@@ -320,12 +320,14 @@ def list_documents():
 @app.get("/api/documents/clusters")
 def cluster_documents(n_clusters: Optional[int] = None):
     """
-    Agrupa documentos por similitud semántica usando Agglomerative Clustering
-    sobre los embeddings mean-pooled de ChromaDB.
+    Agrupa documentos en una jerarquía de 2 niveles:
+      - Nivel 1: clusters amplios por temática
+      - Nivel 2: sub-clusters más específicos dentro de cada grupo
 
-    n_clusters: número deseado de clusters. Si es None, se elige
-    automáticamente con un heurístico (sqrt(n_docs/2), min 2, max 8).
+    Genera etiquetas inteligentes basadas en categorías, tipos, palabras clave
+    y títulos de los documentos en lugar de usar simplemente el doc_type.
     """
+    import re
     import numpy as np
     from sklearn.cluster import AgglomerativeClustering
     from backend.search.indexer import _get_chroma_collection
@@ -337,7 +339,7 @@ def cluster_documents(n_clusters: Optional[int] = None):
     if not results["ids"]:
         return {"n_clusters": 0, "clusters": []}
 
-    # Agrupar embeddings por doc_id → mean-pool
+    # ── Agrupar embeddings por doc_id → mean-pool ─────────────────
     doc_embs: dict[str, list[list[float]]] = {}
     doc_meta: dict[str, dict] = {}
     for chunk_id, meta, emb in zip(results["ids"], results["metadatas"], results["embeddings"]):
@@ -350,85 +352,212 @@ def cluster_documents(n_clusters: Optional[int] = None):
     doc_ids = list(doc_embs.keys())
     n_docs = len(doc_ids)
 
+    def _build_doc_info(doc_id: str) -> dict:
+        meta = doc_meta.get(doc_id, {})
+        graph_info = _documents.get(doc_id, {})
+        return {
+            "doc_id": doc_id,
+            "title": meta.get("title", ""),
+            "filename": meta.get("filename", ""),
+            "doc_type": meta.get("doc_type", ""),
+            "category": graph_info.get("category", meta.get("category", "")),
+            "keywords": graph_info.get("keywords", []),
+        }
+
     if n_docs < 2:
-        single_meta = doc_meta[doc_ids[0]]
+        info = _build_doc_info(doc_ids[0])
         return {
             "n_clusters": 1,
             "clusters": [{
                 "cluster_id": 0,
-                "label": single_meta.get("doc_type", "Documentos"),
-                "documents": [{
-                    "doc_id": doc_ids[0],
-                    "title": single_meta.get("title", ""),
-                    "filename": single_meta.get("filename", ""),
-                    "doc_type": single_meta.get("doc_type", ""),
-                    "category": _documents.get(doc_ids[0], {}).get("category", ""),
-                }],
+                "label": info["category"] or info["doc_type"] or "Documentos",
+                "keywords": info["keywords"][:5],
+                "categories": [info["category"]] if info["category"] else [],
+                "children": [],
+                "documents": [{k: v for k, v in info.items() if k != "keywords"}],
             }],
         }
 
+    # ── Vectores normalizados ─────────────────────────────────────
     vectors = np.array([np.mean(np.array(doc_embs[did]), axis=0) for did in doc_ids])
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     norms[norms == 0] = 1e-9
     vectors = vectors / norms
 
-    k = n_clusters
-    if k is None:
-        k = max(2, min(8, int(np.sqrt(n_docs / 2) + 0.5)))
-    k = min(k, n_docs)
+    # ── Helper: generar etiqueta inteligente para un grupo ────────
+    _STOP_WORDS = {
+        "de", "del", "la", "las", "los", "el", "en", "y", "a", "para",
+        "por", "con", "un", "una", "s.l", "s.l.", "s.a", "s.a.", "—",
+        "es", "su", "se", "al", "lo", "no", "más", "como", "o", "e",
+        "que", "datos", "número", "dear", "from", "the", "and", "of",
+    }
 
-    model = AgglomerativeClustering(n_clusters=k, metric="cosine", linkage="average")
-    labels = model.fit_predict(vectors)
+    def _smart_label(docs_info: list[dict]) -> str:
+        """Determina un nombre descriptivo para un grupo de docs."""
+        # 1. Si todos comparten la misma categoría y no es "General", usarla
+        cats = set(d.get("category", "") for d in docs_info)
+        cats.discard("")
+        cats.discard("General")
+        if len(cats) == 1:
+            cat = cats.pop()
+            # Enriquecer con tipo si es distinguible
+            types = set(d.get("doc_type", "") for d in docs_info)
+            types.discard("documento")
+            if len(types) == 1:
+                t = types.pop().replace("_", " ").title()
+                return f"{cat} — {t}"
+            return cat
 
-    cluster_docs: dict[int, list[dict]] = {}
-    for idx, doc_id in enumerate(doc_ids):
-        c = int(labels[idx])
-        if c not in cluster_docs:
-            cluster_docs[c] = []
-        meta = doc_meta[doc_id]
-        doc_info = _documents.get(doc_id, {})
-        cluster_docs[c].append({
-            "doc_id": doc_id,
-            "title": meta.get("title", ""),
-            "filename": meta.get("filename", ""),
-            "doc_type": meta.get("doc_type", ""),
-            "category": doc_info.get("category", ""),
-        })
-
-    cluster_list = []
-    for cid in sorted(cluster_docs.keys()):
-        docs = cluster_docs[cid]
+        # 2. Si hay tipos específicos (no genérico "documento"), usar esos
         type_counts: dict[str, int] = {}
-        for d in docs:
+        for d in docs_info:
             t = d.get("doc_type", "documento")
             type_counts[t] = type_counts.get(t, 0) + 1
-        top_type = max(type_counts, key=type_counts.get) if type_counts else "documentos"
-        label = f"{top_type.replace('_', ' ').title()}" if len(type_counts) == 1 else \
-                f"{top_type.replace('_', ' ').title()} y otros"
+        specific_types = {t: c for t, c in type_counts.items() if t != "documento"}
+        if specific_types:
+            top = max(specific_types, key=specific_types.get)
+            label = top.replace("_", " ").title()
+            if len(specific_types) > 1:
+                second = sorted(specific_types, key=specific_types.get, reverse=True)[1]
+                label += f" y {second.replace('_', ' ').title()}"
+            # Añadir categoría si hay una predominante
+            if cats:
+                top_cat = max(cats, key=lambda c: sum(1 for d in docs_info if d.get("category") == c))
+                label = f"{top_cat} — {label}"
+            return label
 
+        # 3. Extraer palabras significativas de los títulos
+        word_freq: dict[str, int] = {}
+        for d in docs_info:
+            title = d.get("title", "")
+            words = re.findall(r"[A-Za-zÀ-ÿ]{3,}", title)
+            seen = set()
+            for w in words:
+                wl = w.lower()
+                if wl not in _STOP_WORDS and wl not in seen:
+                    word_freq[wl] = word_freq.get(wl, 0) + 1
+                    seen.add(wl)
+
+        # Palabras que aparecen en >50% de los docs del grupo → tema
+        threshold = max(2, len(docs_info) * 0.4)
+        common = [w for w, c in sorted(word_freq.items(), key=lambda x: -x[1]) if c >= threshold]
+        if common:
+            label_words = [w.title() for w in common[:3]]
+            return " · ".join(label_words)
+
+        # 4. Categorías predominantes
+        if cats:
+            return " / ".join(sorted(cats)[:2])
+
+        # 5. Fallback: usar las keywords del grafo
         kw_freq: dict[str, int] = {}
-        categories_set: set[str] = set()
-        for d in docs:
-            doc_id = d["doc_id"]
-            doc_info = _documents.get(doc_id, {})
-            for kw in doc_info.get("keywords", []):
-                kw_lower = kw.lower().strip()
-                if kw_lower:
-                    kw_freq[kw_lower] = kw_freq.get(kw_lower, 0) + 1
-            cat = d.get("category") or doc_info.get("category", "")
-            if cat:
-                categories_set.add(cat)
-        top_keywords = sorted(kw_freq, key=kw_freq.get, reverse=True)[:8]
+        for d in docs_info:
+            for kw in d.get("keywords", []):
+                kl = kw.lower().strip()
+                if kl:
+                    kw_freq[kl] = kw_freq.get(kl, 0) + 1
+        if kw_freq:
+            top_kw = sorted(kw_freq, key=kw_freq.get, reverse=True)[:2]
+            return " · ".join(w.title() for w in top_kw)
+
+        return "Documentos varios"
+
+    def _extract_keywords(docs_info: list[dict]) -> list[str]:
+        """Extrae keywords representativas de un grupo."""
+        kw_freq: dict[str, int] = {}
+        for d in docs_info:
+            for kw in d.get("keywords", []):
+                kl = kw.lower().strip()
+                if kl:
+                    kw_freq[kl] = kw_freq.get(kl, 0) + 1
+        # También extraer de títulos
+        word_freq: dict[str, int] = {}
+        for d in docs_info:
+            words = re.findall(r"[A-Za-zÀ-ÿ]{4,}", d.get("title", ""))
+            for w in words:
+                wl = w.lower()
+                if wl not in _STOP_WORDS:
+                    word_freq[wl] = word_freq.get(wl, 0) + 1
+        # Combinar ambas fuentes
+        combined = {**word_freq}
+        for k, v in kw_freq.items():
+            combined[k] = combined.get(k, 0) + v * 2  # Pesar más las keywords
+        return sorted(combined, key=combined.get, reverse=True)[:8]
+
+    # ── Nivel 1: clusters amplios ─────────────────────────────────
+    k1 = n_clusters
+    if k1 is None:
+        k1 = max(2, min(6, int(np.sqrt(n_docs / 2) + 0.5)))
+    k1 = min(k1, n_docs)
+
+    model1 = AgglomerativeClustering(n_clusters=k1, metric="cosine", linkage="average")
+    labels1 = model1.fit_predict(vectors)
+
+    # ── Construir clusters jerárquicos ────────────────────────────
+    cluster_list = []
+    for cid in range(k1):
+        member_indices = [i for i, l in enumerate(labels1) if l == cid]
+        if not member_indices:
+            continue
+
+        member_ids = [doc_ids[i] for i in member_indices]
+        member_info = [_build_doc_info(did) for did in member_ids]
+        member_vecs = vectors[member_indices]
+
+        parent_label = _smart_label(member_info)
+        parent_keywords = _extract_keywords(member_info)
+        parent_cats = sorted(set(d.get("category", "") for d in member_info) - {""})
+
+        # ── Nivel 2: sub-clusters si hay suficientes docs ─────────
+        children = []
+        if len(member_ids) >= 4:
+            k2 = max(2, min(4, len(member_ids) // 2))
+            model2 = AgglomerativeClustering(n_clusters=k2, metric="cosine", linkage="average")
+            labels2 = model2.fit_predict(member_vecs)
+
+            for scid in range(k2):
+                sub_indices = [j for j, l in enumerate(labels2) if l == scid]
+                if not sub_indices:
+                    continue
+                sub_info = [member_info[j] for j in sub_indices]
+                sub_label = _smart_label(sub_info)
+                # Evitar que sub-label sea igual al padre
+                if sub_label == parent_label:
+                    types_here = set(d.get("doc_type", "") for d in sub_info) - {"documento"}
+                    if types_here:
+                        sub_label = " · ".join(t.replace("_", " ").title() for t in sorted(types_here)[:2])
+                    else:
+                        sub_label = f"Grupo {scid + 1}"
+
+                sub_keywords = _extract_keywords(sub_info)
+                sub_cats = sorted(set(d.get("category", "") for d in sub_info) - {""})
+                children.append({
+                    "cluster_id": scid,
+                    "label": sub_label,
+                    "keywords": sub_keywords,
+                    "categories": sub_cats,
+                    "documents": [{k: v for k, v in d.items() if k != "keywords"} for d in sub_info],
+                })
+        else:
+            # Pocos docs → un solo sub-cluster con todos
+            children.append({
+                "cluster_id": 0,
+                "label": parent_label,
+                "keywords": parent_keywords,
+                "categories": parent_cats,
+                "documents": [{k: v for k, v in d.items() if k != "keywords"} for d in member_info],
+            })
 
         cluster_list.append({
             "cluster_id": cid,
-            "label": label,
-            "keywords": top_keywords,
-            "categories": sorted(categories_set),
-            "documents": docs,
+            "label": parent_label,
+            "keywords": parent_keywords,
+            "categories": parent_cats,
+            "children": children,
+            "documents": [{k: v for k, v in d.items() if k != "keywords"} for d in member_info],
         })
 
-    return {"n_clusters": k, "clusters": cluster_list}
+    return {"n_clusters": len(cluster_list), "clusters": cluster_list}
 
 
 @app.get("/api/documents/{doc_id}")

@@ -203,6 +203,7 @@ export interface DocCluster {
     label: string;
     keywords?: string[];
     categories?: string[];
+    children?: DocCluster[];
     documents: DocListItem[];
 }
 

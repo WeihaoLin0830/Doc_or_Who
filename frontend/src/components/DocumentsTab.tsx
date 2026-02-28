@@ -10,39 +10,35 @@ interface Props {
 }
 
 // ─── Cluster colors (rotate) ────────────────────────────────────
-const CLUSTER_COLORS = [
-    { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700", icon: "text-blue-500", bar: "bg-blue-400" },
-    { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700", icon: "text-emerald-500", bar: "bg-emerald-400" },
-    { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", badge: "bg-violet-100 text-violet-700", icon: "text-violet-500", bar: "bg-violet-400" },
-    { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700", icon: "text-amber-500", bar: "bg-amber-400" },
-    { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700", icon: "text-rose-500", bar: "bg-rose-400" },
-    { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", badge: "bg-cyan-100 text-cyan-700", icon: "text-cyan-500", bar: "bg-cyan-400" },
-    { bg: "bg-fuchsia-50", border: "border-fuchsia-200", text: "text-fuchsia-700", badge: "bg-fuchsia-100 text-fuchsia-700", icon: "text-fuchsia-500", bar: "bg-fuchsia-400" },
-    { bg: "bg-lime-50", border: "border-lime-200", text: "text-lime-700", badge: "bg-lime-100 text-lime-700", icon: "text-lime-500", bar: "bg-lime-400" },
+const CC = [
+    { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700", icon: "text-blue-500", bar: "bg-blue-400", line: "border-blue-300" },
+    { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700", icon: "text-emerald-500", bar: "bg-emerald-400", line: "border-emerald-300" },
+    { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", badge: "bg-violet-100 text-violet-700", icon: "text-violet-500", bar: "bg-violet-400", line: "border-violet-300" },
+    { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700", icon: "text-amber-500", bar: "bg-amber-400", line: "border-amber-300" },
+    { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700", icon: "text-rose-500", bar: "bg-rose-400", line: "border-rose-300" },
+    { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", badge: "bg-cyan-100 text-cyan-700", icon: "text-cyan-500", bar: "bg-cyan-400", line: "border-cyan-300" },
+    { bg: "bg-fuchsia-50", border: "border-fuchsia-200", text: "text-fuchsia-700", badge: "bg-fuchsia-100 text-fuchsia-700", icon: "text-fuchsia-500", bar: "bg-fuchsia-400", line: "border-fuchsia-300" },
+    { bg: "bg-lime-50", border: "border-lime-200", text: "text-lime-700", badge: "bg-lime-100 text-lime-700", icon: "text-lime-500", bar: "bg-lime-400", line: "border-lime-300" },
 ];
 
+type ViewMode = "tree" | "folders";
+
 export function DocumentsTab({ documents }: Props) {
-    // ─── Clusters (primary view) ─────────────────────────────────
     const [clusters, setClusters] = useState<DocCluster[]>([]);
     const [clusterLoading, setClusterLoading] = useState(false);
     const [initialized, setInitialized] = useState(false);
-    const [expandedClusters, setExpandedClusters] = useState<Set<number>>(new Set());
-    const [clusterSummaries, setClusterSummaries] = useState<Record<number, string>>({});
-    const [summaryLoadingId, setSummaryLoadingId] = useState<number | null>(null);
+    const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
+    const [clusterSummaries, setClusterSummaries] = useState<Record<string, string>>({});
+    const [summaryLoadingId, setSummaryLoadingId] = useState<string | null>(null);
 
-    // ─── Custom organization (reassignment overrides) ────────────
-    const [reassignments, setReassignments] = useState<Record<string, number>>({});
-    const [movingDocId, setMovingDocId] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<ViewMode>("tree");
 
-    // ─── Detail modal ────────────────────────────────────────────
+    // Detail modal
     const [detail, setDetail] = useState<DocDetail | null>(null);
     const [docSummary, setDocSummary] = useState<string | null>(null);
     const [docSummaryLoading, setDocSummaryLoading] = useState(false);
 
-    // ─── Diagram toggle ──────────────────────────────────────────
-    const [showDiagram, setShowDiagram] = useState(false);
-
-    // ─── Duplicates ──────────────────────────────────────────────
+    // Duplicates
     const [duplicates, setDuplicates] = useState<DuplicatePair[]>([]);
     const [dupLoading, setDupLoading] = useState(false);
     const [dupChecked, setDupChecked] = useState(false);
@@ -53,8 +49,13 @@ export function DocumentsTab({ documents }: Props) {
         try {
             const data = await api.clusterDocuments();
             setClusters(data.clusters);
-            setExpandedClusters(new Set(data.clusters.map((c) => c.cluster_id)));
-            setReassignments({});
+            // Expand all parent clusters by default
+            const keys = new Set<string>();
+            data.clusters.forEach((c) => {
+                keys.add(`p-${c.cluster_id}`);
+                c.children?.forEach((ch) => keys.add(`c-${c.cluster_id}-${ch.cluster_id}`));
+            });
+            setExpandedClusters(keys);
             setClusterSummaries({});
         } catch {
             setClusters([]);
@@ -67,35 +68,25 @@ export function DocumentsTab({ documents }: Props) {
         if (documents.length > 0 && !initialized) loadClusters();
     }, [documents, initialized, loadClusters]);
 
-    // ─── Apply reassignments to get effective clusters ───────────
-    const effectiveClusters = useMemo(() => {
-        if (Object.keys(reassignments).length === 0) return clusters;
-        const clusterMap = new Map<number, DocCluster>();
-        for (const c of clusters) {
-            clusterMap.set(c.cluster_id, { ...c, documents: c.documents.filter((d) => reassignments[d.doc_id] === undefined) });
-        }
-        for (const [docId, targetClusterId] of Object.entries(reassignments)) {
-            const doc = clusters.flatMap((c) => c.documents).find((d) => d.doc_id === docId);
-            if (doc && clusterMap.has(targetClusterId)) {
-                clusterMap.get(targetClusterId)!.documents.push(doc);
-            }
-        }
-        return Array.from(clusterMap.values()).filter((c) => c.documents.length > 0);
-    }, [clusters, reassignments]);
-
     const totalDocs = documents.length;
-    const maxClusterSize = Math.max(...effectiveClusters.map((c) => c.documents.length), 1);
 
     // ─── Actions ─────────────────────────────────────────────────
-    function toggleCluster(id: number) {
+    function toggleNode(key: string) {
         setExpandedClusters((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) next.delete(id); else next.add(id);
+            if (next.has(key)) next.delete(key); else next.add(key);
             return next;
         });
     }
 
-    function expandAll() { setExpandedClusters(new Set(effectiveClusters.map((c) => c.cluster_id))); }
+    function expandAll() {
+        const keys = new Set<string>();
+        clusters.forEach((c) => {
+            keys.add(`p-${c.cluster_id}`);
+            c.children?.forEach((ch) => keys.add(`c-${c.cluster_id}-${ch.cluster_id}`));
+        });
+        setExpandedClusters(keys);
+    }
     function collapseAll() { setExpandedClusters(new Set()); }
 
     async function viewDoc(docId: string) {
@@ -110,23 +101,18 @@ export function DocumentsTab({ documents }: Props) {
         setDocSummaryLoading(false);
     }
 
-    async function summarizeCluster(cluster: DocCluster) {
-        setSummaryLoadingId(cluster.cluster_id);
+    async function summarizeCluster(cluster: DocCluster, key: string) {
+        setSummaryLoadingId(key);
         try {
             const docNames = cluster.documents.map((d) => d.title || d.filename).join(", ");
             const kwList = cluster.keywords?.join(", ") || "";
             const prompt = `Genera un resumen breve (2-3 oraciones) del siguiente grupo de documentos llamado "${cluster.label}". Documentos: ${docNames}. Palabras clave del grupo: ${kwList}. Describe de qué trata este grupo temáticamente.`;
-            const res = await api.agentAsk(prompt, `cluster-summary-${cluster.cluster_id}`);
-            setClusterSummaries((prev) => ({ ...prev, [cluster.cluster_id]: res.answer }));
+            const res = await api.agentAsk(prompt, `cluster-summary-${key}`);
+            setClusterSummaries((prev) => ({ ...prev, [key]: res.answer }));
         } catch {
-            setClusterSummaries((prev) => ({ ...prev, [cluster.cluster_id]: "No se pudo generar el resumen." }));
+            setClusterSummaries((prev) => ({ ...prev, [key]: "No se pudo generar el resumen." }));
         }
         setSummaryLoadingId(null);
-    }
-
-    function moveDoc(docId: string, targetClusterId: number) {
-        setReassignments((prev) => ({ ...prev, [docId]: targetClusterId }));
-        setMovingDocId(null);
     }
 
     async function loadDuplicates() {
@@ -156,16 +142,16 @@ export function DocumentsTab({ documents }: Props) {
     return (
         <section className="fade-in">
             <div className="max-w-6xl mx-auto">
-                {/* ─── Header ──────────────────────────────────────── */}
+                {/* ─── Header ──────────────────────────────────── */}
                 <div className="flex items-center justify-between mb-2">
                     <h2 className="text-lg font-semibold">Organización de documentos</h2>
-                    <span className="text-sm text-ink-3">{totalDocs} documentos · {effectiveClusters.length} carpetas</span>
+                    <span className="text-sm text-ink-3">{totalDocs} documentos · {clusters.length} temas</span>
                 </div>
                 <p className="text-sm text-ink-3 mb-5">
-                    Los documentos se agrupan automáticamente por similitud temática. Puedes explorar cada carpeta, generar resúmenes y reorganizar.
+                    Los documentos se agrupan automáticamente por similitud temática en carpetas y subcarpetas.
                 </p>
 
-                {/* ─── Toolbar ──────────────────────────────────────── */}
+                {/* ─── Toolbar ──────────────────────────────────── */}
                 <div className="flex flex-wrap items-center gap-2 mb-5">
                     <button onClick={loadClusters} disabled={clusterLoading}
                         className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100 disabled:opacity-50 transition-colors">
@@ -175,23 +161,24 @@ export function DocumentsTab({ documents }: Props) {
                         </svg>
                         {clusterLoading ? "Reagrupando..." : "Reagrupar"}
                     </button>
-                    <button onClick={expandAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Expandir todo</button>
-                    <button onClick={collapseAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Colapsar todo</button>
-                    <button onClick={() => setShowDiagram((p) => !p)}
-                        className={`inline-flex items-center gap-1.5 text-xs px-2 py-2 transition-colors ${showDiagram ? "text-brand-700 font-medium" : "text-ink-2 hover:text-ink-0"}`}>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                        </svg>
-                        {showDiagram ? "Ocultar diagrama" : "Ver diagrama"}
-                    </button>
-                    {Object.keys(reassignments).length > 0 && (
-                        <button onClick={() => setReassignments({})}
-                            className="text-xs text-amber-700 hover:text-amber-800 px-2 py-2 transition-colors">
-                            ↩ Deshacer reorganización ({Object.keys(reassignments).length} movidos)
+
+                    {/* View mode toggle */}
+                    <div className="flex items-center border border-surface-3 rounded-lg overflow-hidden">
+                        <button onClick={() => setViewMode("tree")}
+                            className={`px-3 py-2 text-xs font-medium transition-colors ${viewMode === "tree" ? "bg-brand-50 text-brand-700" : "text-ink-3 hover:text-ink-0"}`}>
+                            Diagrama
                         </button>
-                    )}
+                        <button onClick={() => setViewMode("folders")}
+                            className={`px-3 py-2 text-xs font-medium transition-colors ${viewMode === "folders" ? "bg-brand-50 text-brand-700" : "text-ink-3 hover:text-ink-0"}`}>
+                            Carpetas
+                        </button>
+                    </div>
+
+                    <button onClick={expandAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Expandir</button>
+                    <button onClick={collapseAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Colapsar</button>
+
                     <div className="flex-1" />
+
                     <button onClick={loadDuplicates} disabled={dupLoading}
                         className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,11 +189,11 @@ export function DocumentsTab({ documents }: Props) {
                     </button>
                 </div>
 
-                {/* ─── Cluster overview bar ─────────────────────── */}
-                {effectiveClusters.length > 0 && (
+                {/* ─── Distribution bar ────────────────────────── */}
+                {clusters.length > 0 && (
                     <div className="flex items-center gap-0.5 mb-5 h-3 rounded-full overflow-hidden bg-surface-2">
-                        {effectiveClusters.map((cluster) => {
-                            const c = CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length];
+                        {clusters.map((cluster) => {
+                            const c = CC[cluster.cluster_id % CC.length];
                             const pct = (cluster.documents.length / totalDocs) * 100;
                             return (
                                 <div key={cluster.cluster_id}
@@ -214,8 +201,8 @@ export function DocumentsTab({ documents }: Props) {
                                     style={{ width: `${pct}%` }}
                                     title={`${cluster.label}: ${cluster.documents.length} docs (${pct.toFixed(0)}%)`}
                                     onClick={() => {
-                                        setExpandedClusters(new Set([cluster.cluster_id]));
-                                        document.getElementById(`cluster-${cluster.cluster_id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                        const el = document.getElementById(`cluster-${cluster.cluster_id}`);
+                                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
                                     }}
                                 />
                             );
@@ -223,76 +210,163 @@ export function DocumentsTab({ documents }: Props) {
                     </div>
                 )}
 
-                {/* ─── Folder structure diagram ────────────────── */}
-                {showDiagram && effectiveClusters.length > 0 && (
-                    <div className="mb-6 bg-white border border-surface-3 rounded-xl overflow-hidden shadow-sm fade-in">
+                {/* ═══ TREE DIAGRAM VIEW ═══════════════════════════ */}
+                {viewMode === "tree" && clusters.length > 0 && (
+                    <div className="bg-white border border-surface-3 rounded-xl overflow-hidden shadow-sm mb-6">
                         <div className="px-5 py-3 border-b border-surface-3 bg-surface-1 flex items-center gap-2">
                             <svg className="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                     d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                             </svg>
-                            <span className="text-sm font-semibold text-ink-0">Estructura de carpetas</span>
-                            <span className="text-xs text-ink-3 ml-auto">{totalDocs} documentos · {effectiveClusters.length} carpetas</span>
+                            <span className="text-sm font-semibold text-ink-0">Estructura jerárquica</span>
+                            <span className="text-xs text-ink-3 ml-auto">{totalDocs} documentos · {clusters.length} temas</span>
                         </div>
-                        <div className="px-5 py-4 font-mono text-sm">
-                            {/* Root */}
-                            <div className="flex items-center gap-2 text-brand-700 font-semibold mb-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="px-5 py-4 text-sm">
+                            {/* Root node */}
+                            <div className="flex items-center gap-2 font-semibold text-brand-700 mb-2">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                         d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
                                 </svg>
-                                <span>DocumentWho/</span>
+                                <span className="font-mono">DocumentWho/</span>
+                                <span className="text-xs text-ink-3 font-normal font-sans ml-1">({totalDocs} docs)</span>
                             </div>
-                            {effectiveClusters.map((cluster, ci) => {
-                                const c = CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length];
-                                const isLast = ci === effectiveClusters.length - 1;
+
+                            {clusters.map((cluster, ci) => {
+                                const c = CC[cluster.cluster_id % CC.length];
+                                const isLastCluster = ci === clusters.length - 1;
+                                const pKey = `p-${cluster.cluster_id}`;
+                                const pOpen = expandedClusters.has(pKey);
+                                const children = cluster.children || [];
+                                const hasChildren = children.length > 1 || (children.length === 1 && children[0].documents.length !== cluster.documents.length);
+
                                 return (
-                                    <div key={cluster.cluster_id}>
-                                        {/* Cluster folder line */}
-                                        <div className="flex items-center gap-0 ml-2">
-                                            <span className="text-ink-3 select-none w-5 text-center shrink-0">
-                                                {isLast ? "└" : "├"}
+                                    <div key={cluster.cluster_id} id={`cluster-${cluster.cluster_id}`}>
+                                        {/* Parent cluster line */}
+                                        <div className="flex items-center ml-3 group/pnode cursor-pointer" onClick={() => toggleNode(pKey)}>
+                                            <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                {isLastCluster ? "└" : "├"}
                                             </span>
-                                            <span className="text-ink-3 select-none shrink-0">── </span>
-                                            <svg className={`w-3.5 h-3.5 ${c.icon} shrink-0 mr-1`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                            <span className="font-mono text-ink-3 shrink-0 select-none">── </span>
+                                            {/* Expand arrow */}
+                                            <svg className={`w-3 h-3 ${c.icon} shrink-0 mr-1 transition-transform ${pOpen ? "rotate-90" : ""}`}
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
-                                            <span className={`${c.text} font-semibold`}>{cluster.label}/</span>
-                                            <span className="text-ink-3 text-xs ml-2 font-sans">
-                                                ({cluster.documents.length} doc{cluster.documents.length !== 1 ? "s" : ""})
+                                            <svg className={`w-4 h-4 ${c.icon} shrink-0 mr-1.5`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                    d={pOpen
+                                                        ? "M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
+                                                        : "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                                                    } />
+                                            </svg>
+                                            <span className={`font-semibold font-mono ${c.text}`}>{cluster.label}/</span>
+                                            <span className={`text-xs ml-2 px-2 py-0.5 rounded-full font-sans ${c.badge}`}>
+                                                {cluster.documents.length}
                                             </span>
                                             {cluster.categories && cluster.categories.length > 0 && (
-                                                <span className="text-ink-3 text-[10px] ml-2 font-sans opacity-60">
-                                                    [{cluster.categories.join(", ")}]
+                                                <span className="text-[10px] text-ink-3 ml-2 font-sans opacity-70 hidden sm:inline">
+                                                    {cluster.categories.slice(0, 2).join(", ")}
                                                 </span>
                                             )}
                                         </div>
-                                        {/* Documents inside cluster */}
-                                        {cluster.documents.map((doc, di) => {
-                                            const isLastDoc = di === cluster.documents.length - 1;
-                                            return (
-                                                <div key={doc.doc_id} className="flex items-center gap-0 ml-2 group/tree">
-                                                    <span className="text-ink-3 select-none w-5 text-center shrink-0">
-                                                        {isLast ? " " : "│"}
-                                                    </span>
-                                                    <span className="text-ink-3 select-none w-5 text-center shrink-0">
-                                                        {isLastDoc ? "└" : "├"}
-                                                    </span>
-                                                    <span className="text-ink-3 select-none shrink-0">── </span>
-                                                    <svg className="w-3 h-3 text-ink-3 shrink-0 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                    </svg>
-                                                    <span className="text-ink-1 truncate max-w-xs">{doc.title || doc.filename}</span>
-                                                    <span className={`text-[10px] ml-2 px-1.5 py-0 rounded font-sans ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
-                                                    <button onClick={() => viewDoc(doc.doc_id)}
-                                                        className="opacity-0 group-hover/tree:opacity-100 text-[10px] text-brand-600 hover:text-brand-700 font-sans font-medium ml-2 transition-opacity">
-                                                        ver
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
+
+                                        {/* Expanded: show children or direct docs */}
+                                        {pOpen && (
+                                            <div className="ml-3">
+                                                {hasChildren ? (
+                                                    // Sub-clusters
+                                                    children.map((child, sci) => {
+                                                        const isLastChild = sci === children.length - 1;
+                                                        const cKey = `c-${cluster.cluster_id}-${child.cluster_id}`;
+                                                        const cOpen = expandedClusters.has(cKey);
+                                                        const subColor = CC[(cluster.cluster_id * 3 + child.cluster_id + 1) % CC.length];
+
+                                                        return (
+                                                            <div key={child.cluster_id}>
+                                                                {/* Sub-cluster line */}
+                                                                <div className="flex items-center group/snode cursor-pointer" onClick={() => toggleNode(cKey)}>
+                                                                    <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                                        {isLastCluster ? " " : "│"}
+                                                                    </span>
+                                                                    <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                                        {isLastChild ? "└" : "├"}
+                                                                    </span>
+                                                                    <span className="font-mono text-ink-3 shrink-0 select-none">── </span>
+                                                                    <svg className={`w-2.5 h-2.5 ${subColor.icon} shrink-0 mr-1 transition-transform ${cOpen ? "rotate-90" : ""}`}
+                                                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                                    </svg>
+                                                                    <svg className={`w-3.5 h-3.5 ${subColor.icon} shrink-0 mr-1`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                                                    </svg>
+                                                                    <span className={`font-medium font-mono text-[13px] ${subColor.text}`}>{child.label}/</span>
+                                                                    <span className="text-xs text-ink-3 ml-1.5 font-sans">
+                                                                        ({child.documents.length})
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Sub-cluster documents */}
+                                                                {cOpen && child.documents.map((doc, di) => {
+                                                                    const isLastDoc = di === child.documents.length - 1;
+                                                                    return (
+                                                                        <div key={doc.doc_id} className="flex items-center group/doc">
+                                                                            <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                                                {isLastCluster ? " " : "│"}
+                                                                            </span>
+                                                                            <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                                                {isLastChild ? " " : "│"}
+                                                                            </span>
+                                                                            <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                                                {isLastDoc ? "└" : "├"}
+                                                                            </span>
+                                                                            <span className="font-mono text-ink-3 shrink-0 select-none">── </span>
+                                                                            <svg className="w-3 h-3 text-ink-3 shrink-0 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                            </svg>
+                                                                            <span className="text-ink-1 truncate max-w-xs text-[13px]">{doc.title || doc.filename}</span>
+                                                                            <span className={`text-[10px] ml-1.5 px-1.5 py-0 rounded ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
+                                                                            <button onClick={(e) => { e.stopPropagation(); viewDoc(doc.doc_id); }}
+                                                                                className="opacity-0 group-hover/doc:opacity-100 text-[10px] text-brand-600 hover:text-brand-700 font-medium ml-2 transition-opacity">
+                                                                                ver
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    // Direct documents (no sub-clusters)
+                                                    cluster.documents.map((doc, di) => {
+                                                        const isLastDoc = di === cluster.documents.length - 1;
+                                                        return (
+                                                            <div key={doc.doc_id} className="flex items-center group/doc">
+                                                                <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                                    {isLastCluster ? " " : "│"}
+                                                                </span>
+                                                                <span className="font-mono text-ink-3 w-5 text-center shrink-0 select-none">
+                                                                    {isLastDoc ? "└" : "├"}
+                                                                </span>
+                                                                <span className="font-mono text-ink-3 shrink-0 select-none">── </span>
+                                                                <svg className="w-3 h-3 text-ink-3 shrink-0 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                                <span className="text-ink-1 truncate max-w-xs text-[13px]">{doc.title || doc.filename}</span>
+                                                                <span className={`text-[10px] ml-1.5 px-1.5 py-0 rounded ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
+                                                                <button onClick={(e) => { e.stopPropagation(); viewDoc(doc.doc_id); }}
+                                                                    className="opacity-0 group-hover/doc:opacity-100 text-[10px] text-brand-600 hover:text-brand-700 font-medium ml-2 transition-opacity">
+                                                                    ver
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -300,149 +374,138 @@ export function DocumentsTab({ documents }: Props) {
                     </div>
                 )}
 
-                {/* ─── Folder cards ────────────────────────────────── */}
-                <div className="space-y-4">
-                    {effectiveClusters.map((cluster) => {
-                        const c = CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length];
-                        const isOpen = expandedClusters.has(cluster.cluster_id);
-                        const summary = clusterSummaries[cluster.cluster_id];
-                        const isSummarizing = summaryLoadingId === cluster.cluster_id;
-                        const sizeBar = (cluster.documents.length / maxClusterSize) * 100;
+                {/* ═══ FOLDER CARD VIEW ════════════════════════════ */}
+                {viewMode === "folders" && (
+                    <div className="space-y-4 mb-6">
+                        {clusters.map((cluster) => {
+                            const c = CC[cluster.cluster_id % CC.length];
+                            const pKey = `p-${cluster.cluster_id}`;
+                            const isOpen = expandedClusters.has(pKey);
+                            const children = cluster.children || [];
+                            const hasChildren = children.length > 1 || (children.length === 1 && children[0].documents.length !== cluster.documents.length);
+                            const summary = clusterSummaries[pKey];
+                            const isSummarizing = summaryLoadingId === pKey;
+                            const maxSize = Math.max(...clusters.map((cl) => cl.documents.length), 1);
+                            const sizeBar = (cluster.documents.length / maxSize) * 100;
 
-                        return (
-                            <div key={cluster.cluster_id} id={`cluster-${cluster.cluster_id}`}
-                                className={`${c.bg} border ${c.border} rounded-xl overflow-hidden transition-shadow ${isOpen ? "shadow-sm" : ""}`}>
-                                {/* Folder header */}
-                                <button onClick={() => toggleCluster(cluster.cluster_id)}
-                                    className="w-full flex items-center gap-3 px-5 py-4 text-left group">
-                                    <svg className={`w-4 h-4 ${c.text} shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
-                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                    <svg className={`w-5 h-5 ${c.icon} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                            d={isOpen
-                                                ? "M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
-                                                : "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                                            } />
-                                    </svg>
-                                    <div className="flex-1 min-w-0">
-                                        <span className={`text-sm font-semibold ${c.text}`}>{cluster.label}</span>
-                                        {cluster.keywords && cluster.keywords.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-1">
-                                                {cluster.keywords.slice(0, 5).map((kw) => (
-                                                    <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded ${c.badge} opacity-70`}>{kw}</span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <div className="hidden sm:flex items-center gap-2 w-24">
-                                            <div className="flex-1 bg-white/50 rounded-full h-1.5">
-                                                <div className={`${c.bar} h-1.5 rounded-full transition-all`} style={{ width: `${sizeBar}%` }} />
-                                            </div>
-                                        </div>
-                                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${c.badge}`}>
-                                            {cluster.documents.length} doc{cluster.documents.length !== 1 ? "s" : ""}
-                                        </span>
-                                    </div>
-                                </button>
-
-                                {/* Expanded content */}
-                                {isOpen && (
-                                    <div className="px-5 pb-4">
-                                        {/* Summary */}
-                                        <div className="mb-3 flex items-start gap-2">
-                                            {summary ? (
-                                                <div className="flex-1 text-sm text-ink-1 bg-white/60 rounded-lg px-4 py-3 leading-relaxed">{summary}</div>
-                                            ) : (
-                                                <button onClick={(e) => { e.stopPropagation(); summarizeCluster(cluster); }}
-                                                    disabled={isSummarizing}
-                                                    className={`inline-flex items-center gap-1.5 text-xs font-medium ${c.text} hover:opacity-80 disabled:opacity-50 transition-opacity`}>
-                                                    {isSummarizing ? (
-                                                        <><svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                        </svg>Generando resumen...</>
-                                                    ) : (
-                                                        <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                        </svg>Generar resumen del grupo</>
-                                                    )}
-                                                </button>
+                            return (
+                                <div key={cluster.cluster_id} id={`cluster-${cluster.cluster_id}`}
+                                    className={`${c.bg} border ${c.border} rounded-xl overflow-hidden transition-shadow ${isOpen ? "shadow-sm" : ""}`}>
+                                    {/* Folder header */}
+                                    <button onClick={() => toggleNode(pKey)}
+                                        className="w-full flex items-center gap-3 px-5 py-4 text-left group">
+                                        <svg className={`w-4 h-4 ${c.text} shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+                                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        <svg className={`w-5 h-5 ${c.icon} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                d={isOpen
+                                                    ? "M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
+                                                    : "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                                                } />
+                                        </svg>
+                                        <div className="flex-1 min-w-0">
+                                            <span className={`text-sm font-semibold ${c.text}`}>{cluster.label}</span>
+                                            {cluster.keywords && cluster.keywords.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {cluster.keywords.slice(0, 5).map((kw) => (
+                                                        <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded ${c.badge} opacity-70`}>{kw}</span>
+                                                    ))}
+                                                </div>
                                             )}
                                         </div>
-
-                                        {/* Categories */}
-                                        {cluster.categories && cluster.categories.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mb-3">
-                                                {cluster.categories.map((cat) => (
-                                                    <span key={cat} className="text-[10px] px-2 py-0.5 rounded-full bg-white/60 text-ink-2 border border-white/80">{cat}</span>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Documents list */}
-                                        <div className="space-y-1.5">
-                                            {cluster.documents.map((doc) => (
-                                                <div key={doc.doc_id}
-                                                    className="flex items-center gap-3 px-4 py-2.5 bg-white/70 hover:bg-white rounded-lg transition-colors group/doc">
-                                                    <svg className="w-4 h-4 text-ink-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                    </svg>
-                                                    <span className="text-sm text-ink-0 flex-1 truncate">{doc.title || doc.filename}</span>
-                                                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
-                                                    {doc.category && <span className="hidden sm:inline text-xs text-ink-3">{doc.category}</span>}
-
-                                                    {/* Move button */}
-                                                    <div className="relative">
-                                                        {movingDocId === doc.doc_id ? (
-                                                            <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-surface-3 rounded-lg shadow-lg py-1 min-w-[180px]">
-                                                                <div className="px-3 py-1.5 text-[10px] font-medium text-ink-3 uppercase tracking-wider">Mover a...</div>
-                                                                {effectiveClusters.filter((tc) => tc.cluster_id !== cluster.cluster_id).map((tc) => {
-                                                                    const tc_c = CLUSTER_COLORS[tc.cluster_id % CLUSTER_COLORS.length];
-                                                                    return (
-                                                                        <button key={tc.cluster_id}
-                                                                            onClick={(e) => { e.stopPropagation(); moveDoc(doc.doc_id, tc.cluster_id); }}
-                                                                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-1 transition-colors flex items-center gap-2">
-                                                                            <span className={`w-2 h-2 rounded-full ${tc_c.bar}`} />
-                                                                            {tc.label}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                                <button onClick={() => setMovingDocId(null)}
-                                                                    className="w-full text-left px-3 py-1.5 text-xs text-ink-3 hover:bg-surface-1 transition-colors border-t border-surface-3 mt-1">
-                                                                    Cancelar
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <button onClick={(e) => { e.stopPropagation(); setMovingDocId(doc.doc_id); }}
-                                                                className="opacity-0 group-hover/doc:opacity-100 text-xs text-ink-3 hover:text-ink-0 p-1 transition-all"
-                                                                title="Mover a otra carpeta">
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                                </svg>
-                                                            </button>
-                                                        )}
-                                                    </div>
-
-                                                    <button onClick={() => viewDoc(doc.doc_id)}
-                                                        className="text-xs text-brand-600 hover:text-brand-700 font-medium shrink-0">Ver</button>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <div className="hidden sm:flex items-center gap-2 w-24">
+                                                <div className="flex-1 bg-white/50 rounded-full h-1.5">
+                                                    <div className={`${c.bar} h-1.5 rounded-full transition-all`} style={{ width: `${sizeBar}%` }} />
                                                 </div>
-                                            ))}
+                                            </div>
+                                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${c.badge}`}>
+                                                {cluster.documents.length} doc{cluster.documents.length !== 1 ? "s" : ""}
+                                            </span>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+                                    </button>
 
-                {/* ─── Empty state ──────────────────────────────────── */}
-                {effectiveClusters.length === 0 && !clusterLoading && initialized && (
+                                    {/* Expanded content */}
+                                    {isOpen && (
+                                        <div className="px-5 pb-4">
+                                            {/* Summary */}
+                                            <div className="mb-3 flex items-start gap-2">
+                                                {summary ? (
+                                                    <div className="flex-1 text-sm text-ink-1 bg-white/60 rounded-lg px-4 py-3 leading-relaxed">{summary}</div>
+                                                ) : (
+                                                    <button onClick={(e) => { e.stopPropagation(); summarizeCluster(cluster, pKey); }}
+                                                        disabled={isSummarizing}
+                                                        className={`inline-flex items-center gap-1.5 text-xs font-medium ${c.text} hover:opacity-80 disabled:opacity-50 transition-opacity`}>
+                                                        {isSummarizing ? (
+                                                            <><svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                            </svg>Generando resumen...</>
+                                                        ) : (
+                                                            <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            </svg>Generar resumen</>
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Sub-clusters as nested cards, or direct docs */}
+                                            {hasChildren ? (
+                                                <div className="space-y-3">
+                                                    {children.map((child) => {
+                                                        const cKey = `c-${cluster.cluster_id}-${child.cluster_id}`;
+                                                        const cOpen = expandedClusters.has(cKey);
+                                                        const subColor = CC[(cluster.cluster_id * 3 + child.cluster_id + 1) % CC.length];
+                                                        return (
+                                                            <div key={child.cluster_id}
+                                                                className="bg-white/70 border border-white/80 rounded-lg overflow-hidden">
+                                                                <button onClick={() => toggleNode(cKey)}
+                                                                    className="w-full flex items-center gap-2 px-4 py-2.5 text-left">
+                                                                    <svg className={`w-3 h-3 ${subColor.icon} shrink-0 transition-transform ${cOpen ? "rotate-90" : ""}`}
+                                                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                                    </svg>
+                                                                    <svg className={`w-4 h-4 ${subColor.icon} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                                                    </svg>
+                                                                    <span className={`text-sm font-medium ${subColor.text}`}>{child.label}</span>
+                                                                    <span className="text-xs text-ink-3 ml-auto">
+                                                                        {child.documents.length} doc{child.documents.length !== 1 ? "s" : ""}
+                                                                    </span>
+                                                                </button>
+                                                                {cOpen && (
+                                                                    <div className="px-4 pb-3 space-y-1">
+                                                                        {child.documents.map((doc) => (
+                                                                            <DocRow key={doc.doc_id} doc={doc} onView={viewDoc} />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    {cluster.documents.map((doc) => (
+                                                        <DocRow key={doc.doc_id} doc={doc} onView={viewDoc} />
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* ─── Empty state ──────────────────────────────── */}
+                {clusters.length === 0 && !clusterLoading && initialized && (
                     <div className="text-center py-12 bg-white border border-surface-3 rounded-xl">
                         <svg className="w-12 h-12 text-ink-3 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -453,7 +516,7 @@ export function DocumentsTab({ documents }: Props) {
                     </div>
                 )}
 
-                {/* ─── Duplicates ──────────────────────────────────── */}
+                {/* ─── Duplicates ──────────────────────────────── */}
                 {(dupChecked || duplicates.length > 0) && (
                     <div className="mt-6">
                         <h3 className="text-sm font-semibold text-ink-0 flex items-center gap-2 mb-3">
@@ -495,10 +558,10 @@ export function DocumentsTab({ documents }: Props) {
                     </div>
                 )}
 
-                {/* ─── Document detail modal ──────────────────────── */}
+                {/* ─── Document detail modal ──────────────────── */}
                 {detail && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                        onClick={(e) => { if (e.target === e.currentTarget) { setDetail(null); setMovingDocId(null); } }}>
+                        onClick={(e) => { if (e.target === e.currentTarget) setDetail(null); }}>
                         <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col fade-in">
                             <div className="flex items-center justify-between p-5 border-b border-surface-3 shrink-0">
                                 <div>
@@ -570,5 +633,21 @@ export function DocumentsTab({ documents }: Props) {
                 )}
             </div>
         </section>
+    );
+}
+
+/* ─── Doc row component ─────────────────────────────────────────── */
+function DocRow({ doc, onView }: { doc: DocListItem; onView: (id: string) => void }) {
+    return (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-white/70 hover:bg-white rounded-lg transition-colors group/doc cursor-pointer"
+            onClick={() => onView(doc.doc_id)}>
+            <svg className="w-4 h-4 text-ink-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-sm text-ink-0 flex-1 truncate group-hover/doc:text-brand-700 transition-colors">{doc.title || doc.filename}</span>
+            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
+            {doc.category && <span className="hidden sm:inline text-xs text-ink-3">{doc.category}</span>}
+        </div>
     );
 }

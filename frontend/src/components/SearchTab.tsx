@@ -11,9 +11,6 @@ interface Props {
     documents: DocListItem[];
 }
 
-type SortKey = "title" | "doc_type" | "category";
-type SortDir = "asc" | "desc";
-
 function groupResults(results: SearchResult[]): GroupedResult[] {
     const map = new Map<string, GroupedResult>();
     for (const r of results) {
@@ -46,44 +43,35 @@ export function SearchTab({ onViewDoc, documents }: Props) {
     const [filters, setFilters] = useState<SearchFilters>({});
     const [grouped, setGrouped] = useState<GroupedResult[]>([]);
 
-    // ─── Document browser filters ────────────────────────────────
-    const [browseSearch, setBrowseSearch] = useState("");
+    // Document browser filters (always visible in sidebar)
     const [browseType, setBrowseType] = useState("");
     const [browseCategory, setBrowseCategory] = useState("");
-    const [browseSortKey, setBrowseSortKey] = useState<SortKey>("title");
-    const [browseSortDir, setBrowseSortDir] = useState<SortDir>("asc");
-    const [browseView, setBrowseView] = useState<"table" | "grid">("table");
 
     const docTypes = useMemo(() => [...new Set(documents.map((d) => d.doc_type).filter(Boolean))].sort(), [documents]);
     const categories = useMemo(() => [...new Set(documents.map((d) => d.category).filter(Boolean))].sort(), [documents]);
 
-    const browsed = useMemo(() => {
-        let docs = [...documents];
-        if (browseSearch.trim()) {
-            const q = browseSearch.toLowerCase();
-            docs = docs.filter((d) =>
-                d.title?.toLowerCase().includes(q) || d.filename?.toLowerCase().includes(q) ||
-                d.doc_type?.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q),
-            );
-        }
-        if (browseType) docs = docs.filter((d) => d.doc_type === browseType);
-        if (browseCategory) docs = docs.filter((d) => d.category === browseCategory);
-        docs.sort((a, b) => {
-            const va = (a[browseSortKey] || "").toLowerCase();
-            const vb = (b[browseSortKey] || "").toLowerCase();
-            return browseSortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
-        });
-        return docs;
-    }, [documents, browseSearch, browseType, browseCategory, browseSortKey, browseSortDir]);
-
-    const browseActiveFilters = [browseType, browseCategory, browseSearch.trim()].filter(Boolean).length;
     const isSearchMode = lastQuery.length > 0;
 
-    function toggleBrowseSort(key: SortKey) {
-        if (browseSortKey === key) setBrowseSortDir((d) => d === "asc" ? "desc" : "asc");
-        else { setBrowseSortKey(key); setBrowseSortDir("asc"); }
-    }
-    const sortIcon = (key: SortKey) => browseSortKey !== key ? "↕" : browseSortDir === "asc" ? "↑" : "↓";
+    // Type/category counts for sidebar
+    const typeCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const d of documents) if (d.doc_type) counts[d.doc_type] = (counts[d.doc_type] || 0) + 1;
+        return counts;
+    }, [documents]);
+    const categoryCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const d of documents) if (d.category) counts[d.category] = (counts[d.category] || 0) + 1;
+        return counts;
+    }, [documents]);
+
+    // Browsed docs when not searching (filtered by sidebar selections)
+    const browsed = useMemo(() => {
+        let docs = [...documents];
+        if (browseType) docs = docs.filter((d) => d.doc_type === browseType);
+        if (browseCategory) docs = docs.filter((d) => d.category === browseCategory);
+        docs.sort((a, b) => (a.title || a.filename).localeCompare(b.title || b.filename));
+        return docs;
+    }, [documents, browseType, browseCategory]);
 
     async function doSearch(overrideFilters?: SearchFilters) {
         const q = query.trim();
@@ -108,10 +96,13 @@ export function SearchTab({ onViewDoc, documents }: Props) {
         doSearch(next);
     }
 
-    function clearFilters() {
-        const empty: SearchFilters = {};
-        setFilters(empty);
-        doSearch(empty);
+    function clearSearch() {
+        setLastQuery("");
+        setResults([]);
+        setGrouped([]);
+        setFacets(null);
+        setQuery("");
+        setFilters({});
     }
 
     const hasFilters = Object.values(filters).some(Boolean);
@@ -124,169 +115,68 @@ export function SearchTab({ onViewDoc, documents }: Props) {
         <section className="fade-in">
             <div className="max-w-6xl mx-auto">
                 {/* Search bar */}
-                <div className="mb-6">
+                <div className="mb-5">
                     <form onSubmit={(e) => { e.preventDefault(); doSearch(); }} className="flex gap-2">
                         <div className="flex-1 relative">
                             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            <input
-                                value={query} onChange={(e) => setQuery(e.target.value)}
+                            <input value={query} onChange={(e) => setQuery(e.target.value)}
                                 placeholder="Buscar en documentos..."
-                                className="w-full pl-10 pr-4 py-2.5 text-sm border border-surface-3 rounded-lg bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all"
-                            />
+                                className="w-full pl-10 pr-4 py-2.5 text-sm border border-surface-3 rounded-lg bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all" />
                         </div>
                         <button type="submit" disabled={!query.trim()}
                             className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors">
                             Buscar
                         </button>
+                        {isSearchMode && (
+                            <button type="button" onClick={clearSearch}
+                                className="px-3 py-2.5 text-sm text-ink-2 hover:text-ink-0 border border-surface-3 rounded-lg hover:bg-surface-1 transition-colors">
+                                ✕
+                            </button>
+                        )}
                     </form>
 
-                    {/* Active filters */}
+                    {/* Active search filters */}
                     {hasFilters && (
                         <div className="flex flex-wrap items-center gap-2 mt-3">
-                            <span className="text-xs text-ink-3">Filtros activos:</span>
-                            {filters.type && (
-                                <FilterBadge label={`Tipo: ${filters.type}`} color="purple" onClear={() => toggleFilter("type", filters.type!)} />
-                            )}
-                            {filters.language && (
-                                <FilterBadge label={`Idioma: ${filters.language}`} color="cyan" onClear={() => toggleFilter("language", filters.language!)} />
-                            )}
-                            {filters.person && (
-                                <FilterBadge label={`Persona: ${filters.person}`} color="green" onClear={() => toggleFilter("person", filters.person!)} />
-                            )}
-                            {filters.organization && (
-                                <FilterBadge label={`Org: ${filters.organization}`} color="blue" onClear={() => toggleFilter("organization", filters.organization!)} />
-                            )}
-                            {filters.date && (
-                                <FilterBadge label={`Fecha: ${filters.date}`} color="amber" onClear={() => toggleFilter("date", filters.date!)} />
-                            )}
-                            <button onClick={clearFilters} className="text-xs text-red-500 hover:text-red-700 font-medium">Limpiar todo</button>
+                            <span className="text-xs text-ink-3">Filtros:</span>
+                            {filters.type && <FilterBadge label={`Tipo: ${filters.type}`} color="purple" onClear={() => toggleFilter("type", filters.type!)} />}
+                            {filters.language && <FilterBadge label={`Idioma: ${filters.language}`} color="cyan" onClear={() => toggleFilter("language", filters.language!)} />}
+                            {filters.person && <FilterBadge label={`Persona: ${filters.person}`} color="green" onClear={() => toggleFilter("person", filters.person!)} />}
+                            {filters.organization && <FilterBadge label={`Org: ${filters.organization}`} color="blue" onClear={() => toggleFilter("organization", filters.organization!)} />}
+                            {filters.date && <FilterBadge label={`Fecha: ${filters.date}`} color="amber" onClear={() => toggleFilter("date", filters.date!)} />}
+                            <button onClick={() => { setFilters({}); doSearch({}); }} className="text-xs text-red-500 hover:text-red-700 font-medium">Limpiar</button>
                         </div>
                     )}
                 </div>
 
-                {/* ─── Document browser (pre-search default) ──────── */}
-                {!isSearchMode && (
-                    <div className="mb-6">
-                        <div className="flex flex-wrap items-center gap-2 mb-4">
-                            <div className="relative flex-1 min-w-[200px] max-w-sm">
-                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                                <input type="text" value={browseSearch} onChange={(e) => setBrowseSearch(e.target.value)}
-                                    placeholder="Filtrar documentos..."
-                                    className="w-full pl-9 pr-3 py-2 text-sm border border-surface-3 rounded-lg bg-white outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all" />
+                {/* Main layout: sidebar + content (always) */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+                    {/* ─── Sidebar (always visible) ──────────────── */}
+                    <div className="lg:col-span-1 space-y-3">
+                        {/* Status */}
+                        <div className="bg-white border border-surface-3 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-1">
+                                <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider">Documentos</h4>
+                                <span className="text-xs text-ink-3 tabular-nums">{documents.length}</span>
                             </div>
-                            <select value={browseType} onChange={(e) => setBrowseType(e.target.value)}
-                                className="px-3 py-2 text-sm border border-surface-3 rounded-lg bg-white outline-none focus:border-brand-400 transition-colors">
-                                <option value="">Todos los tipos</option>
-                                {docTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                            <select value={browseCategory} onChange={(e) => setBrowseCategory(e.target.value)}
-                                className="px-3 py-2 text-sm border border-surface-3 rounded-lg bg-white outline-none focus:border-brand-400 transition-colors">
-                                <option value="">Todas las categorías</option>
-                                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            {browseActiveFilters > 0 && (
-                                <button onClick={() => { setBrowseSearch(""); setBrowseType(""); setBrowseCategory(""); }}
-                                    className="text-xs text-ink-3 hover:text-ink-0 px-2 py-2 transition-colors">
-                                    Limpiar ({browseActiveFilters})
-                                </button>
+                            {isSearchMode && (
+                                <div className="text-xs text-brand-600 font-medium mt-1">
+                                    {grouped.length} resultado{grouped.length !== 1 ? "s" : ""} · {results.length} fragmento{results.length !== 1 ? "s" : ""}
+                                </div>
                             )}
-                            <div className="flex-1" />
-                            <span className="text-xs text-ink-3">{browsed.length} de {documents.length}</span>
-                            <div className="flex items-center border border-surface-3 rounded-lg overflow-hidden">
-                                <button onClick={() => setBrowseView("table")}
-                                    className={`p-2 transition-colors ${browseView === "table" ? "bg-brand-50 text-brand-600" : "text-ink-3 hover:text-ink-0"}`}>
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                    </svg>
-                                </button>
-                                <button onClick={() => setBrowseView("grid")}
-                                    className={`p-2 transition-colors ${browseView === "grid" ? "bg-brand-50 text-brand-600" : "text-ink-3 hover:text-ink-0"}`}>
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                            d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                                    </svg>
-                                </button>
-                            </div>
+                            {!isSearchMode && (browseType || browseCategory) && (
+                                <div className="text-xs text-ink-2 mt-1">Mostrando {browsed.length} de {documents.length}</div>
+                            )}
                         </div>
 
-                        {/* Table view */}
-                        {browseView === "table" && (
-                            <div className="bg-white border border-surface-3 rounded-lg overflow-hidden">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-surface-3 bg-surface-1">
-                                            <th onClick={() => toggleBrowseSort("title")} className="text-left text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-ink-0 select-none">
-                                                Documento {sortIcon("title")}
-                                            </th>
-                                            <th onClick={() => toggleBrowseSort("doc_type")} className="text-left text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-ink-0 select-none">
-                                                Tipo {sortIcon("doc_type")}
-                                            </th>
-                                            <th onClick={() => toggleBrowseSort("category")} className="text-left text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-ink-0 select-none">
-                                                Categoría {sortIcon("category")}
-                                            </th>
-                                            <th className="text-right text-xs font-medium text-ink-2 uppercase tracking-wider px-4 py-3">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-surface-3">
-                                        {browsed.map((doc) => (
-                                            <tr key={doc.doc_id} className="hover:bg-surface-1 transition-colors">
-                                                <td className="px-4 py-3">
-                                                    <div className="text-sm font-medium text-ink-0">{doc.title || doc.filename}</div>
-                                                    <div className="text-xs text-ink-3">{doc.filename}</div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-ink-2">{doc.category || "—"}</td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <button onClick={() => onViewDoc(doc.doc_id)} className="text-xs text-brand-600 hover:text-brand-700 font-medium">Ver detalle</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {browsed.length === 0 && (
-                                            <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-ink-3">Sin documentos.</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* Grid view */}
-                        {browseView === "grid" && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {browsed.map((doc) => (
-                                    <div key={doc.doc_id} onClick={() => onViewDoc(doc.doc_id)}
-                                        className="bg-white border border-surface-3 rounded-lg p-4 hover:shadow-md hover:border-brand-200 transition-all cursor-pointer group">
-                                        <div className="flex items-start justify-between gap-2 mb-2">
-                                            <h3 className="text-sm font-medium text-ink-0 line-clamp-2 group-hover:text-brand-700 transition-colors">
-                                                {doc.title || doc.filename}
-                                            </h3>
-                                            <span className={`shrink-0 inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>{doc.doc_type}</span>
-                                        </div>
-                                        <p className="text-xs text-ink-3 truncate">{doc.filename}</p>
-                                        {doc.category && <span className="inline-flex mt-2 px-2 py-0.5 rounded-full text-xs bg-surface-2 text-ink-2">{doc.category}</span>}
-                                    </div>
-                                ))}
-                                {browsed.length === 0 && (
-                                    <div className="col-span-full text-center py-8 text-sm text-ink-3">Sin documentos.</div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Results + Facets */}
-                {isSearchMode && (
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        {/* Facets sidebar */}
-                        {facets && lastQuery && (
-                            <div className="lg:col-span-1 space-y-4">
-                                <FacetBlock title="Tipo de documento" items={facets.doc_type} activeValue={filters.type}
-                                    onToggle={(v) => toggleFilter("type", v)} renderLabel={(v) => <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(v)}`}>{v}</span>} />
+                        {/* Dynamic facets from search results */}
+                        {isSearchMode && facets && (
+                            <>
+                                <FacetBlock title="Tipo" items={facets.doc_type} activeValue={filters.type}
+                                    onToggle={(v) => toggleFilter("type", v)}
+                                    renderLabel={(v) => <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(v)}`}>{v}</span>} />
                                 <FacetBlock title="Idioma" items={facets.language} activeValue={filters.language}
                                     onToggle={(v) => toggleFilter("language", v)} renderLabel={(v) => <span>{langLabel(v)}</span>} />
                                 <FacetBlock title="Fecha" items={facets.dates} activeValue={filters.date}
@@ -307,38 +197,94 @@ export function SearchTab({ onViewDoc, documents }: Props) {
                                         </div>
                                     </div>
                                 )}
-                            </div>
+                            </>
                         )}
 
-                        {/* Results */}
-                        <div className={facets && lastQuery ? "lg:col-span-3" : "lg:col-span-4"}>
-                            {grouped.length > 0 && (
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-sm text-ink-2">
-                                            <span className="font-medium">{grouped.length}</span> documentos encontrados
-                                            <span className="text-ink-3"> ({results.length} fragmentos)</span>
-                                        </p>
-                                        <button onClick={() => { setLastQuery(""); setResults([]); setGrouped([]); setFacets(null); setQuery(""); setFilters({}); }}
-                                            className="text-xs text-ink-3 hover:text-ink-0 transition-colors">← Volver a explorar</button>
-                                    </div>
-                                    {grouped.map((group) => (
-                                        <ResultCard key={group.doc_id} group={group} onView={onViewDoc} onToggle={toggleExpand} />
-                                    ))}
-                                </div>
-                            )}
-                            {results.length === 0 && lastQuery && (
-                                <div className="text-center py-12 text-ink-3 text-sm">
-                                    Sin resultados para &quot;{lastQuery}&quot;
-                                    <div className="mt-2">
-                                        <button onClick={() => { setLastQuery(""); setQuery(""); setFilters({}); }}
-                                            className="text-xs text-brand-600 hover:text-brand-700">← Volver a explorar</button>
+                        {/* Static filters when browsing (no search) */}
+                        {!isSearchMode && (
+                            <>
+                                <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                    <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Tipo de documento</h4>
+                                    <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                        {docTypes.map((t) => (
+                                            <button key={t} onClick={() => setBrowseType(browseType === t ? "" : t)}
+                                                className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseType === t ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(t)}`}>{t}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{typeCounts[t] || 0}</span>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                            )}
-                        </div>
+                                <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                    <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Categoría</h4>
+                                    <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                        {categories.map((c) => (
+                                            <button key={c} onClick={() => setBrowseCategory(browseCategory === c ? "" : c)}
+                                                className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseCategory === c ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                <span className="truncate">{c}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{categoryCounts[c] || 0}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                {(browseType || browseCategory) && (
+                                    <button onClick={() => { setBrowseType(""); setBrowseCategory(""); }}
+                                        className="w-full text-xs text-red-500 hover:text-red-700 font-medium py-1 transition-colors">
+                                        Limpiar filtros
+                                    </button>
+                                )}
+                            </>
+                        )}
                     </div>
-                )}
+
+                    {/* ─── Content area ───────────────────────────── */}
+                    <div className="lg:col-span-3">
+                        {/* Search results */}
+                        {isSearchMode && (
+                            <>
+                                {grouped.length > 0 && (
+                                    <div className="space-y-3">
+                                        {grouped.map((group) => (
+                                            <ResultCard key={group.doc_id} group={group} onView={onViewDoc} onToggle={toggleExpand} />
+                                        ))}
+                                    </div>
+                                )}
+                                {results.length === 0 && lastQuery && (
+                                    <div className="text-center py-16 text-ink-3 text-sm">
+                                        Sin resultados para &quot;{lastQuery}&quot;
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* Document listing (no search active) */}
+                        {!isSearchMode && (
+                            <div className="space-y-1.5">
+                                {browsed.length > 0 ? browsed.map((doc) => (
+                                    <div key={doc.doc_id} onClick={() => onViewDoc(doc.doc_id)}
+                                        className="flex items-center gap-3 px-4 py-3 bg-white border border-surface-3 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all cursor-pointer group">
+                                        <svg className="w-4 h-4 text-ink-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-ink-0 truncate group-hover:text-brand-700 transition-colors">
+                                                {doc.title || doc.filename}
+                                            </div>
+                                            <div className="text-xs text-ink-3 truncate">{doc.filename}</div>
+                                        </div>
+                                        <span className={`shrink-0 inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>
+                                            {doc.doc_type}
+                                        </span>
+                                        {doc.category && <span className="hidden sm:inline text-xs text-ink-3">{doc.category}</span>}
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-16 text-sm text-ink-3">Sin documentos.</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </section>
     );
@@ -366,8 +312,7 @@ function FacetBlock({ title, items, activeValue, onToggle, renderLabel }: {
             <div className="space-y-1 max-h-40 overflow-y-auto">
                 {items.map((f) => (
                     <button key={f.value} onClick={() => onToggle(f.value)}
-                        className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${activeValue === f.value ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"
-                            }`}>
+                        className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${activeValue === f.value ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
                         <div className="flex items-center gap-2">{renderLabel(f.value)}</div>
                         <span className="text-xs text-ink-3 font-mono">{f.count}</span>
                     </button>
