@@ -84,17 +84,33 @@ def enrich_document(doc: Document) -> Document:
 
 def _extract_title(text: str, filename: str) -> str:
     """Intenta extraer un título del contenido o usa el nombre del fichero."""
-    # Primera línea no vacía que parezca un título (mayúsculas o corta)
+    # Patrones a ignorar: números de página, headers genéricos de PDF, fechas solas
+    # Cubre: "Página 1", "Página 1 de 10", "Page 1 of 5", "1/10", fechas, etc.
+    _IGNORE_PATTERNS = re.compile(
+        r'^(p[aá]ginas?\s*\d+(\s*(?:de|of)\s*\d+)?'
+        r'|page\s*\d+(\s*of\s*\d+)?'
+        r'|\d+\s*/\s*\d+'
+        r'|\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}'
+        r'|confidencial|privado|internal)\s*$',
+        re.IGNORECASE
+    )
+
     for line in text.split("\n"):
         line = line.strip()
         if not line:
+            continue
+        # Saltar líneas de número de página o ruido de PDF
+        if _IGNORE_PATTERNS.match(line):
+            continue
+        # Saltar líneas que son puramente números o muy cortas (<= 3 chars)
+        if len(line) <= 3 or line.isdigit():
             continue
         # Líneas que son títulos típicos
         if len(line) < 120 and (line.isupper() or line.startswith("#") or
                                  re.match(r"^(ACTA|MEMO|CONTRATO|FACTURA|LISTADO|INFORME|De:)", line, re.IGNORECASE)):
             return line.lstrip("#").strip()
-        # Si la primera línea parece normal pero es corta, úsala
-        if len(line) < 80:
+        # Si la primera línea informativa es corta, úsala como título
+        if len(line) < 120:
             return line
         break
 

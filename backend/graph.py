@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from backend.config import GRAPH_PATH
@@ -69,6 +70,9 @@ def build_graph(documents: list[Document]) -> None:
                     _edges[key_a][key_b] += 1
                     _edges[key_b][key_a] += 1
 
+    # Deduplicar entidades similares (ej: "Pedro" merged en "Pedro Suárez")
+    _deduplicate_entities()
+
     # Persistir en disco
     _save_graph()
     print(f"🕸️  Grafo construido: {len(_entity_nodes)} entidades, "
@@ -79,6 +83,24 @@ def get_entity(name: str) -> EntityNode | None:
     """Busca una entidad por nombre (case-insensitive)."""
     key = _normalize_key(name)
     return _entity_nodes.get(key)
+
+
+def search_entities(query: str, top_k: int = 10) -> list[dict]:
+    """Búsqueda parcial/fuzzy de entidades por nombre."""
+    q = query.strip().lower()
+    scored: list[tuple[float, EntityNode]] = []
+    for key, node in _entity_nodes.items():
+        if q in key:
+            scored.append((1.0 + node.mentions * 0.01, node))
+        else:
+            ratio = SequenceMatcher(None, q, key).ratio()
+            if ratio > 0.6:
+                scored.append((ratio, node))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [
+        {"name": n.name, "type": n.entity_type, "mentions": n.mentions, "num_docs": len(n.doc_ids)}
+        for _, n in scored[:top_k]
+    ]
 
 
 def get_related_entities(name: str, top_k: int = 10) -> list[dict]:
@@ -121,6 +143,9 @@ def get_graph_data() -> dict:
     Devuelve el grafo completo en formato vis-network compatible.
     Para visualización en el frontend.
     """
+    # Calcular grado de cada nodo (centralidad de grado)
+    degree: dict[str, int] = {key: len(targets) for key, targets in _edges.items()}
+
     nodes = []
     for key, node in _entity_nodes.items():
         color = "#4CAF50" if node.entity_type == "person" else "#2196F3"
@@ -129,8 +154,9 @@ def get_graph_data() -> dict:
             "label": node.name,
             "group": node.entity_type,
             "value": node.mentions,
+            "degree": degree.get(key, 0),
             "color": color,
-            "title": f"{node.name} ({node.entity_type}) — {node.mentions} menciones en {len(node.doc_ids)} docs",
+            "title": f"{node.name} ({node.entity_type}) — {node.mentions} menciones, {degree.get(key, 0)} conexiones en {len(node.doc_ids)} docs",
         })
 
     edges = []
@@ -148,6 +174,126 @@ def get_graph_data() -> dict:
                 })
 
     return {"nodes": nodes, "edges": edges}
+
+
+def get_graph_data_filtered(
+    doc_id: str | None = None,
+    entity_type: str | None = None,
+) -> dict:
+    """
+    Devuelve el grafo filtrado por documento y/o tipo de entidad.
+    Si no se especifican filtros, devuelve el grafo completo.
+    """
+    if not doc_id and not entity_type:
+        return get_graph_data()
+
+    # Filtrar nodos
+    filtered_keys: set[str] = set()
+    for key, node in _entity_nodes.items():
+        if entity_type and node.entity_type != entity_type:
+            continue
+        if doc_id and doc_id not in node.doc_ids:
+            continue
+        filtered_keys.add(key)
+
+    nodes = []
+    for key in filtered_keys:
+        node = _entity_nodes[key]
+        color = "#4CAF50" if node.entity_type == "person" else "#2196F3"
+        nodes.append({
+            "id": key,
+            "label": node.name,
+            "group": node.entity_type,
+            "value": node.mentions,
+            "color": color,
+            "title": f"{node.name} ({node.entity_type}) — {node.mentions} menciones en {len(node.doc_ids)} docs",
+        })
+
+    # Filtrar aristas: solo entre nodos filtrados
+    edges = []
+    seen = set()
+    for source in filtered_keys:
+        if source not in _edges:
+            continue
+        for target, weight in _edges[source].items():
+            if target not in filtered_keys:
+                continue
+            edge_key = tuple(sorted([source, target]))
+            if edge_key not in seen:
+                seen.add(edge_key)
+                edges.append({
+                    "from": source,
+                    "to": target,
+                    "value": weight,
+                    "title": f"{weight} co-ocurrencias",
+                })
+
+    return {"nodes": nodes, "edges": edges}
+
+
+def find_connection_path(name_a: str, name_b: str) -> dict:
+    """
+    Encuentra el camino más corto entre dos entidades en el grafo (BFS).
+    Responde: "¿Qué conecta a A con B?" mostrando la cadena y los docs en común.
+    """
+    key_a = _normalize_key(name_a)
+    key_b = _normalize_key(name_b)
+
+    if key_a not in _entity_nodes:
+        return {"found": False, "error": f"Entidad '{name_a}' no encontrada"}
+    if key_b not in _entity_nodes:
+        return {"found": False, "error": f"Entidad '{name_b}' no encontrada"}
+    if key_a == key_b:
+        return {"found": True, "path": [_entity_nodes[key_a].to_dict()], "hops": 0}
+
+    # BFS
+    from collections import deque
+    queue: deque[list[str]] = deque([[key_a]])
+    visited: set[str] = {key_a}
+
+    while queue:
+        path = queue.popleft()
+        current = path[-1]
+
+        for neighbor in _edges.get(current, {}):
+            if neighbor == key_b:
+                full_path = path + [neighbor]
+                # Construir respuesta con nodos e información de conexión
+                path_nodes = []
+                for key in full_path:
+                    node = _entity_nodes[key]
+                    path_nodes.append({
+                        "name": node.name,
+                        "type": node.entity_type,
+                        "mentions": node.mentions,
+                        "doc_ids": node.doc_ids,
+                    })
+                # Documentos que conectan cada par consecutivo
+                connections = []
+                for i in range(len(full_path) - 1):
+                    k1, k2 = full_path[i], full_path[i + 1]
+                    shared_docs = [
+                        _documents[did]
+                        for did in set(_entity_nodes[k1].doc_ids) & set(_entity_nodes[k2].doc_ids)
+                        if did in _documents
+                    ]
+                    connections.append({
+                        "from": _entity_nodes[k1].name,
+                        "to": _entity_nodes[k2].name,
+                        "weight": _edges[k1].get(k2, 0),
+                        "shared_documents": shared_docs,
+                    })
+                return {
+                    "found": True,
+                    "hops": len(full_path) - 1,
+                    "path": path_nodes,
+                    "connections": connections,
+                }
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(path + [neighbor])
+
+    return {"found": False, "error": f"No existe conexión entre '{name_a}' y '{name_b}'"}
 
 
 def get_all_entities() -> list[dict]:
@@ -180,6 +326,64 @@ def get_stats() -> dict:
 def _normalize_key(name: str) -> str:
     """Normaliza el nombre para usar como clave del grafo."""
     return name.strip().lower()
+
+
+def _deduplicate_entities() -> None:
+    """
+    Fusiona entidades casi duplicadas (ej: 'Pedro' ⊂ 'Pedro Suárez').
+    Estrategia: si el nombre de un nodo es substring del nombre de otro
+    nodo del mismo tipo y el ratio de similitud es alto, se fusionan
+    en el nodo más específico (el más largo).
+    """
+    global _entity_nodes, _edges
+
+    keys = list(_entity_nodes.keys())
+    # Mapa: clave_a_eliminar → clave_a_conservar
+    merge_map: dict[str, str] = {}
+
+    for i, key_a in enumerate(keys):
+        if key_a in merge_map:
+            continue
+        node_a = _entity_nodes[key_a]
+        for key_b in keys[i + 1:]:
+            if key_b in merge_map:
+                continue
+            node_b = _entity_nodes[key_b]
+            # Sólo fusionar mismo tipo de entidad
+            if node_a.entity_type != node_b.entity_type:
+                continue
+            # Substring: el más corto es parte del más largo
+            if key_a in key_b or key_b in key_a:
+                # Conservar el nombre más largo (más específico)
+                keep, drop = (key_b, key_a) if len(key_b) > len(key_a) else (key_a, key_b)
+                merge_map[drop] = keep
+
+    if not merge_map:
+        return
+
+    # Aplicar fusiones
+    for drop_key, keep_key in merge_map.items():
+        if drop_key not in _entity_nodes or keep_key not in _entity_nodes:
+            continue
+        drop_node = _entity_nodes.pop(drop_key)
+        keep_node = _entity_nodes[keep_key]
+        # Fusionar doc_ids y menciones
+        for did in drop_node.doc_ids:
+            if did not in keep_node.doc_ids:
+                keep_node.doc_ids.append(did)
+        keep_node.mentions += drop_node.mentions
+        # Redirigir aristas del nodo eliminado al nodo conservado
+        for neighbor, weight in list(_edges.get(drop_key, {}).items()):
+            real_neighbor = merge_map.get(neighbor, neighbor)
+            if real_neighbor == keep_key:
+                continue  # No auto-aristas
+            _edges[keep_key][real_neighbor] += weight
+            _edges[real_neighbor][keep_key] += weight
+            # Limpiar referencia antigua
+            _edges[real_neighbor].pop(drop_key, None)
+        _edges.pop(drop_key, None)
+
+    print(f"🔀 Entidades fusionadas: {len(merge_map)} duplicados eliminados.")
 
 
 def _save_graph():

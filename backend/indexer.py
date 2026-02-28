@@ -31,7 +31,9 @@ def _get_embedding_model():
     if _embedding_model is None:
         from sentence_transformers import SentenceTransformer
         print(f"📦 Cargando modelo de embeddings: {EMBEDDING_MODEL}...")
-        _embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+        # device="cpu" evita el error de meta tensors con torch >= 2.6 +
+        # sentence-transformers >= 5.x (que usa accelerate device_map por defecto)
+        _embedding_model = SentenceTransformer(EMBEDDING_MODEL, device="cpu")
         print("✅ Modelo cargado.")
     return _embedding_model
 
@@ -62,6 +64,7 @@ def _get_whoosh_index(create: bool = False):
         title=TEXT(stored=True),
         content=TEXT(stored=True),
         doc_type=TEXT(stored=True),
+        language=TEXT(stored=True),
         filename=TEXT(stored=True),
         section=TEXT(stored=True),
         level=TEXT(stored=True),
@@ -149,6 +152,7 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
             title=meta["title"],
             content=chunk.text,
             doc_type=meta["doc_type"],
+            language=meta["language"],
             filename=meta["filename"],
             section=meta["section"],
             level=meta["level"],

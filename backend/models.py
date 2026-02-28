@@ -87,6 +87,7 @@ class SearchResult:
     doc_type: str = ""
     filename: str = ""
     section: str = ""
+    language: str = ""
     persons: list[str] = field(default_factory=list)
     organizations: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)

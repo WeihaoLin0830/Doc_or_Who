@@ -5,11 +5,13 @@ Flujo:
 1. Query → BM25 (Whoosh) → top K resultados léxicos
 2. Query → embedding (ChromaDB) → top K resultados semánticos
 3. Reciprocal Rank Fusion → lista final combinada
+4. Facets aggregation → conteos dinámicos para filtros
 """
 
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import Optional
 
 from backend.config import SEARCH_TOP_K, FINAL_TOP_K, RRF_K, WHOOSH_DIR
@@ -19,42 +21,121 @@ from backend.models import SearchResult
 def hybrid_search(
     query: str,
     doc_type: Optional[str] = None,
+    language: Optional[str] = None,
+    person: Optional[str] = None,
+    organization: Optional[str] = None,
     top_k: int = FINAL_TOP_K,
 ) -> list[SearchResult]:
     """
     Búsqueda híbrida: combina BM25 + semántica con RRF.
-    Opcionalmente filtra por tipo de documento.
+    Soporta filtros por tipo, idioma, persona y organización.
     """
-    # 1. Búsqueda BM25 (léxica)
-    bm25_results = _search_whoosh(query, doc_type=doc_type, top_k=SEARCH_TOP_K)
+    filters = {k: v for k, v in {
+        "doc_type": doc_type,
+        "language": language,
+        "person": person,
+        "organization": organization,
+    }.items() if v}
 
-    # 2. Búsqueda semántica (embeddings)
-    semantic_results = _search_chroma(query, doc_type=doc_type, top_k=SEARCH_TOP_K)
-
-    # 3. Fusión con Reciprocal Rank Fusion
+    bm25_results = _search_whoosh(query, filters=filters, top_k=SEARCH_TOP_K)
+    semantic_results = _search_chroma(query, filters=filters, top_k=SEARCH_TOP_K)
     fused = _reciprocal_rank_fusion(bm25_results, semantic_results, k=RRF_K)
 
-    # 4. Añadir highlights
     for result in fused:
         result.highlight = _generate_highlight(result.text, query)
 
     return fused[:top_k]
 
 
+def hybrid_search_with_facets(
+    query: str,
+    doc_type: Optional[str] = None,
+    language: Optional[str] = None,
+    person: Optional[str] = None,
+    organization: Optional[str] = None,
+    top_k: int = FINAL_TOP_K,
+) -> dict:
+    """
+    Búsqueda híbrida que devuelve resultados + facets dinámicos.
+    Los facets se calculan sobre los resultados SIN filtrar para
+    mostrar qué opciones están disponibles en el universo de la query.
+    """
+    # Resultados sin filtros para calcular facets (hasta 50)
+    all_results = hybrid_search(query=query, top_k=max(top_k, 50))
+    facets = _compute_facets(all_results)
+
+    # Resultados CON filtros aplicados
+    if any([doc_type, language, person, organization]):
+        filtered_results = hybrid_search(
+            query=query,
+            doc_type=doc_type,
+            language=language,
+            person=person,
+            organization=organization,
+            top_k=top_k,
+        )
+    else:
+        filtered_results = all_results[:top_k]
+
+    return {
+        "results": filtered_results,
+        "facets": facets,
+    }
+
+
+def _compute_facets(results: list[SearchResult]) -> dict:
+    """
+    Calcula conteos de facets a partir de los resultados.
+    Agrupa por doc_id para no inflar type/language por multi-chunk.
+    """
+    type_counter: Counter = Counter()
+    lang_counter: Counter = Counter()
+    person_counter: Counter = Counter()
+    org_counter: Counter = Counter()
+    keyword_counter: Counter = Counter()
+
+    seen_docs: set[str] = set()
+
+    for r in results:
+        if r.doc_id not in seen_docs:
+            seen_docs.add(r.doc_id)
+            if r.doc_type:
+                type_counter[r.doc_type] += 1
+            if r.language:
+                lang_counter[r.language] += 1
+        for p in r.persons:
+            person_counter[p] += 1
+        for o in r.organizations:
+            org_counter[o] += 1
+        for k in r.keywords:
+            keyword_counter[k] += 1
+
+    return {
+        "doc_type":      [{"value": k, "count": v} for k, v in type_counter.most_common(20)],
+        "language":      [{"value": k, "count": v} for k, v in lang_counter.most_common(10)],
+        "persons":       [{"value": k, "count": v} for k, v in person_counter.most_common(20)],
+        "organizations": [{"value": k, "count": v} for k, v in org_counter.most_common(20)],
+        "keywords":      [{"value": k, "count": v} for k, v in keyword_counter.most_common(15)],
+    }
+
+
+
 # ─── BM25 con Whoosh ─────────────────────────────────────────────
 def _search_whoosh(
     query: str,
-    doc_type: Optional[str] = None,
+    filters: dict | None = None,
     top_k: int = SEARCH_TOP_K,
 ) -> list[SearchResult]:
-    """Búsqueda full-text con Whoosh (BM25)."""
+    """Búsqueda full-text con Whoosh (BM25). Aplica filtros a nivel de query."""
     from whoosh import index as whoosh_index
     from whoosh.qparser import MultifieldParser, OrGroup
+    from whoosh.query import And, Term
 
     if not whoosh_index.exists_in(str(WHOOSH_DIR)):
         return []
 
     ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+    filters = filters or {}
 
     # Buscar en título, contenido, keywords, personas y organizaciones
     parser = MultifieldParser(
@@ -68,30 +149,52 @@ def _search_whoosh(
     except Exception:
         return []
 
+    # Construir filtros como query terms (se aplican ANTES de la búsqueda)
+    filter_queries = []
+    if filters.get("doc_type"):
+        filter_queries.append(Term("doc_type", filters["doc_type"]))
+    if filters.get("language"):
+        filter_queries.append(Term("language", filters["language"]))
+
+    # Combinar query principal con filtros
+    if filter_queries:
+        parsed_query = And([parsed_query] + filter_queries)
+
     results: list[SearchResult] = []
 
     with ix.searcher() as searcher:
-        hits = searcher.search(parsed_query, limit=top_k)
+        # Pedir más resultados para luego aplicar filtros soft (persona/org)
+        hits = searcher.search(parsed_query, limit=top_k * 3)
 
         for hit in hits:
-            # Filtrar por tipo si se especificó
-            if doc_type and hit.get("doc_type", "") != doc_type:
-                continue
+            # Filtro soft para persons/organizations (contienen substring)
+            if filters.get("person"):
+                persons_text = hit.get("persons", "").lower()
+                if filters["person"].lower() not in persons_text:
+                    continue
+            if filters.get("organization"):
+                orgs_text = hit.get("organizations", "").lower()
+                if filters["organization"].lower() not in orgs_text:
+                    continue
 
             results.append(SearchResult(
                 chunk_id=hit["chunk_id"],
                 doc_id=hit["doc_id"],
-                text=hit.get("content", ""),  # Whoosh no almacena content, usaremos chroma
+                text=hit.get("content", ""),
                 score=hit.score,
                 title=hit.get("title", ""),
                 doc_type=hit.get("doc_type", ""),
                 filename=hit.get("filename", ""),
                 section=hit.get("section", ""),
+                language=hit.get("language", ""),
                 persons=_split_meta(hit.get("persons", "")),
                 organizations=_split_meta(hit.get("organizations", "")),
                 keywords=_split_meta(hit.get("keywords", "")),
                 dates=_split_meta(hit.get("dates", "")),
             ))
+
+            if len(results) >= top_k:
+                break
 
     return results
 
@@ -99,26 +202,35 @@ def _search_whoosh(
 # ─── Semántica con ChromaDB ──────────────────────────────────────
 def _search_chroma(
     query: str,
-    doc_type: Optional[str] = None,
+    filters: dict | None = None,
     top_k: int = SEARCH_TOP_K,
 ) -> list[SearchResult]:
-    """Búsqueda semántica con ChromaDB (cosine similarity)."""
+    """Búsqueda semántica con ChromaDB (cosine similarity) con filtros."""
     from backend.indexer import _get_embedding_model, _get_chroma_collection
 
     model = _get_embedding_model()
     collection = _get_chroma_collection()
+    filters = filters or {}
 
     query_embedding = model.encode(query).tolist()
 
-    # Construir filtro de metadatos
+    # Construir filtro de metadatos para ChromaDB
+    where_clauses = []
+    if filters.get("doc_type"):
+        where_clauses.append({"doc_type": filters["doc_type"]})
+    if filters.get("language"):
+        where_clauses.append({"language": filters["language"]})
+
     where = None
-    if doc_type:
-        where = {"doc_type": doc_type}
+    if len(where_clauses) == 1:
+        where = where_clauses[0]
+    elif len(where_clauses) > 1:
+        where = {"$and": where_clauses}
 
     try:
         chroma_results = collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k,
+            n_results=top_k * 3 if filters.get("person") or filters.get("organization") else top_k,
             where=where,
             include=["documents", "metadatas", "distances"],
         )
@@ -135,6 +247,16 @@ def _search_chroma(
         text = chroma_results["documents"][0][i]
         distance = chroma_results["distances"][0][i]
 
+        # Filtro soft para persons/organizations
+        if filters.get("person"):
+            persons_text = meta.get("persons", "").lower()
+            if filters["person"].lower() not in persons_text:
+                continue
+        if filters.get("organization"):
+            orgs_text = meta.get("organizations", "").lower()
+            if filters["organization"].lower() not in orgs_text:
+                continue
+
         # Convertir distancia coseno a score (1 = perfecto, 0 = nada)
         score = max(0, 1 - distance)
 
@@ -147,11 +269,15 @@ def _search_chroma(
             doc_type=meta.get("doc_type", ""),
             filename=meta.get("filename", ""),
             section=meta.get("section", ""),
+            language=meta.get("language", ""),
             persons=_split_meta(meta.get("persons", "")),
             organizations=_split_meta(meta.get("organizations", "")),
             keywords=_split_meta(meta.get("keywords", "")),
             dates=_split_meta(meta.get("dates", "")),
         ))
+
+        if len(results) >= top_k:
+            break
 
     return results
 

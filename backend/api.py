@@ -34,13 +34,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend.config import ROOT_DIR, UPLOAD_DIR, DATASET_DIR, DATA_DIR
-from backend.searcher import hybrid_search
 from backend.graph import (
     get_graph_data,
+    get_graph_data_filtered,
     get_all_entities,
     get_entity,
     get_related_entities,
     get_related_docs,
+    find_connection_path,
+    search_entities,
     get_stats as graph_stats,
     load_graph,
 )
@@ -93,15 +95,27 @@ def startup():
 def search(
     q: str = Query(..., min_length=1, description="Consulta de búsqueda"),
     type: Optional[str] = Query(None, description="Filtrar por tipo de documento"),
+    language: Optional[str] = Query(None, description="Filtrar por idioma"),
+    person: Optional[str] = Query(None, description="Filtrar por persona"),
+    organization: Optional[str] = Query(None, description="Filtrar por organización"),
     top_k: int = Query(10, ge=1, le=50),
 ):
-    """Búsqueda híbrida BM25 + semántica con fusión RRF."""
-    results = hybrid_search(query=q, doc_type=type, top_k=top_k)
+    """Búsqueda híbrida BM25 + semántica con fusión RRF + facets dinámicos."""
+    from backend.searcher import hybrid_search_with_facets
+    data = hybrid_search_with_facets(
+        query=q,
+        doc_type=type,
+        language=language,
+        person=person,
+        organization=organization,
+        top_k=top_k,
+    )
     return {
         "query": q,
-        "filter": type,
-        "count": len(results),
-        "results": [r.to_dict() for r in results],
+        "filters": {"type": type, "language": language, "person": person, "organization": organization},
+        "count": len(data["results"]),
+        "results": [r.to_dict() for r in data["results"]],
+        "facets": data["facets"],
     }
 
 
@@ -159,8 +173,106 @@ def get_document(doc_id: str):
         "title": meta.get("title", ""),
         "filename": meta.get("filename", ""),
         "doc_type": meta.get("doc_type", ""),
+        "language": meta.get("language", ""),
         "num_chunks": len(chunks),
         "chunks": chunks,
+        "has_file": _find_original_file(meta.get("filename", "")) is not None,
+    }
+
+
+def _find_original_file(filename: str) -> Path | None:
+    """Busca el fichero original en dataset_default o uploads."""
+    if not filename:
+        return None
+    for directory in [DATASET_DIR, UPLOAD_DIR]:
+        candidate = directory / filename
+        if candidate.exists():
+            return candidate
+    return None
+
+
+@app.get("/api/documents/{doc_id}/file")
+def get_document_file(doc_id: str):
+    """Sirve el fichero original para previsualización."""
+    from backend.indexer import _get_chroma_collection
+
+    collection = _get_chroma_collection()
+    try:
+        results = collection.get(
+            where={"doc_id": doc_id},
+            include=["metadatas"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if not results["ids"]:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    filename = results["metadatas"][0].get("filename", "") if results["metadatas"] else ""
+    filepath = _find_original_file(filename)
+
+    if not filepath:
+        raise HTTPException(status_code=404, detail=f"Fichero original no encontrado: {filename}")
+
+    # Determinar media type
+    ext = filepath.suffix.lower()
+    media_types = {
+        ".pdf": "application/pdf",
+        ".txt": "text/plain; charset=utf-8",
+        ".csv": "text/csv; charset=utf-8",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".xls": "application/vnd.ms-excel",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+
+    # PDFs y texto: forzar vista inline (no descargar)
+    if ext in (".pdf", ".txt", ".csv"):
+        return FileResponse(
+            path=str(filepath),
+            media_type=media_type,
+            headers={"Content-Disposition": f"inline; filename=\"{filename}\""},
+        )
+
+    return FileResponse(
+        path=str(filepath),
+        filename=filename,
+        media_type=media_type,
+    )
+
+
+@app.get("/api/documents/{doc_id}/raw")
+def get_document_raw_text(doc_id: str):
+    """Devuelve el texto completo reconstruido del documento."""
+    from backend.indexer import _get_chroma_collection
+
+    collection = _get_chroma_collection()
+    try:
+        results = collection.get(
+            where={"doc_id": doc_id},
+            include=["documents", "metadatas"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if not results["ids"]:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    # Reconstruir texto completo ordenando chunks
+    chunk_data = []
+    for i, chunk_id in enumerate(results["ids"]):
+        chunk_data.append({
+            "chunk_id": chunk_id,
+            "text": results["documents"][i],
+        })
+    chunk_data.sort(key=lambda c: c["chunk_id"])
+    full_text = "\n\n".join(c["text"] for c in chunk_data)
+
+    meta = results["metadatas"][0] if results["metadatas"] else {}
+    return {
+        "doc_id": doc_id,
+        "filename": meta.get("filename", ""),
+        "text": full_text,
     }
 
 
@@ -173,15 +285,27 @@ def document_summary(doc_id: str):
 
 # ─── Grafo de entidades ─────────────────────────────────────────
 @app.get("/api/graph")
-def graph():
-    """Grafo completo en formato vis-network (nodos + aristas)."""
-    return get_graph_data()
+def graph(
+    doc_id: Optional[str] = Query(None, description="Filtrar por documento"),
+    entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidad (person/organization)"),
+):
+    """Grafo en formato vis-network, opcionalmente filtrado por documento o tipo de entidad."""
+    from backend.graph import get_graph_data_filtered
+    return get_graph_data_filtered(doc_id=doc_id, entity_type=entity_type)
 
 
 @app.get("/api/graph/entities")
 def entities():
     """Lista de todas las entidades ordenadas por menciones."""
     return {"entities": get_all_entities()}
+
+
+@app.get("/api/graph/search")
+def entity_search(q: str = Query("", description="Texto de búsqueda de entidades")):
+    """Búsqueda parcial de entidades (para autocompletado)."""
+    if not q.strip():
+        return {"entities": []}
+    return {"entities": search_entities(q, top_k=10)}
 
 
 @app.get("/api/graph/entity/{name}")
@@ -195,6 +319,15 @@ def entity_detail(name: str):
         "related": get_related_entities(name),
         "documents": get_related_docs(name),
     }
+
+
+@app.get("/api/graph/path")
+def graph_path(
+    from_entity: str = Query(..., alias="from", description="Nombre de la entidad origen"),
+    to_entity: str = Query(..., alias="to", description="Nombre de la entidad destino"),
+):
+    """Camino más corto entre dos entidades (BFS). ¿Qué conecta A con B?"""
+    return find_connection_path(from_entity, to_entity)
 
 
 # ─── Dashboard stats ────────────────────────────────────────────
