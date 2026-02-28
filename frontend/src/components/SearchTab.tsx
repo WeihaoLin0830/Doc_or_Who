@@ -58,17 +58,21 @@ export function SearchTab({ documents }: Props) {
 
     const isSearchMode = lastQuery.length > 0;
 
-    // Type/category counts for sidebar
-    const typeCounts = useMemo(() => {
+    // Cascading filter counts: each group is computed FROM the OTHER active filter
+    // So selecting type "email" will hide categories that have no emails, and vice-versa
+    const typeCountsForCategory = useMemo(() => {
+        const base = browseCategory ? documents.filter((d) => d.category === browseCategory) : documents;
         const counts: Record<string, number> = {};
-        for (const d of documents) if (d.doc_type) counts[d.doc_type] = (counts[d.doc_type] || 0) + 1;
+        for (const d of base) if (d.doc_type) counts[d.doc_type] = (counts[d.doc_type] || 0) + 1;
         return counts;
-    }, [documents]);
-    const categoryCounts = useMemo(() => {
+    }, [documents, browseCategory]);
+
+    const categoryCountsForType = useMemo(() => {
+        const base = browseType ? documents.filter((d) => d.doc_type === browseType) : documents;
         const counts: Record<string, number> = {};
-        for (const d of documents) if (d.category) counts[d.category] = (counts[d.category] || 0) + 1;
+        for (const d of base) if (d.category) counts[d.category] = (counts[d.category] || 0) + 1;
         return counts;
-    }, [documents]);
+    }, [documents, browseType]);
 
     // Browsed docs when not searching (filtered by sidebar selections)
     const browsed = useMemo(() => {
@@ -234,11 +238,11 @@ export function SearchTab({ documents }: Props) {
                                 <div className="bg-white border border-surface-3 rounded-lg p-3">
                                     <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Tipo de documento</h4>
                                     <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                                        {docTypes.map((t) => (
+                                        {docTypes.filter((t) => t === browseType || (typeCountsForCategory[t] || 0) > 0).map((t) => (
                                             <button key={t} onClick={() => setBrowseType(browseType === t ? "" : t)}
                                                 className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseType === t ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
                                                 <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(t)}`}>{t}</span>
-                                                <span className="text-xs text-ink-3 tabular-nums">{typeCounts[t] || 0}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{typeCountsForCategory[t] || 0}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -246,11 +250,11 @@ export function SearchTab({ documents }: Props) {
                                 <div className="bg-white border border-surface-3 rounded-lg p-3">
                                     <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Categoría</h4>
                                     <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                                        {categories.map((c) => (
+                                        {categories.filter((c) => c === browseCategory || (categoryCountsForType[c] || 0) > 0).map((c) => (
                                             <button key={c} onClick={() => setBrowseCategory(browseCategory === c ? "" : c)}
                                                 className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseCategory === c ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
                                                 <span className="truncate">{c}</span>
-                                                <span className="text-xs text-ink-3 tabular-nums">{categoryCounts[c] || 0}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{categoryCountsForType[c] || 0}</span>
                                             </button>
                                         ))}
                                     </div>
