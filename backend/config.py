@@ -60,7 +60,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = "llama-3.1-8b-instant"
 LEXICAL_STRICT = os.getenv("LEXICAL_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
 FUZZY = os.getenv("FUZZY", "false").strip().lower() in {"1", "true", "yes", "on"}
-FUSION_MODE = os.getenv("FUSION_MODE", "rrf").strip().lower()
+FUSION_MODE = os.getenv("FUSION_MODE", "weighted").strip().lower()
 if FUSION_MODE not in {"rrf", "weighted"}:
     FUSION_MODE = "rrf"
 WEIGHT_LEXICAL = float(os.getenv("WEIGHT_LEXICAL", "0.55"))

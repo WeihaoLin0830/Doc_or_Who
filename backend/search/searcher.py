@@ -183,12 +183,14 @@ def _is_entity_query(query: str) -> bool:
     Returns True when the query looks like a named entity (person/org),
     in which case semantic search should be skipped.
 
-    Heuristics (all must fit):
-    - 1–4 tokens
-    - Every token starts with a capital letter (proper name pattern)
+    Heuristics (conservative on purpose):
+    - 2–4 tokens that look like a proper name
     - No question words / conceptual vocabulary that suggests a semantic query
 
-    Additionally, if a matching entity exists in the graph, we confirm it.
+    Single-token queries such as "Aurora" are NOT treated as entities, because
+    they are often project names or concepts where semantic search still helps.
+    If the graph confirms an exact entity match, we only skip semantic search
+    for person/organization names with at least two tokens.
     """
     QUESTION_WORDS = {
         "qué", "que", "cuál", "cual", "cómo", "como", "dónde", "donde",
@@ -201,14 +203,21 @@ def _is_entity_query(query: str) -> bool:
         return False
     if any(w.lower() in QUESTION_WORDS for w in words):
         return False
-    # All words capitalized (proper name signal)
-    if all(w[0].isupper() for w in words):
+
+    # Proper-name pattern: at least two tokens in title case.
+    if len(words) >= 2 and all(w and w[0].isupper() and not w.isupper() for w in words):
         return True
+
     # Check against known graph entities
     try:
         from backend.graph import search_entities
         hits = search_entities(query, top_k=1)
-        if hits and hits[0]["name"].lower() == query.lower():
+        if (
+            hits
+            and hits[0]["name"].casefold() == query.casefold()
+            and hits[0].get("type") in {"person", "organization"}
+            and len(words) >= 2
+        ):
             return True
     except Exception:
         pass
@@ -250,7 +259,7 @@ def hybrid_search(
     # Skip semantic search for entity name queries — names have no vector meaning
     if _is_entity_query(query):
         semantic_results: list[SearchResult] = []
-        chroma_trace = {"hits": 0, "skipped": True}
+        chroma_trace = {"hits": 0, "skipped": True, "reason": "entity_query"}
     else:
         semantic_results, chroma_trace = _search_chroma(
             query,
@@ -275,13 +284,15 @@ def hybrid_search(
         fallback_used["fuzzy_char3"] = fallback_used["fuzzy_char3"] or whoosh_trace["fallbacks"]["fuzzy_char3"]
         fallback_used["numeric_norm"] = fallback_used["numeric_norm"] or whoosh_trace["fallbacks"]["numeric_norm"]
         result.explanation["fusion_mode"] = FUSION_MODE
+        result.why_this_result = _build_why_this_result(result)
         result.highlight = _generate_highlight(result.text, query)
 
     print(
         "🔀 Hybrid search "
         f"fusion_mode={FUSION_MODE} whoosh_hits={whoosh_trace['hits']} "
         f"chroma_hits={chroma_trace['hits']} merged_hits={len(fused)} "
-        f"fallbacks={whoosh_trace['fallbacks']}"
+        f"fallbacks={whoosh_trace['fallbacks']} "
+        f"semantic_skipped={chroma_trace.get('skipped', False)}"
     )
 
     return fused[:top_k]
@@ -832,6 +843,50 @@ def _merge_explanations(
     return explanation
 
 
+def _display_field_name(field: str) -> str:
+    labels = {
+        "title": "titulo",
+        "title_folded": "titulo",
+        "content": "contenido",
+        "content_folded": "contenido",
+        "keywords": "keywords",
+        "persons": "personas",
+        "organizations": "organizaciones",
+        "content_char3": "texto aproximado",
+        "content_num_norm": "numeros normalizados",
+    }
+    return labels.get(field, field)
+
+
+def _build_why_this_result(result: SearchResult) -> str:
+    explanation = result.explanation or {}
+    matched_fields = [
+        _display_field_name(field)
+        for field in (explanation.get("matched_fields") or [])
+        if field
+    ]
+    fallback_used = explanation.get("fallback_used") or {}
+    notes: list[str] = []
+
+    if result.source == "hybrid":
+        notes.append("Coincide por texto y por similitud semantica")
+    elif result.source == "lexical":
+        notes.append("Coincide por texto")
+    elif result.source == "semantic":
+        notes.append("Coincide por similitud semantica")
+
+    if matched_fields:
+        compact_fields = ", ".join(list(dict.fromkeys(matched_fields))[:3])
+        notes.append(f"campos: {compact_fields}")
+
+    if fallback_used.get("numeric_norm"):
+        notes.append("normalizacion numerica activada")
+    if fallback_used.get("fuzzy_char3"):
+        notes.append("tolerancia a typos/OCR activada")
+
+    return ". ".join(notes) + "." if notes else ""
+
+
 def _normalize_score_map(score_map: dict[str, float]) -> dict[str, float]:
     if not score_map:
         return {}
@@ -956,12 +1011,16 @@ def _weighted_fusion(
         result_map.setdefault(result.chunk_id, result)
 
     scores: dict[str, float] = {}
+    lexical_components: dict[str, float] = {}
+    semantic_components: dict[str, float] = {}
     bm25_ranks = {result.chunk_id: rank + 1 for rank, result in enumerate(bm25_results)}
     semantic_ranks = {result.chunk_id: rank + 1 for rank, result in enumerate(semantic_results)}
 
     for chunk_id in result_map:
         lexical_component = lexical_norm.get(chunk_id, 0.0) * WEIGHT_LEXICAL
         semantic_component = semantic_norm.get(chunk_id, 0.0) * WEIGHT_SEMANTIC
+        lexical_components[chunk_id] = lexical_component
+        semantic_components[chunk_id] = semantic_component
         scores[chunk_id] = lexical_component + semantic_component
 
     ranked_ids = sorted(scores, key=scores.get, reverse=True)
@@ -986,6 +1045,8 @@ def _weighted_fusion(
             "fused": result.score,
             "whoosh_norm": lexical_norm.get(chunk_id),
             "chroma_norm": semantic_norm.get(chunk_id),
+            "whoosh_component": lexical_components.get(chunk_id, 0.0),
+            "chroma_component": semantic_components.get(chunk_id, 0.0),
         }
         result.explanation = _merge_explanations(
             lexical_result.explanation,

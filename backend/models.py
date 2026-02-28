@@ -99,6 +99,7 @@ class SearchResult:
     source: str = ""             # lexical | semantic | hybrid
     scores: dict = field(default_factory=dict)      # {whoosh, chroma, fused}
     explanation: dict = field(default_factory=dict) # trazabilidad por motor/campos/fallbacks
+    why_this_result: str = ""    # justificación corta tipo "wei"
     # Explicabilidad del score: qué sistemas contribuyeron y en qué posición
     score_detail: dict = field(default_factory=dict)  # {sources, bm25_rank, semantic_rank}
 

@@ -382,30 +382,26 @@
                                                         x-text="r.section"></span></span>
                                             </div>
                                         </div>
-                                        <!-- Score explainability badges -->
-                                        <div class="flex items-center gap-1 shrink-0">
-                                            <template x-if="r.score_detail?.bm25_rank">
-                                                <span
-                                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200"
-                                                    :title="'BM25 (palabra clave): posición ' + r.score_detail.bm25_rank"
-                                                    x-text="'BM25 #' + r.score_detail.bm25_rank"></span>
-                                            </template>
-                                            <template x-if="r.score_detail?.semantic_rank">
-                                                <span
-                                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-50 text-violet-600 border border-violet-200"
-                                                    :title="'Semántico (embeddings): posición ' + r.score_detail.semantic_rank"
-                                                    x-text="'Sem #' + r.score_detail.semantic_rank"></span>
-                                            </template>
-                                            <template
-                                                x-if="!r.score_detail?.bm25_rank && !r.score_detail?.semantic_rank">
-                                                <span class="text-xs font-mono text-ink-3"
-                                                    x-text="r.score.toFixed(4)"></span>
-                                            </template>
+                                        <div class="shrink-0 flex items-center">
+                                            <span
+                                                class="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-semibold bg-brand-50 text-brand-700 border border-brand-200"
+                                                :title="'Score general ponderado'"
+                                                x-text="'Score ' + formatScore(r.scores?.fused ?? r.score)"></span>
                                         </div>
                                     </div>
                                     <!-- Highlight / snippet -->
                                     <p class="text-sm text-ink-1 leading-relaxed line-clamp-3"
                                         x-html="formatHighlight(r.highlight || r.text)"></p>
+                                    <div class="mt-2 flex items-center gap-2 text-[10px] text-ink-3 font-medium">
+                                        <span :title="'Componente léxica del score'"
+                                            x-text="'Lex ' + formatScore(resultLexicalScore(r))"></span>
+                                        <span class="text-ink-3/60">·</span>
+                                        <span :title="'Componente semántica del score'"
+                                            x-text="'Sem ' + formatScore(resultSemanticScore(r))"></span>
+                                    </div>
+                                    <p x-show="r.why_this_result"
+                                        class="mt-2 text-[11px] leading-relaxed text-ink-2"
+                                        x-text="r.why_this_result"></p>
                                     <!-- Metadata tags: persons, orgs, emails -->
                                     <div x-show="r.persons.length || r.organizations.length || (r.emails && r.emails.length)"
                                         class="flex flex-wrap gap-1 mt-2">
@@ -1294,6 +1290,25 @@
                         return `${months[parseInt(m) - 1]} ${y}`;
                     }
                     return iso;
+                },
+
+                formatScore(value) {
+                    const n = Number(value);
+                    return Number.isFinite(n) ? n.toFixed(3) : '0.000';
+                },
+
+                resultLexicalScore(result) {
+                    return result?.scores?.whoosh_component
+                        ?? result?.scores?.whoosh_norm
+                        ?? result?.scores?.whoosh
+                        ?? 0;
+                },
+
+                resultSemanticScore(result) {
+                    return result?.scores?.chroma_component
+                        ?? result?.scores?.chroma_norm
+                        ?? result?.scores?.chroma
+                        ?? 0;
                 },
 
                 async loadDocs() {
