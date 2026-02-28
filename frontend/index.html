@@ -16,7 +16,7 @@
                 extend: {
                     fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
                     colors: {
-                        brand: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        brand: { 50: '#eef5ef', 100: '#d5e8d8', 200: '#aacfaf', 300: '#78ae80', 400: '#4e8457', 500: '#3a5a40', 600: '#2e4833', 700: '#223a27', 800: '#182b1c', 900: '#0f1c11' },
                         surface: { 0: '#ffffff', 1: '#f8fafc', 2: '#f1f5f9', 3: '#e2e8f0' },
                         ink: { 0: '#0f172a', 1: '#334155', 2: '#64748b', 3: '#94a3b8' },
                     }
@@ -183,9 +183,6 @@
                             <input x-model="searchQuery" type="text" placeholder="Buscar en documentos..."
                                 class="w-full pl-10 pr-4 py-2.5 text-sm border border-surface-3 rounded-lg bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all">
                         </div>
-                        <input type="text" x-model="searchFilters.date" placeholder="Fecha (ej: 2025)"
-                            title="Filtrar por fecha: año, mes o fragmento"
-                            class="w-36 px-3 py-2.5 text-sm border border-surface-3 rounded-lg bg-white focus:border-amber-400 outline-none transition-all">
                         <button type="submit" :disabled="!searchQuery.trim()"
                             class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors">
                             Buscar
@@ -330,6 +327,29 @@
                                         x-text="f.value + ' (' + f.count + ')'"></span>
                                 </template>
                             </div>
+                        </div>
+
+                        <!-- Date facet + free-text filter -->
+                        <div x-show="lastSearchQuery" class="bg-white border border-surface-3 rounded-lg p-3">
+                            <h4 class="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Fecha</h4>
+                            <!-- Clickable date values detected in results -->
+                            <div x-show="searchFacets?.dates?.length > 0"
+                                class="space-y-1 mb-2 max-h-40 overflow-y-auto">
+                                <template x-for="f in searchFacets?.dates || []" :key="f.value">
+                                    <button
+                                        @click="searchFilters.date = (searchFilters.date === f.value ? '' : f.value); doSearch()"
+                                        class="w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors"
+                                        :class="searchFilters.date === f.value ? 'bg-amber-50 text-amber-700 font-medium' : 'text-ink-1 hover:bg-surface-2'">
+                                        <span class="truncate" x-text="f.value"></span>
+                                        <span class="text-[10px] text-ink-3 font-mono shrink-0 ml-2"
+                                            x-text="f.count"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <!-- Free-text input for arbitrary date fragments -->
+                            <input type="text" x-model="searchFilters.date" placeholder="Ej: 2025-01, enero, 15/03..."
+                                @keydown.enter.prevent="doSearch()"
+                                class="w-full px-2.5 py-1.5 text-xs border border-surface-3 rounded bg-surface-1 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition-all">
                         </div>
                     </div>
 
@@ -684,11 +704,8 @@
                                 </svg>
                                 Comunidades
                             </h3>
-                            <button @click="loadCommunities()"
-                                class="text-xs text-brand-500 hover:text-brand-600">Cargar</button>
                         </div>
-                        <div x-show="communities.length === 0" class="text-xs text-ink-3 text-center py-2">Sin datos —
-                            haz clic en "Cargar"</div>
+                        <div x-show="communities.length === 0" class="text-xs text-ink-3 text-center py-2">Cargando comunidades...</div>
                         <div class="space-y-1.5 max-h-40 overflow-y-auto">
                             <template x-for="c in communities" :key="c.community_id">
                                 <div class="flex items-start gap-2 text-xs">
@@ -718,11 +735,8 @@
                                 </svg>
                                 Brokers de Información
                             </h3>
-                            <button @click="loadBrokers()"
-                                class="text-xs text-brand-500 hover:text-brand-600">Cargar</button>
                         </div>
-                        <div x-show="brokers.length === 0" class="text-xs text-ink-3 text-center py-2">Sin datos — haz
-                            clic en "Cargar"</div>
+                        <div x-show="brokers.length === 0" class="text-xs text-ink-3 text-center py-2">Cargando brokers...</div>
                         <div class="space-y-1 max-h-40 overflow-y-auto">
                             <template x-for="b in brokers" :key="b.name">
                                 <div class="flex items-center justify-between text-xs cursor-pointer hover:bg-surface-1 rounded px-1 py-0.5"
@@ -1189,7 +1203,11 @@
                     this.loadEntities();
                     this.loadSqlTables();
                     this.$watch('activeTab', (tab) => {
-                        if (tab === 'graph') this.$nextTick(() => this.renderGraph());
+                        if (tab === 'graph') {
+                            this.$nextTick(() => this.renderGraph());
+                            if (this.brokers.length === 0) this.loadBrokers();
+                            if (this.communities.length === 0) this.loadCommunities();
+                        }
                         if (tab === 'documents') this.loadDocs();
                         if (tab === 'dashboard') this.loadStats();
                     });

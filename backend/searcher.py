@@ -191,6 +191,7 @@ def _compute_facets(results: list[SearchResult]) -> dict:
     person_counter: Counter = Counter()
     org_counter: Counter = Counter()
     keyword_counter: Counter = Counter()
+    date_counter: Counter = Counter()
 
     seen_docs: set[str] = set()
 
@@ -207,6 +208,9 @@ def _compute_facets(results: list[SearchResult]) -> dict:
             org_counter[o] += 1
         for k in r.keywords:
             keyword_counter[k] += 1
+        for d in r.dates:
+            if d.strip():
+                date_counter[d.strip()] += 1
 
     return {
         "doc_type":      [{"value": k, "count": v} for k, v in type_counter.most_common(20)],
@@ -214,6 +218,7 @@ def _compute_facets(results: list[SearchResult]) -> dict:
         "persons":       [{"value": k, "count": v} for k, v in person_counter.most_common(20)],
         "organizations": [{"value": k, "count": v} for k, v in org_counter.most_common(20)],
         "keywords":      [{"value": k, "count": v} for k, v in keyword_counter.most_common(15)],
+        "dates":         [{"value": k, "count": v} for k, v in date_counter.most_common(15)],
     }
 
 

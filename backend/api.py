@@ -48,7 +48,7 @@ from backend.graph import (
     get_top_brokers,
     load_graph,
 )
-from backend.indexer import find_duplicates
+from backend.search.indexer import find_duplicates
 
 # ─── Crear app ───────────────────────────────────────────────────
 app = FastAPI(
@@ -87,7 +87,7 @@ def startup():
     # Precargar modelo de embeddings y ChromaDB para que la primera búsqueda
     # no sufra el coste de carga del modelo (~5-15 s).
     try:
-        from backend.indexer import _get_embedding_model, _get_chroma_collection
+        from backend.search.indexer import _get_embedding_model, _get_chroma_collection
         _get_embedding_model()
         _get_chroma_collection()
         print("✅ Modelo de embeddings y ChromaDB precargados.")
@@ -96,7 +96,7 @@ def startup():
 
     # Cargar tablas SQL
     try:
-        from backend.sql_engine import load_tables
+        from backend.ai.sql_engine import load_tables
         tables = load_tables()
         if tables:
             print(f"📊 {len(tables)} tablas SQL cargadas: {', '.join(tables)}")
@@ -116,7 +116,7 @@ def search(
     top_k: int = Query(10, ge=1, le=50),
 ):
     """Búsqueda híbrida BM25 + semántica con fusión RRF + facets dinámicos."""
-    from backend.searcher import hybrid_search_with_facets
+    from backend.search.searcher import hybrid_search_with_facets
     data = hybrid_search_with_facets(
         query=q,
         doc_type=type,
@@ -139,7 +139,7 @@ def search(
 @app.post("/api/ask")
 def ask_question(req: AskRequest):
     """RAG: búsqueda + generación de respuesta con LLM."""
-    from backend.llm import ask
+    from backend.ai.llm import ask
     result = ask(question=req.question, doc_type=req.doc_type, top_k=req.top_k)
     return result
 
@@ -148,7 +148,7 @@ def ask_question(req: AskRequest):
 @app.get("/api/documents")
 def list_documents():
     """Lista todos los documentos indexados (metadatos del grafo)."""
-    from backend.graph import _documents
+    from backend.graph.graph import _documents
     docs = list(_documents.values())
     return {"count": len(docs), "documents": docs}
 
@@ -156,7 +156,7 @@ def list_documents():
 @app.get("/api/documents/{doc_id}")
 def get_document(doc_id: str):
     """Detalle de un documento: busca sus chunks en ChromaDB."""
-    from backend.indexer import _get_chroma_collection
+    from backend.search.indexer import _get_chroma_collection
 
     collection = _get_chroma_collection()
 
@@ -210,7 +210,7 @@ def _find_original_file(filename: str) -> Path | None:
 @app.get("/api/documents/{doc_id}/file")
 def get_document_file(doc_id: str):
     """Sirve el fichero original para previsualización."""
-    from backend.indexer import _get_chroma_collection
+    from backend.search.indexer import _get_chroma_collection
 
     collection = _get_chroma_collection()
     try:
@@ -264,7 +264,7 @@ def get_document_table(doc_id: str, max_rows: int = Query(500, le=2000)):
     Devuelve {columns: [...], rows: [[...], ...]} listo para renderizar en HTML.
     """
     import pandas as pd
-    from backend.indexer import _get_chroma_collection
+    from backend.search.indexer import _get_chroma_collection
 
     collection = _get_chroma_collection()
     try:
@@ -304,7 +304,7 @@ def get_document_table(doc_id: str, max_rows: int = Query(500, le=2000)):
 @app.get("/api/documents/{doc_id}/raw")
 def get_document_raw_text(doc_id: str):
     """Devuelve el texto completo reconstruido del documento."""
-    from backend.indexer import _get_chroma_collection
+    from backend.search.indexer import _get_chroma_collection
 
     collection = _get_chroma_collection()
     try:
@@ -339,7 +339,7 @@ def get_document_raw_text(doc_id: str):
 @app.post("/api/documents/{doc_id}/summary")
 def document_summary(doc_id: str):
     """Genera un resumen del documento con LLM."""
-    from backend.llm import summarize_document
+    from backend.ai.llm import summarize_document
     return summarize_document(doc_id)
 
 
@@ -418,7 +418,7 @@ def stats():
     """Estadísticas globales para el dashboard."""
     gs = graph_stats()
 
-    from backend.graph import _documents
+    from backend.graph.graph import _documents
     type_counts: dict[str, int] = {}
     for doc in _documents.values():
         t = doc.get("doc_type", "unknown")
@@ -437,7 +437,7 @@ def stats():
 @app.get("/api/sql/tables")
 def sql_tables():
     """Lista las tablas SQL disponibles."""
-    from backend.sql_engine import get_table_list
+    from backend.ai.sql_engine import get_table_list
     tables = get_table_list()
     return {"tables": tables}
 
@@ -445,7 +445,7 @@ def sql_tables():
 @app.post("/api/sql/query")
 def sql_query(req: SqlQueryRequest):
     """Ejecuta una consulta SQL sobre los datos tabulares."""
-    from backend.sql_engine import execute_sql
+    from backend.ai.sql_engine import execute_sql
     result = execute_sql(req.query)
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
@@ -455,7 +455,7 @@ def sql_query(req: SqlQueryRequest):
 @app.post("/api/sql/ask")
 def sql_ask(req: SqlAskRequest):
     """Convierte pregunta a SQL con LLM, ejecuta y devuelve resultado."""
-    from backend.sql_engine import natural_language_to_sql, execute_sql
+    from backend.ai.sql_engine import natural_language_to_sql, execute_sql
     sql = natural_language_to_sql(req.question)
     if not sql:
         raise HTTPException(status_code=400, detail="No se pudo generar una consulta SQL")
@@ -469,7 +469,7 @@ def sql_ask(req: SqlAskRequest):
 @app.post("/api/ingest")
 def ingest():
     """Re-ejecuta el pipeline completo de ingestión."""
-    from backend.ingest import run_full_pipeline
+    from backend.ingestion.ingest import run_full_pipeline
     docs = run_full_pipeline()
     return {"status": "ok", "documents_processed": len(docs)}
 
@@ -484,17 +484,17 @@ async def upload(file: UploadFile = File(...)):
         content = await file.read()
         f.write(content)
 
-    from backend.ingest import ingest_file
+    from backend.ingestion.ingest import ingest_file
     doc = ingest_file(dest)
     if not doc:
         raise HTTPException(status_code=400, detail="Formato no soportado o sin contenido")
 
     # Actualizar grafo con el nuevo documento
-    from backend.graph import build_graph, _documents
-    from backend.graph import _entity_nodes
+    from backend.graph import build_graph
+    from backend.graph.graph import _documents, _entity_nodes
     # Reconstruir solo el documento nuevo es complejo, así que rehacemos el grafo
     # En producción optimizaríamos esto
-    from backend.ingest import ingest_directory
+    from backend.ingestion.ingest import ingest_directory
     from backend.graph import build_graph as _bg
     # Simple approach: return success, graph updates on next full ingest
     load_graph()
