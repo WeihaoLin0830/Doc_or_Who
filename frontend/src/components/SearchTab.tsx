@@ -47,6 +47,9 @@ export function SearchTab({ documents }: Props) {
     const [browseType, setBrowseType] = useState("");
     const [browseCategory, setBrowseCategory] = useState("");
 
+    // Quick text filter (client-side, no API)
+    const [filterText, setFilterText] = useState("");
+
     // Document modal
     const [modalDocId, setModalDocId] = useState<string | null>(null);
 
@@ -75,6 +78,28 @@ export function SearchTab({ documents }: Props) {
         docs.sort((a, b) => (a.title || a.filename).localeCompare(b.title || b.filename));
         return docs;
     }, [documents, browseType, browseCategory]);
+
+    // Quick-filtered variants
+    const filteredBrowsed = useMemo(() => {
+        if (!filterText.trim()) return browsed;
+        const q = filterText.toLowerCase();
+        return browsed.filter((d) =>
+            (d.title || d.filename).toLowerCase().includes(q) ||
+            d.filename.toLowerCase().includes(q) ||
+            (d.doc_type || "").toLowerCase().includes(q) ||
+            (d.category || "").toLowerCase().includes(q)
+        );
+    }, [browsed, filterText]);
+
+    const filteredGrouped = useMemo(() => {
+        if (!filterText.trim()) return grouped;
+        const q = filterText.toLowerCase();
+        return grouped.filter((g) =>
+            (g.title || g.filename).toLowerCase().includes(q) ||
+            g.filename.toLowerCase().includes(q) ||
+            (g.doc_type || "").toLowerCase().includes(q)
+        );
+    }, [grouped, filterText]);
 
     async function doSearch(overrideFilters?: SearchFilters) {
         const q = query.trim();
@@ -242,19 +267,47 @@ export function SearchTab({ documents }: Props) {
 
                     {/* ─── Content area ───────────────────────────── */}
                     <div className="lg:col-span-3">
+                        {/* Quick filter bar */}
+                        <div className="mb-3">
+                            <div className="relative">
+                                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 010 2H4a1 1 0 01-1-1zm3 6a1 1 0 011-1h10a1 1 0 010 2H7a1 1 0 01-1-1zm4 6a1 1 0 011-1h4a1 1 0 010 2h-4a1 1 0 01-1-1z" />
+                                </svg>
+                                <input
+                                    value={filterText}
+                                    onChange={(e) => setFilterText(e.target.value)}
+                                    placeholder="Filtrar por nombre, tipo..."
+                                    className="w-full pl-8 pr-8 py-1.5 text-xs border border-surface-3 rounded-lg bg-white focus:border-brand-300 focus:ring-1 focus:ring-brand-100 outline-none transition-all"
+                                />
+                                {filterText && (
+                                    <button onClick={() => setFilterText("")}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-0 transition-colors">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                            {filterText && (
+                                <p className="text-xs text-ink-3 mt-1 pl-1">
+                                    {isSearchMode ? filteredGrouped.length : filteredBrowsed.length} resultado{(isSearchMode ? filteredGrouped.length : filteredBrowsed.length) !== 1 ? "s" : ""}
+                                </p>
+                            )}
+                        </div>
+
                         {/* Search results */}
                         {isSearchMode && (
                             <>
-                                {grouped.length > 0 && (
+                                {filteredGrouped.length > 0 && (
                                     <div className="space-y-3">
-                                        {grouped.map((group) => (
+                                        {filteredGrouped.map((group) => (
                                             <ResultCard key={group.doc_id} group={group} onView={setModalDocId} onToggle={toggleExpand} />
                                         ))}
                                     </div>
                                 )}
-                                {results.length === 0 && lastQuery && (
+                                {filteredGrouped.length === 0 && lastQuery && (
                                     <div className="text-center py-16 text-ink-3 text-sm">
-                                        Sin resultados para &quot;{lastQuery}&quot;
+                                        {filterText ? `Sin resultados para el filtro "${filterText}"` : `Sin resultados para "${lastQuery}"`}
                                     </div>
                                 )}
                             </>
@@ -263,7 +316,7 @@ export function SearchTab({ documents }: Props) {
                         {/* Document listing (no search active) */}
                         {!isSearchMode && (
                             <div className="space-y-1.5">
-                                {browsed.length > 0 ? browsed.map((doc) => (
+                                {filteredBrowsed.length > 0 ? filteredBrowsed.map((doc) => (
                                     <div key={doc.doc_id} onClick={() => setModalDocId(doc.doc_id)}
                                         className="flex items-center gap-3 px-4 py-3 bg-white border border-surface-3 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all cursor-pointer group">
                                         <svg className="w-4 h-4 text-ink-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,7 +335,9 @@ export function SearchTab({ documents }: Props) {
                                         {doc.category && <span className="hidden sm:inline text-xs text-ink-3">{doc.category}</span>}
                                     </div>
                                 )) : (
-                                    <div className="text-center py-16 text-sm text-ink-3">Sin documentos.</div>
+                                    <div className="text-center py-16 text-sm text-ink-3">
+                                        {filterText ? `Sin documentos que coincidan con "${filterText}"` : "Sin documentos."}
+                                    </div>
                                 )}
                             </div>
                         )}

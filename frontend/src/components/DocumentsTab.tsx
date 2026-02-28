@@ -56,6 +56,38 @@ export function DocumentsTab({ documents }: Props) {
     const [dragOverClusterId, setDragOverClusterId] = useState<number | null>(null);
     const clusterDragCounterRef = useRef(0);
 
+    // Create folder
+    const [showCreateFolder, setShowCreateFolder] = useState(false);
+    const [newFolderName, setNewFolderName] = useState("");
+    const newFolderInputRef = useRef<HTMLInputElement>(null);
+
+    function openCreateFolder() {
+        setShowCreateFolder(true);
+        setNewFolderName("");
+        setTimeout(() => newFolderInputRef.current?.focus(), 50);
+    }
+
+    function createFolder() {
+        const name = newFolderName.trim();
+        if (!name) return;
+        const maxId = clusters.reduce((m, c) => Math.max(m, c.cluster_id), 0);
+        const newId = maxId + 1;
+        const newCluster: DocCluster = {
+            cluster_id: newId,
+            label: name,
+            documents: [],
+            keywords: [],
+            categories: [],
+            children: [],
+        };
+        setClusters((prev) => [...prev, newCluster]);
+        setExpandedClusters((prev) => new Set([...prev, `p-${newId}`]));
+        setShowCreateFolder(false);
+        setNewFolderName("");
+        // Switch to folders view if not already
+        setViewMode("folders");
+    }
+
     // ─── Auto-load clusters on mount ─────────────────────────────
     const loadClusters = useCallback(async () => {
         setClusterLoading(true);
@@ -371,6 +403,36 @@ export function DocumentsTab({ documents }: Props) {
                     <button onClick={expandAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Expandir</button>
                     <button onClick={collapseAll} className="text-xs text-ink-2 hover:text-ink-0 px-2 py-2 transition-colors">Colapsar</button>
 
+                    {/* Create folder */}
+                    {showCreateFolder ? (
+                        <form onSubmit={(e) => { e.preventDefault(); createFolder(); }}
+                            className="flex items-center gap-1.5">
+                            <input
+                                ref={newFolderInputRef}
+                                value={newFolderName}
+                                onChange={(e) => setNewFolderName(e.target.value)}
+                                placeholder="Nombre de la carpeta"
+                                className="px-2.5 py-1.5 text-xs border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-100 focus:border-brand-400 outline-none w-44"
+                            />
+                            <button type="submit" disabled={!newFolderName.trim()}
+                                className="px-2.5 py-1.5 text-xs font-medium bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white rounded-lg transition-colors">
+                                Crear
+                            </button>
+                            <button type="button" onClick={() => setShowCreateFolder(false)}
+                                className="px-2 py-1.5 text-xs text-ink-2 hover:text-ink-0 border border-surface-3 rounded-lg transition-colors">
+                                ✕
+                            </button>
+                        </form>
+                    ) : (
+                        <button onClick={openCreateFolder}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Nueva carpeta
+                        </button>
+                    )}
+
                     <div className="flex-1" />
 
                     <button onClick={loadDuplicates} disabled={dupLoading}
@@ -630,46 +692,46 @@ export function DocumentsTab({ documents }: Props) {
                                 >
                                     {/* Folder header */}
                                     <div className="w-full flex items-center gap-3 px-5 py-4 text-left group">
-                                    {/* Drag handle */}
-                                    <span className="cursor-grab active:cursor-grabbing text-ink-3 opacity-40 hover:opacity-70 shrink-0 -ml-2 pr-0.5"
-                                        title="Arrastrar para reordenar">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                        </svg>
-                                    </span>
-                                    <button onClick={() => toggleNode(pKey)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                                        <svg className={`w-4 h-4 ${c.text} shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
-                                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                        <svg className={`w-5 h-5 ${c.icon} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                d={isOpen
-                                                    ? "M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
-                                                    : "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                                                } />
-                                        </svg>
-                                        <div className="flex-1 min-w-0">
-                                            <span className={`text-sm font-semibold ${c.text}`}>{cluster.label}</span>
-                                            {cluster.keywords && cluster.keywords.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 mt-1">
-                                                    {cluster.keywords.slice(0, 5).map((kw) => (
-                                                        <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded ${c.badge} opacity-70`}>{kw}</span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                            <div className="hidden sm:flex items-center gap-2 w-24">
-                                                <div className="flex-1 bg-white/50 rounded-full h-1.5">
-                                                    <div className={`${c.bar} h-1.5 rounded-full transition-all`} style={{ width: `${sizeBar}%` }} />
-                                                </div>
+                                        {/* Drag handle */}
+                                        <span className="cursor-grab active:cursor-grabbing text-ink-3 opacity-40 hover:opacity-70 shrink-0 -ml-2 pr-0.5"
+                                            title="Arrastrar para reordenar">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                            </svg>
+                                        </span>
+                                        <button onClick={() => toggleNode(pKey)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                                            <svg className={`w-4 h-4 ${c.text} shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            <svg className={`w-5 h-5 ${c.icon} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                    d={isOpen
+                                                        ? "M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
+                                                        : "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                                                    } />
+                                            </svg>
+                                            <div className="flex-1 min-w-0">
+                                                <span className={`text-sm font-semibold ${c.text}`}>{cluster.label}</span>
+                                                {cluster.keywords && cluster.keywords.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {cluster.keywords.slice(0, 5).map((kw) => (
+                                                            <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded ${c.badge} opacity-70`}>{kw}</span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${c.badge}`}>
-                                                {cluster.documents.length} doc{cluster.documents.length !== 1 ? "s" : ""}
-                                            </span>
-                                        </div>
-                                    </button>
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                <div className="hidden sm:flex items-center gap-2 w-24">
+                                                    <div className="flex-1 bg-white/50 rounded-full h-1.5">
+                                                        <div className={`${c.bar} h-1.5 rounded-full transition-all`} style={{ width: `${sizeBar}%` }} />
+                                                    </div>
+                                                </div>
+                                                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${c.badge}`}>
+                                                    {cluster.documents.length} doc{cluster.documents.length !== 1 ? "s" : ""}
+                                                </span>
+                                            </div>
+                                        </button>
                                     </div>
 
                                     {/* Expanded content */}

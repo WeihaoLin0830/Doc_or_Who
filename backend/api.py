@@ -699,12 +699,26 @@ def get_document_table(doc_id: str, max_rows: int = Query(500, le=2000)):
     ext = filepath.suffix.lower()
     try:
         if ext == ".csv":
-            # Intentar detectar separador automáticamente
-            df = pd.read_csv(filepath, sep=None, engine="python", dtype=str, nrows=max_rows)
+            # Intentar detectar separador y encoding automáticamente
+            df = None
+            for enc in ("utf-8-sig", "utf-8", "latin-1", "cp1252", "iso-8859-15"):
+                try:
+                    df = pd.read_csv(
+                        filepath, sep=None, engine="python",
+                        dtype=str, nrows=max_rows,
+                        encoding=enc, on_bad_lines="skip",
+                    )
+                    break
+                except (UnicodeDecodeError, pd.errors.ParserError):
+                    continue
+            if df is None:
+                raise ValueError("No se pudo decodificar el fichero CSV con ningún encoding conocido")
         elif ext in (".xlsx", ".xls"):
             df = pd.read_excel(filepath, dtype=str, nrows=max_rows)
         else:
             raise HTTPException(status_code=400, detail=f"Formato no tabular: {ext}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Error al parsear tabla: {e}")
 
