@@ -209,7 +209,9 @@ __marimo__/
 # fastText word vectors cache (96MB — se descarga automáticamente)
 data/fasttext_es.npz
 # Índices y bases de datos (se regeneran automáticamente en ingestion)
-data/chroma_db/chroma.sqlite3
+data/chroma_db/
+data/tables.duckdb
 data/tables.duckdb.wal
 data/whoosh_index/
+data/entity_graph.json
 data/tables.duckdb

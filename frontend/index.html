@@ -110,7 +110,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    <span x-text="ingesting ? 'Procesando...' : 'Re-ingestar'"></span>
+                    <span x-text="ingesting ? ('Procesando... ' + ingestElapsed + 's') : 'Re-ingestar'"></span>
                 </button>
             </div>
         </div>
@@ -382,88 +382,98 @@
 
                     <!-- RESULTS -->
                     <div :class="searchFacets && lastSearchQuery ? 'lg:col-span-3' : 'lg:col-span-4'">
-                        <div x-show="searchResults.length > 0" class="space-y-3">
-                            <p class="text-sm text-ink-2 mb-2"><span class="font-medium"
-                                    x-text="searchResults.length"></span>
-                                resultados</p>
-                            <template x-for="r in searchResults" :key="r.chunk_id">
-                                <div
-                                    class="bg-white border border-surface-3 rounded-lg p-4 hover:border-brand-200 hover:shadow-sm transition-all fade-in">
-                                    <div class="flex items-start justify-between gap-3 mb-2">
-                                        <div class="flex-1 min-w-0 cursor-pointer" @click="viewDoc(r.doc_id)">
-                                            <h3 class="text-sm font-medium text-ink-0 truncate"
-                                                x-text="r.title || r.filename">
-                                            </h3>
-                                            <div class="flex items-center gap-2 mt-1">
-                                                <span
-                                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                                                    :class="typeColor(r.doc_type)" x-text="r.doc_type"></span>
-                                                <span class="text-xs text-ink-3" x-text="r.filename"></span>
-                                                <span x-show="r.section" class="text-xs text-ink-3">&middot; <span
-                                                        x-text="r.section"></span></span>
+                        <div x-show="groupedResults.length > 0" class="space-y-4">
+                            <p class="text-sm text-ink-2 mb-2">
+                                <span class="font-medium" x-text="groupedResults.length"></span> documentos encontrados
+                                <span class="text-ink-3">(<span x-text="searchResults.length"></span> fragmentos)</span>
+                            </p>
+                            <template x-for="group in groupedResults" :key="group.doc_id">
+                                <div class="bg-white border border-surface-3 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all fade-in overflow-hidden">
+                                    <!-- Document header -->
+                                    <div class="p-4 cursor-pointer" @click="viewDoc(group.doc_id)">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="flex-1 min-w-0">
+                                                <h3 class="text-sm font-semibold text-ink-0 truncate" x-text="group.title || group.filename"></h3>
+                                                <div class="flex items-center gap-2 mt-1">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" :class="typeColor(group.doc_type)" x-text="group.doc_type"></span>
+                                                    <span class="text-xs text-ink-3" x-text="group.filename"></span>
+                                                    <span class="text-xs text-ink-3">&middot; <span x-text="group.chunks.length"></span> coincidencia<span x-show="group.chunks.length > 1">s</span></span>
+                                                </div>
+                                            </div>
+                                            <div class="shrink-0 flex items-center gap-2">
+                                                <!-- Score bar -->
+                                                <div class="flex items-center gap-1.5">
+                                                    <div class="w-20 h-1.5 bg-surface-2 rounded-full overflow-hidden" :title="'Relevancia: ' + formatScore(group.best_score)">
+                                                        <div class="h-full bg-brand-500 rounded-full" :style="'width:' + Math.min(group.best_score * 100, 100) + '%'"></div>
+                                                    </div>
+                                                    <span class="text-[11px] font-semibold text-brand-700 tabular-nums" x-text="formatScore(group.best_score)"></span>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="shrink-0 flex items-center">
-                                            <span
-                                                class="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-semibold bg-brand-50 text-brand-700 border border-brand-200"
-                                                :title="'Score general ponderado'"
-                                                x-text="'Score ' + formatScore(r.scores?.fused ?? r.score)"></span>
+                                        <!-- Score breakdown (only show if both > 0) -->
+                                        <div class="mt-2 flex items-center gap-3">
+                                            <template x-if="group.best_lexical > 0">
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-[10px] text-ink-3 font-medium">Lex</span>
+                                                    <div class="w-12 h-1 bg-surface-2 rounded-full overflow-hidden">
+                                                        <div class="h-full bg-emerald-400 rounded-full" :style="'width:' + Math.min(group.best_lexical * 100 / 0.55, 100) + '%'"></div>
+                                                    </div>
+                                                    <span class="text-[10px] text-ink-3 tabular-nums" x-text="formatScore(group.best_lexical)"></span>
+                                                </div>
+                                            </template>
+                                            <template x-if="group.best_semantic > 0">
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-[10px] text-ink-3 font-medium">Sem</span>
+                                                    <div class="w-12 h-1 bg-surface-2 rounded-full overflow-hidden">
+                                                        <div class="h-full bg-violet-400 rounded-full" :style="'width:' + Math.min(group.best_semantic * 100 / 0.45, 100) + '%'"></div>
+                                                    </div>
+                                                    <span class="text-[10px] text-ink-3 tabular-nums" x-text="formatScore(group.best_semantic)"></span>
+                                                </div>
+                                            </template>
+                                            <span x-show="group.chunks[0]?.source === 'hybrid'" class="text-[10px] text-brand-600 font-medium">Hibrido</span>
+                                            <span x-show="group.chunks[0]?.source === 'lexical'" class="text-[10px] text-emerald-600 font-medium">Lexico</span>
+                                            <span x-show="group.chunks[0]?.source === 'semantic'" class="text-[10px] text-violet-600 font-medium">Semantico</span>
                                         </div>
+                                        <!-- Best highlight -->
+                                        <p class="mt-2 text-sm text-ink-1 leading-relaxed line-clamp-2" x-html="formatHighlight(group.chunks[0]?.highlight || group.chunks[0]?.text)"></p>
+                                        <!-- Metadata tags -->
+                                        <div class="flex flex-wrap gap-1 mt-2" x-show="group.persons.length || group.organizations.length">
+                                            <template x-for="p in group.persons.slice(0,3)" :key="p">
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-700" x-text="p"></span>
+                                            </template>
+                                            <template x-for="o in group.organizations.slice(0,3)" :key="o">
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700" x-text="o"></span>
+                                            </template>
+                                        </div>
+                                        <p x-show="group.chunks[0]?.why_this_result" class="mt-1 text-[11px] leading-relaxed text-ink-2" x-text="group.chunks[0]?.why_this_result"></p>
                                     </div>
-                                    <!-- Highlight / snippet -->
-                                    <p class="text-sm text-ink-1 leading-relaxed line-clamp-3"
-                                        x-html="formatHighlight(r.highlight || r.text)"></p>
-                                    <div class="mt-2 flex items-center gap-2 text-[10px] text-ink-3 font-medium">
-                                        <span :title="'Componente léxica del score'"
-                                            x-text="'Lex ' + formatScore(resultLexicalScore(r))"></span>
-                                        <span class="text-ink-3/60">·</span>
-                                        <span :title="'Componente semántica del score'"
-                                            x-text="'Sem ' + formatScore(resultSemanticScore(r))"></span>
-                                    </div>
-                                    <p x-show="r.why_this_result"
-                                        class="mt-2 text-[11px] leading-relaxed text-ink-2"
-                                        x-text="r.why_this_result"></p>
-                                    <!-- Metadata tags: persons, orgs, emails -->
-                                    <div x-show="r.persons.length || r.organizations.length || (r.emails && r.emails.length)"
-                                        class="flex flex-wrap gap-1 mt-2">
-                                        <template x-for="p in r.persons.slice(0,3)" :key="p">
-                                            <span
-                                                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-700"
-                                                x-text="p"></span>
-                                        </template>
-                                        <template x-for="o in r.organizations.slice(0,3)" :key="o">
-                                            <span
-                                                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700"
-                                                x-text="o"></span>
-                                        </template>
-                                        <template x-for="e in (r.emails || []).slice(0,2)" :key="e">
-                                            <span
-                                                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-700 font-mono"
-                                                x-text="e"></span>
-                                        </template>
-                                    </div>
-                                    <!-- Expandable chunk text -->
-                                    <div class="mt-2">
-                                        <button @click="r._expanded = !r._expanded"
-                                            class="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-                                            <svg class="w-3 h-3 transition-transform"
-                                                :class="r._expanded && 'rotate-90'" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9 5l7 7-7 7" />
-                                            </svg>
-                                            <span
-                                                x-text="r._expanded ? 'Ocultar chunk completo' : 'Ver chunk completo'"></span>
+                                    <!-- Expandable chunks (when doc has >1 chunk) -->
+                                    <div x-show="group.chunks.length > 1" class="border-t border-surface-3">
+                                        <button @click="group._expanded = !group._expanded" class="w-full px-4 py-2 flex items-center justify-between text-xs text-brand-600 hover:bg-surface-1 transition-colors">
+                                            <span x-text="group._expanded ? 'Ocultar fragmentos' : 'Ver ' + (group.chunks.length - 1) + ' fragmento' + (group.chunks.length > 2 ? 's' : '') + ' más'"></span>
+                                            <svg class="w-3 h-3 transition-transform" :class="group._expanded && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                                         </button>
-                                        <div x-show="r._expanded" x-cloak
-                                            class="mt-2 bg-surface-1 border border-surface-3 rounded-lg p-3">
-                                            <div class="flex items-center gap-2 mb-2">
-                                                <span class="text-xs font-mono text-ink-3" x-text="r.chunk_id"></span>
-                                                <span x-show="r.section" class="text-xs text-ink-2"
-                                                    x-text="r.section"></span>
-                                            </div>
-                                            <p class="text-sm text-ink-1 leading-relaxed whitespace-pre-wrap"
-                                                x-text="r.text"></p>
+                                        <div x-show="group._expanded" x-cloak class="px-4 pb-3 space-y-2">
+                                            <template x-for="(chunk, ci) in group.chunks.slice(1)" :key="chunk.chunk_id">
+                                                <div class="bg-surface-1 rounded-lg p-3">
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <span class="text-[10px] font-mono text-ink-3" x-text="'#' + (ci + 2)"></span>
+                                                        <span x-show="chunk.section" class="text-xs text-ink-2" x-text="chunk.section"></span>
+                                                        <span class="text-[10px] text-ink-3 ml-auto tabular-nums" x-text="formatScore(chunk.scores?.fused ?? chunk.score)"></span>
+                                                    </div>
+                                                    <p class="text-sm text-ink-1 leading-relaxed line-clamp-3" x-html="formatHighlight(chunk.highlight || chunk.text)"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <!-- Single chunk expand for solo results -->
+                                    <div x-show="group.chunks.length === 1" class="border-t border-surface-3">
+                                        <button @click="group._expanded = !group._expanded" class="w-full px-4 py-2 flex items-center justify-between text-xs text-brand-600 hover:bg-surface-1 transition-colors">
+                                            <span x-text="group._expanded ? 'Ocultar texto completo' : 'Ver texto completo'"></span>
+                                            <svg class="w-3 h-3 transition-transform" :class="group._expanded && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                        </button>
+                                        <div x-show="group._expanded" x-cloak class="px-4 pb-3">
+                                            <p class="text-sm text-ink-1 leading-relaxed whitespace-pre-wrap" x-text="group.chunks[0]?.text"></p>
                                         </div>
                                     </div>
                                 </div>
@@ -1220,7 +1230,7 @@
                 duplicates: [], duplicatesLoading: false, duplicatesChecked: false,
                 stats: {},
                 showUpload: false, dragOver: false, uploadStatus: null,
-                ingesting: false, toast: null,
+                ingesting: false, ingestElapsed: 0, ingestStart: 0, _ingestTimer: null, toast: null,
 
                 async init() {
                     this.loadDocs();
@@ -1290,6 +1300,39 @@
                         this.searchFacets = data.facets || null;
                         this.lastSearchQuery = q;
                     } catch { this.searchResults = []; this.searchFacets = null; }
+                },
+
+                get groupedResults() {
+                    const map = new Map();
+                    for (const r of this.searchResults) {
+                        if (!map.has(r.doc_id)) {
+                            map.set(r.doc_id, {
+                                doc_id: r.doc_id,
+                                title: r.title,
+                                filename: r.filename,
+                                doc_type: r.doc_type,
+                                chunks: [],
+                                best_score: 0,
+                                best_lexical: 0,
+                                best_semantic: 0,
+                                persons: [],
+                                organizations: [],
+                                _expanded: false,
+                            });
+                        }
+                        const g = map.get(r.doc_id);
+                        g.chunks.push(r);
+                        const fused = r.scores?.fused ?? r.score ?? 0;
+                        if (fused > g.best_score) g.best_score = fused;
+                        const lex = r.scores?.whoosh_component ?? r.scores?.whoosh_norm ?? r.scores?.whoosh ?? 0;
+                        if (lex > g.best_lexical) g.best_lexical = lex;
+                        const sem = r.scores?.chroma_component ?? r.scores?.chroma_norm ?? r.scores?.chroma ?? 0;
+                        if (sem > g.best_semantic) g.best_semantic = sem;
+                        // Collect unique persons/orgs
+                        for (const p of (r.persons || [])) { if (!g.persons.includes(p)) g.persons.push(p); }
+                        for (const o of (r.organizations || [])) { if (!g.organizations.includes(o)) g.organizations.push(o); }
+                    }
+                    return Array.from(map.values());
                 },
 
                 hasActiveFilters() {
@@ -1481,12 +1524,18 @@
 
                 async runIngest() {
                     this.ingesting = true;
+                    this.ingestStart = Date.now();
+                    this.ingestElapsed = 0;
+                    this._ingestTimer = setInterval(() => { this.ingestElapsed = Math.floor((Date.now() - this.ingestStart) / 1000); }, 1000);
                     try {
                         const data = await this.api('/api/ingest', { method: 'POST' });
-                        this.showToast(`Re-ingestión completada: ${data.documents_processed} documentos`);
+                        const secs = Math.floor((Date.now() - this.ingestStart) / 1000);
+                        this.showToast(`Re-ingestión completada: ${data.documents_processed} documentos en ${secs}s`);
                         this.loadDocs(); this.loadStats(); this.loadEntities(); this.loadSqlTables();
                     } catch { }
+                    clearInterval(this._ingestTimer);
                     this.ingesting = false;
+                    this.ingestElapsed = 0;
                 },
 
                 async showFilePreview(docId, filename) {
