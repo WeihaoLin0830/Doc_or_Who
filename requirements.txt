@@ -12,7 +12,7 @@ python-docx==1.1.2
 # --- NLP / Embeddings ---
 sentence-transformers==3.1.0
 chromadb==0.5.7
-spacy==3.7.6
+spacy==3.8.2
 
 # --- Full-text search ---
 whoosh==2.7.4
