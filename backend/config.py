@@ -59,6 +59,7 @@ YAKE_LANGUAGE = "es"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = "llama-3.1-8b-instant"
 LEXICAL_STRICT = os.getenv("LEXICAL_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
+FUZZY = os.getenv("FUZZY", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 # ─── DuckDB ───────────────────────────────────────────────────────
 DUCKDB_PATH = DATA_DIR / "tables.duckdb"

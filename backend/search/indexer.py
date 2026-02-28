@@ -18,7 +18,7 @@ from backend.config import (
     WHOOSH_DIR,
 )
 from backend.models import Chunk
-from backend.text_normalize import fold_text
+from backend.text_normalize import char_ngrams, fold_text
 
 # ─── Whoosh: analizador con eliminación de acentos ────────────────
 # Permite buscar "reunion" y encontrar "reunión" y viceversa.
@@ -41,6 +41,15 @@ _whoosh_index = None
 def _whoosh_has_folded_fields(ix) -> bool:
     schema_names = set(ix.schema.names())
     return {"content_folded", "title_folded"}.issubset(schema_names)
+
+
+def _whoosh_has_char3_field(ix) -> bool:
+    return "content_char3" in set(ix.schema.names())
+
+
+def _whoosh_missing_lexical_fields(ix) -> set[str]:
+    required_fields = {"content_folded", "title_folded", "content_char3"}
+    return required_fields.difference(ix.schema.names())
 
 
 def _get_embedding_model():
@@ -116,6 +125,7 @@ def _get_whoosh_index(create: bool = False):
         title_folded=TEXT(**_ta),
         content=TEXT(stored=True, **_ta),
         content_folded=TEXT(**_ta),
+        content_char3=TEXT(**_ta),
         doc_type=TEXT(stored=True),
         language=TEXT(stored=True),
         filename=TEXT(stored=True),
@@ -133,9 +143,11 @@ def _get_whoosh_index(create: bool = False):
     if whoosh_index.exists_in(str(WHOOSH_DIR)):
         print(f"📖 Opening existing Whoosh index at {WHOOSH_DIR}")
         _whoosh_index = whoosh_index.open_dir(str(WHOOSH_DIR))
-        if not _whoosh_has_folded_fields(_whoosh_index):
+        missing_fields = sorted(_whoosh_missing_lexical_fields(_whoosh_index))
+        if missing_fields:
             print(
-                "⚠️  Existing Whoosh index uses an old schema without folded fields. "
+                "⚠️  Existing Whoosh index uses an old schema missing fields "
+                f"{', '.join(missing_fields)}. "
                 "Run clear_indices() or a full re-ingest to rebuild lexical search."
             )
     else:
@@ -204,6 +216,7 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
     """Indexa chunks en Whoosh (BM25 full-text search)."""
     ix = _get_whoosh_index()
     has_folded_fields = _whoosh_has_folded_fields(ix)
+    has_char3_field = _whoosh_has_char3_field(ix)
     writer = ix.writer()
     committed = False
 
@@ -234,6 +247,8 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
             if has_folded_fields:
                 payload["title_folded"] = fold_text(meta["title"])
                 payload["content_folded"] = fold_text(chunk.text)
+            if has_char3_field:
+                payload["content_char3"] = " ".join(char_ngrams(fold_text(chunk.text), 3))
             writer.update_document(**payload)
 
         writer.commit()

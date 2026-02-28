@@ -14,9 +14,9 @@ import re
 from collections import Counter
 from typing import Optional
 
-from backend.config import FINAL_TOP_K, LEXICAL_STRICT, MAX_CHUNKS_PER_DOC, RRF_K, SEARCH_TOP_K, SEMANTIC_MIN_SCORE, WHOOSH_DIR
+from backend.config import FINAL_TOP_K, FUZZY, LEXICAL_STRICT, MAX_CHUNKS_PER_DOC, RRF_K, SEARCH_TOP_K, SEMANTIC_MIN_SCORE, WHOOSH_DIR
 from backend.models import SearchResult
-from backend.text_normalize import _fold_with_mapping, fold_text
+from backend.text_normalize import _fold_with_mapping, char_ngrams, fold_text
 
 
 def _folded_query(text: str) -> str:
@@ -68,6 +68,39 @@ def _whoosh_search_fields(ix) -> list[str]:
     if not LEXICAL_STRICT and _whoosh_supports_folded_fields(ix):
         return ["content_folded", "title_folded", "content", "title", "keywords", "persons", "organizations"]
     return ["content", "title", "keywords", "persons", "organizations"]
+
+
+def _whoosh_supports_char3_field(ix) -> bool:
+    return "content_char3" in set(ix.schema.names())
+
+
+def _looks_noisy_query(query: str) -> bool:
+    trimmed = query.strip()
+    if not trimmed:
+        return False
+
+    non_alnum = sum(1 for ch in trimmed if not ch.isalnum() and not ch.isspace())
+    non_alnum_ratio = non_alnum / max(len(trimmed), 1)
+    if non_alnum_ratio >= 0.12:
+        return True
+
+    tokens = [token for token in fold_text(trimmed).split() if token]
+    for token in tokens:
+        if len(token) >= 9 and re.search(r"(.)\1{2,}", token):
+            return True
+        if len(token) >= 10 and re.search(r"[bcdfghjklmnpqrstvwxyz]{6,}", token):
+            return True
+    return False
+
+
+def _should_use_char3_fallback(query: str, base_results_count: int) -> tuple[bool, str]:
+    if FUZZY:
+        return True, "env"
+    if _looks_noisy_query(query):
+        return True, "noisy_query"
+    if base_results_count <= 2:
+        return True, "low_recall"
+    return False, "not_needed"
 
 
 def _is_entity_query(query: str) -> bool:
@@ -258,6 +291,65 @@ def _normalize_date_to_iso(raw: str) -> str | None:
     return None
 
 
+def _hit_matches_filters(hit, filters: dict) -> bool:
+    if filters.get("person"):
+        persons_text = fold_text(hit.get("persons", ""))
+        if fold_text(filters["person"]) not in persons_text:
+            return False
+
+    if filters.get("organization"):
+        orgs_text = fold_text(hit.get("organizations", ""))
+        if fold_text(filters["organization"]) not in orgs_text:
+            return False
+
+    if filters.get("date"):
+        filter_date = filters["date"]
+        stored_iso = [
+            _normalize_date_to_iso(d)
+            for d in _split_meta(hit.get("dates", ""))
+        ]
+        if not any(d and d.startswith(filter_date) for d in stored_iso):
+            return False
+
+    return True
+
+
+def _hit_to_search_result(hit) -> SearchResult:
+    return SearchResult(
+        chunk_id=hit["chunk_id"],
+        doc_id=hit["doc_id"],
+        text=hit.get("content", ""),
+        score=hit.score,
+        title=hit.get("title", ""),
+        doc_type=hit.get("doc_type", ""),
+        filename=hit.get("filename", ""),
+        section=hit.get("section", ""),
+        language=hit.get("language", ""),
+        persons=_split_meta(hit.get("persons", "")),
+        organizations=_split_meta(hit.get("organizations", "")),
+        keywords=_split_meta(hit.get("keywords", "")),
+        dates=_split_meta(hit.get("dates", "")),
+        emails=_split_meta(hit.get("emails", "")),
+    )
+
+
+def _collect_whoosh_results(hits, filters: dict, top_k: int, seen_chunk_ids: set[str] | None = None) -> list[SearchResult]:
+    results: list[SearchResult] = []
+    seen = seen_chunk_ids if seen_chunk_ids is not None else set()
+
+    for hit in hits:
+        if hit["chunk_id"] in seen:
+            continue
+        if not _hit_matches_filters(hit, filters):
+            continue
+        results.append(_hit_to_search_result(hit))
+        seen.add(hit["chunk_id"])
+        if len(results) >= top_k:
+            break
+
+    return results
+
+
 
 # ─── BM25 con Whoosh ─────────────────────────────────────────────
 def _search_whoosh(
@@ -267,7 +359,7 @@ def _search_whoosh(
 ) -> list[SearchResult]:
     """Búsqueda full-text con Whoosh (BM25). Aplica filtros a nivel de query."""
     from whoosh import index as whoosh_index
-    from whoosh.qparser import MultifieldParser, OrGroup, AndGroup
+    from whoosh.qparser import AndGroup, MultifieldParser, OrGroup, QueryParser
     from whoosh.query import And, Term
 
     if not whoosh_index.exists_in(str(WHOOSH_DIR)):
@@ -298,7 +390,9 @@ def _search_whoosh(
     # Fold the lexical query so folded fields become robust to Unicode,
     # accents and casing. If the index is still on the old schema, we fall
     # back to raw fields and keep the original query text.
-    normalized_query = _folded_query(query) if not LEXICAL_STRICT and _whoosh_supports_folded_fields(ix) else query
+    has_folded_fields = _whoosh_supports_folded_fields(ix)
+    has_char3_field = _whoosh_supports_char3_field(ix)
+    normalized_query = _folded_query(query) if not LEXICAL_STRICT and has_folded_fields else query
 
     try:
         parsed_query = parser.parse(normalized_query)
@@ -316,14 +410,12 @@ def _search_whoosh(
     if filter_queries:
         parsed_query = And([parsed_query] + filter_queries)
 
-    results: list[SearchResult] = []
-
     with ix.searcher() as searcher:
         # Pedir más resultados para luego aplicar filtros soft (persona/org)
-        hits = searcher.search(parsed_query, limit=top_k * 3)
+        normal_hits = searcher.search(parsed_query, limit=top_k * 3)
 
         # Si And-query da 0 resultados, reintentamos con Or + sinónimos (fallback de precisión)
-        if len(hits) == 0:
+        if len(normal_hits) == 0:
             or_parser = MultifieldParser(
                 search_fields,
                 schema=ix.schema,
@@ -335,53 +427,48 @@ def _search_whoosh(
                 or_query = or_parser.parse(expanded_query)
                 if filter_queries:
                     or_query = And([or_query] + filter_queries)
-                hits = searcher.search(or_query, limit=top_k * 3)
+                normal_hits = searcher.search(or_query, limit=top_k * 3)
             except Exception:
                 pass
 
-        for hit in hits:
-            # Filtro soft para persons/organizations (contienen substring)
-            if filters.get("person"):
-                persons_text = fold_text(hit.get("persons", ""))
-                if fold_text(filters["person"]) not in persons_text:
-                    continue
-            if filters.get("organization"):
-                orgs_text = fold_text(hit.get("organizations", ""))
-                if fold_text(filters["organization"]) not in orgs_text:
-                    continue
-            # Filtro soft por fecha: normaliza cada fecha almacenada a ISO
-            # y verifica prefijo ("2025-01" debe coincidir con "2025-01-10")
-            if filters.get("date"):
-                filter_date = filters["date"]
-                stored_iso = [
-                    _normalize_date_to_iso(d)
-                    for d in _split_meta(hit.get("dates", ""))
-                ]
-                if not any(d and d.startswith(filter_date) for d in stored_iso):
-                    continue
+        results = _collect_whoosh_results(normal_hits, filters, top_k)
+        base_results_count = len(results)
 
-            results.append(SearchResult(
-                chunk_id=hit["chunk_id"],
-                doc_id=hit["doc_id"],
-                text=hit.get("content", ""),
-                score=hit.score,
-                title=hit.get("title", ""),
-                doc_type=hit.get("doc_type", ""),
-                filename=hit.get("filename", ""),
-                section=hit.get("section", ""),
-                language=hit.get("language", ""),
-                persons=_split_meta(hit.get("persons", "")),
-                organizations=_split_meta(hit.get("organizations", "")),
-                keywords=_split_meta(hit.get("keywords", "")),
-                dates=_split_meta(hit.get("dates", "")),
-                emails=_split_meta(hit.get("emails", "")),
-            ))
+        use_char3, char3_reason = _should_use_char3_fallback(query, base_results_count)
+        fuzzy_hits_count = 0
+        if use_char3 and has_char3_field:
+            q_fold = _folded_query(query)
+            q_ng = " ".join(char_ngrams(q_fold, 3))
+            if q_ng:
+                fuzzy_parser = QueryParser("content_char3", schema=ix.schema, group=OrGroup)
+                try:
+                    fuzzy_query = fuzzy_parser.parse(q_ng)
+                    if filter_queries:
+                        fuzzy_query = And([fuzzy_query] + filter_queries)
+                    fuzzy_hits = searcher.search(fuzzy_query, limit=max(top_k * 5, 15))
+                    fuzzy_hits_count = len(fuzzy_hits)
+                    print(
+                        "🪶 Whoosh fuzzy mode=char3 "
+                        f"reason={char3_reason} base_hits={base_results_count} raw_hits={fuzzy_hits_count}"
+                    )
+                    results.extend(
+                        _collect_whoosh_results(
+                            fuzzy_hits,
+                            filters,
+                            max(top_k - len(results), 0),
+                            seen_chunk_ids={result.chunk_id for result in results},
+                        )
+                    )
+                except Exception:
+                    pass
+        elif use_char3 and not has_char3_field:
+            print(
+                "⚠️  Whoosh char3 fuzzy fallback requested but the index schema "
+                "does not include content_char3. Rebuild lexical indexes."
+            )
 
-            if len(results) >= top_k:
-                break
-
-    lexical_mode = "strict-raw" if LEXICAL_STRICT else ("folded" if _whoosh_supports_folded_fields(ix) else "raw-fallback")
-    print(f"🔎 Whoosh lexical mode={lexical_mode} query={normalized_query!r} hits={len(results)}")
+    base_mode = "strict-raw" if LEXICAL_STRICT else ("folded" if has_folded_fields else "raw-fallback")
+    print(f"🔎 Whoosh lexical mode={base_mode} query={normalized_query!r} hits={len(results)}")
 
     return results
 
@@ -576,6 +663,15 @@ def _generate_highlight(text: str, query: str, context_chars: int = 200) -> str:
                 mapped_pos = mapping[pos] if pos < len(mapping) else 0
                 if mapped_pos < best_pos:
                     best_pos = mapped_pos
+
+        if best_pos >= len(text):
+            for gram in char_ngrams(query, 3, max_ngrams=64):
+                pos = folded_text.find(gram)
+                if pos >= 0:
+                    mapped_pos = mapping[pos] if pos < len(mapping) else 0
+                    if mapped_pos < best_pos:
+                        best_pos = mapped_pos
+                        break
 
     if best_pos >= len(text):
         best_pos = 0
