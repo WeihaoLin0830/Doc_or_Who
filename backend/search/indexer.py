@@ -18,7 +18,7 @@ from backend.config import (
     WHOOSH_DIR,
 )
 from backend.models import Chunk
-from backend.search.text_normalize import char_ngrams, fold_text, normalize_numbers_in_text
+from backend.search.text_normalize import char_ngrams, fold_text, normalize_numbers_in_text, stem_es
 
 # ─── Whoosh: analizador con eliminación de acentos ────────────────
 # Permite buscar "reunion" y encontrar "reunión" y viceversa.
@@ -51,8 +51,12 @@ def _whoosh_has_num_norm_field(ix) -> bool:
     return "content_num_norm" in set(ix.schema.names())
 
 
+def _whoosh_has_stemmed_field(ix) -> bool:
+    return "content_stemmed" in set(ix.schema.names())
+
+
 def _whoosh_missing_lexical_fields(ix) -> set[str]:
-    required_fields = {"content_folded", "title_folded", "content_char3", "content_num_norm"}
+    required_fields = {"content_folded", "title_folded", "content_char3", "content_num_norm", "content_stemmed"}
     return required_fields.difference(ix.schema.names())
 
 
@@ -131,6 +135,7 @@ def _get_whoosh_index(create: bool = False):
         content_folded=TEXT(**_ta),
         content_char3=TEXT(**_ta),
         content_num_norm=TEXT(**_ta),
+        content_stemmed=TEXT(**_ta),  # tokens reducidos a raiz Snowball ES
         doc_type=TEXT(stored=True),
         language=TEXT(stored=True),
         filename=TEXT(stored=True),
@@ -223,6 +228,7 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
     has_folded_fields = _whoosh_has_folded_fields(ix)
     has_char3_field = _whoosh_has_char3_field(ix)
     has_num_norm_field = _whoosh_has_num_norm_field(ix)
+    has_stemmed_field = _whoosh_has_stemmed_field(ix)
     writer = ix.writer()
     committed = False
 
@@ -260,6 +266,8 @@ def _index_whoosh(chunks: list[Chunk]) -> int:
                     chunk.text,
                     language=chunk.language or meta.get("language"),
                 )
+            if has_stemmed_field:
+                payload["content_stemmed"] = stem_es(chunk.text)
             writer.update_document(**payload)
 
         writer.commit()

@@ -283,3 +283,45 @@ def _fold_with_mapping(s: str) -> tuple[str, list[int]]:
 
     folded_text = "".join(chars)
     return folded_text, mapping
+
+
+# ─── Stemmer español (Snowball) ──────────────────────────────────
+_stemmer_cache = None
+
+
+def _get_stemmer():
+    """Lazy-init del SnowballStemmer para español. None si NLTK no disponible."""
+    global _stemmer_cache
+    if _stemmer_cache is None:
+        try:
+            from nltk.stem import SnowballStemmer
+            _stemmer_cache = SnowballStemmer("spanish")
+        except Exception:
+            _stemmer_cache = False  # marca como no disponible
+    return _stemmer_cache if _stemmer_cache is not False else None
+
+
+def stem_es(text: str) -> str:
+    """
+    Aplica el stemmer Snowball español sobre texto ya plegado (fold_text).
+
+    Cada token del texto se reduce a su raíz morfológica:
+      - reuniones   → reunion
+      - contratación → contrat
+      - proveedores  → proveedor
+      - ventas       → vent
+
+    Esto mejora el recall en búsquedas cuando el usuario escribe una
+    forma flexionada diferente a la del documento.
+
+    Devuelve los tokens con raíz unidos por espacio.
+    Si NLTK no está disponible, devuelve el texto tal cual (sin romper nada).
+    """
+    folded = fold_text(text)
+    if not folded:
+        return ""
+    stemmer = _get_stemmer()
+    if stemmer is None:
+        return folded
+    tokens = folded.split()
+    return " ".join(stemmer.stem(t) for t in tokens if t)

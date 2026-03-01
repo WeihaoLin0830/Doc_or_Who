@@ -114,6 +114,10 @@ def _whoosh_supports_num_norm_field(ix) -> bool:
     return "content_num_norm" in set(ix.schema.names())
 
 
+def _whoosh_supports_stemmed_field(ix) -> bool:
+    return "content_stemmed" in set(ix.schema.names())
+
+
 def _looks_noisy_query(query: str) -> bool:
     trimmed = query.strip()
     if not trimmed:
@@ -582,6 +586,7 @@ def _collect_whoosh_results(
     folded_mode: bool,
     fuzzy_char3: bool = False,
     numeric_norm: bool = False,
+    stemmed_es: bool = False,
     seen_chunk_ids: set[str] | None = None,
 ) -> list[SearchResult]:
     results: list[SearchResult] = []
@@ -606,6 +611,8 @@ def _collect_whoosh_results(
             notes.append("Matched via numeric normalization fallback.")
         if fuzzy_char3:
             notes.append("Matched via character 3-gram fuzzy fallback.")
+        if stemmed_es:
+            notes.append("Matched via Spanish morphological stemming.")
         if not matched_fields:
             notes.append("Matched via lexical search; fields are approximated.")
         result.explanation = {
@@ -613,6 +620,7 @@ def _collect_whoosh_results(
             "fallback_used": {
                 "fuzzy_char3": fuzzy_char3,
                 "numeric_norm": numeric_norm,
+                "stemmed_es": stemmed_es,
             },
             "notes": notes,
             "fusion_mode": FUSION_MODE,
@@ -654,6 +662,7 @@ def _search_whoosh(
     has_folded_fields = _whoosh_supports_folded_fields(ix)
     has_char3_field = _whoosh_supports_char3_field(ix)
     has_num_norm_field = _whoosh_supports_num_norm_field(ix)
+    has_stemmed_field = _whoosh_supports_stemmed_field(ix)
     fieldboosts = {
         "title_folded": 2.5,
         "content_folded": 2.0,
@@ -867,6 +876,44 @@ def _search_whoosh(
                 "does not include content_char3. Rebuild lexical indexes."
             )
 
+        # ── Búsqueda morfológica con stemming Snowball español ───────────────
+        # Siempre activa cuando el campo existe. Mejora el recall para
+        # variantes morfológicas: reuniones→reunion, contrato→contrat, etc.
+        # Solo añade resultados NUEVOS (seen_chunk_ids evita duplicados).
+        if has_stemmed_field:
+            from backend.search.text_normalize import stem_es as _stem_es
+            stemmed_query_str = _stem_es(normalized_query)
+            if stemmed_query_str and stemmed_query_str != normalized_query:
+                stemmed_parser = QueryParser(
+                    "content_stemmed", schema=ix.schema, group=AndGroup
+                )
+                try:
+                    stemmed_query = stemmed_parser.parse(stemmed_query_str)
+                    if filter_queries:
+                        stemmed_query = And([stemmed_query] + filter_queries)
+                    stemmed_hits = searcher.search(stemmed_query, limit=top_k * 3)
+                    prev_count = len(results)
+                    results.extend(
+                        _collect_whoosh_results(
+                            stemmed_hits,
+                            filters,
+                            max(top_k - len(results), 0),
+                            normalized_query=normalized_query,
+                            normalized_numeric_query=normalized_numeric_query,
+                            folded_mode=not LEXICAL_STRICT and has_folded_fields,
+                            stemmed_es=True,
+                            seen_chunk_ids={r.chunk_id for r in results},
+                        )
+                    )
+                    new_hits = len(results) - prev_count
+                    if new_hits:
+                        print(
+                            f"🌱 Whoosh stemmed español query={stemmed_query_str!r} "
+                            f"raw_hits={len(stemmed_hits)} nuevos={new_hits}"
+                        )
+                except Exception:
+                    pass
+
     trace["hits"] = len(results)
     print(f"🔎 Whoosh lexical mode={trace['lexical_mode']} query={normalized_query!r} hits={len(results)}")
 
@@ -1030,6 +1077,7 @@ def _display_field_name(field: str) -> str:
         "organizations": "organizaciones",
         "content_char3": "texto aproximado",
         "content_num_norm": "numeros normalizados",
+        "content_stemmed": "variante morfologica",
     }
     return labels.get(field, field)
 
