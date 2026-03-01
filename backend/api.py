@@ -22,21 +22,20 @@ Ejecutar:  uvicorn backend.api:app --reload --port 8000
 """
 
 from __future__ import annotations
-
-import shutil
+import asyncio
+import threading
+import time as _time
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Query, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend.config import ROOT_DIR, UPLOAD_DIR, DATASET_DIR, DATA_DIR
+from backend.config import ROOT_DIR, UPLOAD_DIR, DATASET_DIR
 from backend.graph import (
-    get_graph_data,
-    get_graph_data_filtered,
     get_all_entities,
     get_entity,
     get_related_entities,
@@ -47,6 +46,7 @@ from backend.graph import (
     get_communities,
     get_top_brokers,
     load_graph,
+    add_document_to_graph,
 )
 from backend.search.indexer import find_duplicates
 
@@ -65,6 +65,16 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def no_cache_api(request, call_next):
+    """Ensures API responses are never cached by the browser or any proxy."""
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 # ─── Request models ──────────────────────────────────────────────
 class AskRequest(BaseModel):
     question: str
@@ -80,6 +90,132 @@ class SqlQueryRequest(BaseModel):
 
 class SqlAskRequest(BaseModel):
     question: str
+
+
+def _get_document_chunks_from_chroma(doc_id: str) -> tuple[list[dict], dict]:
+    """Resuelve chunks y metadatos del documento desde ChromaDB."""
+    from backend.search.indexer import _get_chroma_collection
+
+    collection = _get_chroma_collection()
+    results = collection.get(
+        where={"doc_id": doc_id},
+        include=["documents", "metadatas"],
+    )
+
+    if not results["ids"]:
+        return [], {}
+
+    chunks = []
+    meta = results["metadatas"][0] if results["metadatas"] else {}
+    for i, chunk_id in enumerate(results["ids"]):
+        chunks.append({
+            "chunk_id": chunk_id,
+            "text": results["documents"][i],
+            "metadata": results["metadatas"][i],
+        })
+    chunks.sort(key=lambda c: c["chunk_id"])
+    return chunks, meta
+
+
+def _get_document_chunks_from_whoosh(doc_id: str) -> tuple[list[dict], dict]:
+    """Fallback robusto usando Whoosh, que almacena los chunks completos."""
+    from whoosh import index as whoosh_index
+    from backend.config import WHOOSH_DIR
+
+    if not whoosh_index.exists_in(str(WHOOSH_DIR)):
+        return [], {}
+
+    ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+    with ix.searcher() as searcher:
+        stored_docs = list(searcher.documents(doc_id=doc_id))
+
+    if not stored_docs:
+        return [], {}
+
+    chunks = []
+    for stored in stored_docs:
+        metadata = {
+            "doc_id": stored.get("doc_id", ""),
+            "doc_type": stored.get("doc_type", ""),
+            "title": stored.get("title", ""),
+            "language": stored.get("language", ""),
+            "filename": stored.get("filename", ""),
+            "section": stored.get("section", ""),
+            "level": stored.get("level", ""),
+            "persons": stored.get("persons", ""),
+            "organizations": stored.get("organizations", ""),
+            "keywords": stored.get("keywords", ""),
+            "dates": stored.get("dates", ""),
+            "emails": stored.get("emails", ""),
+        }
+        chunks.append({
+            "chunk_id": stored.get("chunk_id", ""),
+            "text": stored.get("content", ""),
+            "metadata": metadata,
+        })
+
+    chunks.sort(key=lambda c: c["chunk_id"])
+    meta = chunks[0]["metadata"] if chunks else {}
+    return chunks, meta
+
+
+def _get_document_chunks(doc_id: str) -> tuple[list[dict], dict, str]:
+    """Busca un documento por doc_id con fallback Chroma -> Whoosh."""
+    try:
+        chunks, meta = _get_document_chunks_from_chroma(doc_id)
+        if chunks:
+            return chunks, meta, "chroma"
+    except Exception as exc:
+        print(f"⚠️  Error resolving document {doc_id} from Chroma: {exc}")
+
+    chunks, meta = _get_document_chunks_from_whoosh(doc_id)
+    if chunks:
+        return chunks, meta, "whoosh"
+    return [], {}, "missing"
+
+
+def _list_documents_from_whoosh() -> list[dict]:
+    """Fallback para listar documentos únicos desde Whoosh si el grafo no está cargado."""
+    from whoosh import index as whoosh_index
+    from backend.config import WHOOSH_DIR
+
+    if not whoosh_index.exists_in(str(WHOOSH_DIR)):
+        return []
+
+    ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+    from backend.search.searcher import _split_meta
+    documents: dict[str, dict] = {}
+    with ix.searcher() as searcher:
+        for stored in searcher.all_stored_fields():
+            doc_id = stored.get("doc_id")
+            if not doc_id or doc_id in documents:
+                continue
+            documents[doc_id] = {
+                "doc_id": doc_id,
+                "title": stored.get("title", ""),
+                "filename": stored.get("filename", ""),
+                "doc_type": stored.get("doc_type", ""),
+                "category": "",
+                "persons": _split_meta(stored.get("persons", "")),
+                "organizations": _split_meta(stored.get("organizations", "")),
+                "dates": _split_meta(stored.get("dates", "")),
+            }
+    return list(documents.values())
+
+
+# ─── Estado global de ingestión ─────────────────────────────────
+_ingest_lock = threading.Lock()
+_ingest_state: dict = {
+    "running": False,
+    "phase": None,        # "clearing" | "indexing" | "graph" | "done" | "error"
+    "current": 0,
+    "total": 0,
+    "current_file": "",
+    "docs_processed": 0,
+    "elapsed": 0.0,
+    "error": None,
+}
+_ingest_t0: float = 0.0
 
 
 # ─── Startup: cargar grafo + tablas SQL ──────────────────────────
@@ -125,6 +261,7 @@ def search(
     organization: Optional[str] = Query(None, description="Filtrar por organización"),
     date: Optional[str] = Query(None, description="Filtrar por fecha (ej: 2025, 2025-01, enero)"),
     top_k: int = Query(10, ge=1, le=50),
+    debug: bool = Query(False, description="Incluir explicación ampliada de ranking"),
 ):
     """Búsqueda híbrida BM25 + semántica con fusión RRF + facets dinámicos."""
     from backend.search.searcher import hybrid_search_with_facets
@@ -136,6 +273,7 @@ def search(
         organization=organization,
         date=date,
         top_k=top_k,
+        debug=debug,
     )
     return {
         "query": q,
@@ -178,49 +316,313 @@ def list_documents():
     """Lista todos los documentos indexados (metadatos del grafo)."""
     from backend.graph.graph import _documents
     docs = list(_documents.values())
+    if not docs:
+        docs = _list_documents_from_whoosh()
     return {"count": len(docs), "documents": docs}
+
+
+@app.get("/api/documents/clusters")
+def cluster_documents(n_clusters: Optional[int] = None):
+    """
+    Agrupa documentos en una jerarquía de 2 niveles:
+      - Nivel 1: clusters amplios por temática
+      - Nivel 2: sub-clusters más específicos dentro de cada grupo
+
+    Genera etiquetas inteligentes basadas en categorías, tipos, palabras clave
+    y títulos de los documentos en lugar de usar simplemente el doc_type.
+    """
+    import re
+    import numpy as np
+    from sklearn.cluster import AgglomerativeClustering
+    from backend.search.indexer import _get_chroma_collection
+    from backend.graph.graph import _documents
+
+    collection = _get_chroma_collection()
+    results = collection.get(include=["embeddings", "metadatas"])
+
+    if not results["ids"]:
+        return {"n_clusters": 0, "clusters": []}
+
+    # ── Agrupar embeddings por doc_id → mean-pool ─────────────────
+    doc_embs: dict[str, list[list[float]]] = {}
+    doc_meta: dict[str, dict] = {}
+    for chunk_id, meta, emb in zip(results["ids"], results["metadatas"], results["embeddings"]):
+        doc_id = meta.get("doc_id", chunk_id)
+        if doc_id not in doc_embs:
+            doc_embs[doc_id] = []
+            doc_meta[doc_id] = meta
+        doc_embs[doc_id].append(emb)
+
+    doc_ids = list(doc_embs.keys())
+    n_docs = len(doc_ids)
+
+    def _build_doc_info(doc_id: str) -> dict:
+        meta = doc_meta.get(doc_id, {})
+        graph_info = _documents.get(doc_id, {})
+        return {
+            "doc_id": doc_id,
+            "title": meta.get("title", ""),
+            "filename": meta.get("filename", ""),
+            "doc_type": meta.get("doc_type", ""),
+            "category": graph_info.get("category", meta.get("category", "")),
+            "keywords": graph_info.get("keywords", []),
+        }
+
+    if n_docs < 2:
+        info = _build_doc_info(doc_ids[0])
+        return {
+            "n_clusters": 1,
+            "clusters": [{
+                "cluster_id": 0,
+                "label": info["category"] or info["doc_type"] or "Documentos",
+                "keywords": info["keywords"][:5],
+                "categories": [info["category"]] if info["category"] else [],
+                "children": [],
+                "documents": [{k: v for k, v in info.items() if k != "keywords"}],
+            }],
+        }
+
+    # ── Vectores normalizados ─────────────────────────────────────
+    vectors = np.array([np.mean(np.array(doc_embs[did]), axis=0) for did in doc_ids])
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1e-9
+    vectors = vectors / norms
+
+    # ── Helper: generar etiqueta inteligente para un grupo ────────
+    _STOP_WORDS = {
+        "de", "del", "la", "las", "los", "el", "en", "y", "a", "para",
+        "por", "con", "un", "una", "s.l", "s.l.", "s.a", "s.a.", "—",
+        "es", "su", "se", "al", "lo", "no", "más", "como", "o", "e",
+        "que", "datos", "número", "dear", "from", "the", "and", "of",
+    }
+
+    def _smart_label(docs_info: list[dict]) -> str:
+        """Determina un nombre descriptivo para un grupo de docs."""
+        # 1. Si todos comparten la misma categoría y no es "General", usarla
+        cats = set(d.get("category", "") for d in docs_info)
+        cats.discard("")
+        cats.discard("General")
+        if len(cats) == 1:
+            cat = cats.pop()
+            # Enriquecer con tipo si es distinguible
+            types = set(d.get("doc_type", "") for d in docs_info)
+            types.discard("documento")
+            if len(types) == 1:
+                t = types.pop().replace("_", " ").title()
+                return f"{cat} — {t}"
+            return cat
+
+        # 2. Si hay tipos específicos (no genérico "documento"), usar esos
+        type_counts: dict[str, int] = {}
+        for d in docs_info:
+            t = d.get("doc_type", "documento")
+            type_counts[t] = type_counts.get(t, 0) + 1
+        specific_types = {t: c for t, c in type_counts.items() if t != "documento"}
+        if specific_types:
+            top = max(specific_types, key=specific_types.get)
+            label = top.replace("_", " ").title()
+            if len(specific_types) > 1:
+                second = sorted(specific_types, key=specific_types.get, reverse=True)[1]
+                label += f" y {second.replace('_', ' ').title()}"
+            # Añadir categoría si hay una predominante
+            if cats:
+                top_cat = max(cats, key=lambda c: sum(1 for d in docs_info if d.get("category") == c))
+                label = f"{top_cat} — {label}"
+            return label
+
+        # 3. Extraer palabras significativas de los títulos
+        word_freq: dict[str, int] = {}
+        for d in docs_info:
+            title = d.get("title", "")
+            words = re.findall(r"[A-Za-zÀ-ÿ]{3,}", title)
+            seen = set()
+            for w in words:
+                wl = w.lower()
+                if wl not in _STOP_WORDS and wl not in seen:
+                    word_freq[wl] = word_freq.get(wl, 0) + 1
+                    seen.add(wl)
+
+        # Palabras que aparecen en >50% de los docs del grupo → tema
+        threshold = max(2, len(docs_info) * 0.4)
+        common = [w for w, c in sorted(word_freq.items(), key=lambda x: -x[1]) if c >= threshold]
+        if common:
+            label_words = [w.title() for w in common[:3]]
+            return " · ".join(label_words)
+
+        # 4. Categorías predominantes
+        if cats:
+            return " / ".join(sorted(cats)[:2])
+
+        # 5. Fallback: usar las keywords del grafo
+        kw_freq: dict[str, int] = {}
+        for d in docs_info:
+            for kw in d.get("keywords", []):
+                kl = kw.lower().strip()
+                if kl:
+                    kw_freq[kl] = kw_freq.get(kl, 0) + 1
+        if kw_freq:
+            top_kw = sorted(kw_freq, key=kw_freq.get, reverse=True)[:2]
+            return " · ".join(w.title() for w in top_kw)
+
+        return "Documentos varios"
+
+    def _extract_keywords(docs_info: list[dict]) -> list[str]:
+        """Extrae keywords representativas de un grupo."""
+        kw_freq: dict[str, int] = {}
+        for d in docs_info:
+            for kw in d.get("keywords", []):
+                kl = kw.lower().strip()
+                if kl:
+                    kw_freq[kl] = kw_freq.get(kl, 0) + 1
+        # También extraer de títulos
+        word_freq: dict[str, int] = {}
+        for d in docs_info:
+            words = re.findall(r"[A-Za-zÀ-ÿ]{4,}", d.get("title", ""))
+            for w in words:
+                wl = w.lower()
+                if wl not in _STOP_WORDS:
+                    word_freq[wl] = word_freq.get(wl, 0) + 1
+        # Combinar ambas fuentes
+        combined = {**word_freq}
+        for k, v in kw_freq.items():
+            combined[k] = combined.get(k, 0) + v * 2  # Pesar más las keywords
+        return sorted(combined, key=combined.get, reverse=True)[:8]
+
+    # ── Nivel 1: clusters amplios ─────────────────────────────────
+    k1 = n_clusters
+    if k1 is None:
+        k1 = max(2, min(6, int(np.sqrt(n_docs / 2) + 0.5)))
+    k1 = min(k1, n_docs)
+
+    model1 = AgglomerativeClustering(n_clusters=k1, metric="cosine", linkage="average")
+    labels1 = model1.fit_predict(vectors)
+
+    # ── Construir clusters jerárquicos ────────────────────────────
+    cluster_list = []
+    for cid in range(k1):
+        member_indices = [i for i, l in enumerate(labels1) if l == cid]
+        if not member_indices:
+            continue
+
+        member_ids = [doc_ids[i] for i in member_indices]
+        member_info = [_build_doc_info(did) for did in member_ids]
+        member_vecs = vectors[member_indices]
+
+        parent_label = _smart_label(member_info)
+        parent_keywords = _extract_keywords(member_info)
+        parent_cats = sorted(set(d.get("category", "") for d in member_info) - {""})
+
+        # ── Nivel 2: sub-clusters si hay suficientes docs ─────────
+        children = []
+        if len(member_ids) >= 4:
+            k2 = max(2, min(4, len(member_ids) // 2))
+            model2 = AgglomerativeClustering(n_clusters=k2, metric="cosine", linkage="average")
+            labels2 = model2.fit_predict(member_vecs)
+
+            for scid in range(k2):
+                sub_indices = [j for j, l in enumerate(labels2) if l == scid]
+                if not sub_indices:
+                    continue
+                sub_info = [member_info[j] for j in sub_indices]
+                sub_label = _smart_label(sub_info)
+                # Evitar que sub-label sea igual al padre
+                if sub_label == parent_label:
+                    types_here = set(d.get("doc_type", "") for d in sub_info) - {"documento"}
+                    if types_here:
+                        sub_label = " · ".join(t.replace("_", " ").title() for t in sorted(types_here)[:2])
+                    else:
+                        sub_label = f"Grupo {scid + 1}"
+
+                sub_keywords = _extract_keywords(sub_info)
+                sub_cats = sorted(set(d.get("category", "") for d in sub_info) - {""})
+                children.append({
+                    "cluster_id": scid,
+                    "label": sub_label,
+                    "keywords": sub_keywords,
+                    "categories": sub_cats,
+                    "documents": [{k: v for k, v in d.items() if k != "keywords"} for d in sub_info],
+                })
+        else:
+            # Pocos docs → un solo sub-cluster con todos
+            children.append({
+                "cluster_id": 0,
+                "label": parent_label,
+                "keywords": parent_keywords,
+                "categories": parent_cats,
+                "documents": [{k: v for k, v in d.items() if k != "keywords"} for d in member_info],
+            })
+
+        cluster_list.append({
+            "cluster_id": cid,
+            "label": parent_label,
+            "keywords": parent_keywords,
+            "categories": parent_cats,
+            "children": children,
+            "documents": [{k: v for k, v in d.items() if k != "keywords"} for d in member_info],
+        })
+
+    return {"n_clusters": len(cluster_list), "clusters": cluster_list}
 
 
 @app.get("/api/documents/{doc_id}")
 def get_document(doc_id: str):
-    """Detalle de un documento: busca sus chunks en ChromaDB."""
-    from backend.search.indexer import _get_chroma_collection
+    """Detalle de un documento: resuelve sus chunks desde Chroma y cae a Whoosh si hace falta."""
+    chunks, meta, backend_used = _get_document_chunks(doc_id)
 
-    collection = _get_chroma_collection()
-
-    # Buscar todos los chunks de este documento
-    try:
-        results = collection.get(
-            where={"doc_id": doc_id},
-            include=["documents", "metadatas"],
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    if not results["ids"]:
+    if not chunks:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
-    chunks = []
-    meta = results["metadatas"][0] if results["metadatas"] else {}
-    for i, chunk_id in enumerate(results["ids"]):
-        chunks.append({
-            "chunk_id": chunk_id,
-            "text": results["documents"][i],
-            "metadata": results["metadatas"][i],
-        })
+    # Aggregate entities / keywords / dates from chunk metadata + graph
+    persons_set: set[str] = set()
+    orgs_set: set[str] = set()
+    kw_set: set[str] = set()
+    dates_set: set[str] = set()
+    for ch in chunks:
+        cm = ch.get("metadata", {})
+        for field, target in [("persons", persons_set), ("organizations", orgs_set),
+                              ("keywords", kw_set), ("dates", dates_set)]:
+            raw = cm.get(field, "")
+            if isinstance(raw, str) and raw:
+                for v in raw.split(","):
+                    v = v.strip()
+                    if v:
+                        target.add(v)
+            elif isinstance(raw, list):
+                for v in raw:
+                    if v:
+                        target.add(str(v).strip())
 
-    # Ordenar por chunk_id para mantener orden original
-    chunks.sort(key=lambda c: c["chunk_id"])
+    # Enrich from entity graph
+    try:
+        graph_data = load_graph()
+        for node in graph_data.get("nodes", []):
+            docs = node.get("documents", [])
+            if any(d.get("doc_id") == doc_id for d in docs):
+                ent_type = node.get("entity_type", "")
+                ent_name = node.get("name", "")
+                if ent_type == "person":
+                    persons_set.add(ent_name)
+                elif ent_type == "organization":
+                    orgs_set.add(ent_name)
+    except Exception:
+        pass
 
+    filename = meta.get("filename", "")
     return {
         "doc_id": doc_id,
         "title": meta.get("title", ""),
-        "filename": meta.get("filename", ""),
+        "filename": filename,
         "doc_type": meta.get("doc_type", ""),
         "language": meta.get("language", ""),
+        "summary": meta.get("summary", ""),
+        "persons": sorted(persons_set),
+        "organizations": sorted(orgs_set),
+        "keywords": sorted(kw_set),
+        "dates": sorted(dates_set),
         "num_chunks": len(chunks),
         "chunks": chunks,
-        "has_file": _find_original_file(meta.get("filename", "")) is not None,
+        "has_file": _find_original_file(filename) is not None,
+        "backend": backend_used,
     }
 
 
@@ -238,21 +640,11 @@ def _find_original_file(filename: str) -> Path | None:
 @app.get("/api/documents/{doc_id}/file")
 def get_document_file(doc_id: str):
     """Sirve el fichero original para previsualización."""
-    from backend.search.indexer import _get_chroma_collection
-
-    collection = _get_chroma_collection()
-    try:
-        results = collection.get(
-            where={"doc_id": doc_id},
-            include=["metadatas"],
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    if not results["ids"]:
+    _, meta, _ = _get_document_chunks(doc_id)
+    if not meta:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
-    filename = results["metadatas"][0].get("filename", "") if results["metadatas"] else ""
+    filename = meta.get("filename", "")
     filepath = _find_original_file(filename)
 
     if not filepath:
@@ -311,12 +703,26 @@ def get_document_table(doc_id: str, max_rows: int = Query(500, le=2000)):
     ext = filepath.suffix.lower()
     try:
         if ext == ".csv":
-            # Intentar detectar separador automáticamente
-            df = pd.read_csv(filepath, sep=None, engine="python", dtype=str, nrows=max_rows)
+            # Intentar detectar separador y encoding automáticamente
+            df = None
+            for enc in ("utf-8-sig", "utf-8", "latin-1", "cp1252", "iso-8859-15"):
+                try:
+                    df = pd.read_csv(
+                        filepath, sep=None, engine="python",
+                        dtype=str, nrows=max_rows,
+                        encoding=enc, on_bad_lines="skip",
+                    )
+                    break
+                except (UnicodeDecodeError, pd.errors.ParserError):
+                    continue
+            if df is None:
+                raise ValueError("No se pudo decodificar el fichero CSV con ningún encoding conocido")
         elif ext in (".xlsx", ".xls"):
             df = pd.read_excel(filepath, dtype=str, nrows=max_rows)
         else:
             raise HTTPException(status_code=400, detail=f"Formato no tabular: {ext}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Error al parsear tabla: {e}")
 
@@ -494,48 +900,143 @@ def sql_ask(req: SqlAskRequest):
 
 
 # ─── Ingestión ───────────────────────────────────────────────────
+@app.get("/api/ingest/status")
+def ingest_status():
+    """Estado en tiempo real del pipeline de ingestión."""
+    state = dict(_ingest_state)
+    if state["running"]:
+        state["elapsed"] = round(_time.time() - _ingest_t0, 1)
+    return state
+
+
 @app.post("/api/ingest")
 def ingest():
-    """Re-ejecuta el pipeline completo de ingestión."""
-    from backend.ingestion.ingest import run_full_pipeline
-    docs = run_full_pipeline()
-    # Invalidar cache de schema para el agente
-    try:
-        import backend.ai.agent as _ag; _ag._schema_cache_time = 0
-    except Exception:
-        pass
-    return {"status": "ok", "documents_processed": len(docs)}
+    """
+    Lanza el pipeline de ingestión completo en background.
+    Retorna inmediatamente — sondea /api/ingest/status para seguir el progreso.
+    Devuelve 409 si ya hay una ingestión en curso.
+    """
+    global _ingest_t0
+
+    if not _ingest_lock.acquire(blocking=False):
+        return {"status": "already_running", "running": True, **_ingest_state}
+
+    _ingest_state.update({
+        "running": True,
+        "phase": "starting",
+        "current": 0,
+        "total": 0,
+        "current_file": "",
+        "docs_processed": 0,
+        "elapsed": 0.0,
+        "error": None,
+    })
+    _ingest_t0 = _time.time()
+
+    def _run_pipeline():
+        try:
+            from backend.ingestion.ingest import run_full_pipeline
+            docs = run_full_pipeline(_status=_ingest_state)
+            _ingest_state.update({
+                "running": False,
+                "phase": "done",
+                "docs_processed": len(docs),
+                "elapsed": round(_time.time() - _ingest_t0, 1),
+                "current_file": "",
+                "error": None,
+            })
+            try:
+                import backend.ai.agent as _ag; _ag._schema_cache_time = 0
+            except Exception:
+                pass
+            load_graph()
+        except Exception as exc:
+            _ingest_state.update({
+                "running": False,
+                "phase": "error",
+                "error": str(exc),
+                "elapsed": round(_time.time() - _ingest_t0, 1),
+                "current_file": "",
+            })
+        finally:
+            _ingest_lock.release()
+
+    threading.Thread(target=_run_pipeline, daemon=True, name="ingest-pipeline").start()
+    return {"status": "started", "running": True}
 
 
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
-    """Sube un fichero nuevo y lo procesa."""
+    """Sube un fichero nuevo, lo valida y lo procesa sin bloquear el event loop."""
+    from backend.ingestion.ingest import ingest_file, SUPPORTED_EXTENSIONS, _file_id
+    from backend.graph.graph import _documents
+
+    # No permitir uploads mientras hay una re-ingestión en curso (evita carreras)
+    if _ingest_state.get("running"):
+        raise HTTPException(
+            status_code=409,
+            detail="Re-ingestión en curso. Espera a que termine antes de subir documentos."
+        )
+
+    # Detectar duplicados: si el archivo ya existe en el sistema, rechazar
+    doc_id = _file_id(Path(file.filename))
+    if doc_id in _documents:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Documento '{file.filename}' ya está indexado. Si deseas reemplazarlo, usa 'Re-indexar todo'."
+        )
+
+    # Validar extensión antes de leer
+    ext = Path(file.filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Formato '{ext}' no soportado. Usa: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+        )
+
+    # Leer contenido y validar tamaño (máx 50 MB)
+    content = await file.read()
+    MAX_BYTES = 50 * 1024 * 1024
+    if len(content) > MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Archivo demasiado grande ({len(content) // (1024*1024)} MB). Máximo 50 MB."
+        )
+
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
     dest = UPLOAD_DIR / file.filename
-    with open(dest, "wb") as f:
-        content = await file.read()
-        f.write(content)
+    dest.write_bytes(content)
 
-    from backend.ingestion.ingest import ingest_file
-    doc = ingest_file(dest)
+    # Ejecutar ingest en thread pool para no bloquear el event loop (Python 3.9+)
+    import traceback as _tb
+    try:
+        doc = await asyncio.to_thread(ingest_file, dest)
+    except Exception as exc:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al procesar el documento: {type(exc).__name__}: {exc}\n{_tb.format_exc()}"
+        )
+
     if not doc:
-        raise HTTPException(status_code=400, detail="Formato no soportado o sin contenido")
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail="Sin contenido útil o formato no procesable")
 
-    # Actualizar grafo con el nuevo documento
-    from backend.graph import build_graph
-    from backend.graph.graph import _documents, _entity_nodes
-    # Reconstruir solo el documento nuevo es complejo, así que rehacemos el grafo
-    # En producción optimizaríamos esto
-    from backend.ingestion.ingest import ingest_directory
-    from backend.graph import build_graph as _bg
-    # Simple approach: return success, graph updates on next full ingest
-    load_graph()
-    # Invalidar cache de schema (puede haber nuevas tablas CSV)
+    # Añadir el documento al grafo de forma incremental (sin reconstruir todo)
+    add_document_to_graph(doc)
     try:
         import backend.ai.agent as _ag; _ag._schema_cache_time = 0
     except Exception:
         pass
+
+    # Contar chunks indexados para el response
+    try:
+        from backend.search.indexer import _get_chroma_collection
+        col = _get_chroma_collection()
+        doc_chunks = col.get(where={"doc_id": doc.doc_id}, include=[])
+        chunks_indexed = len(doc_chunks.get("ids", []))
+    except Exception:
+        chunks_indexed = 0
 
     return {
         "status": "ok",
@@ -543,6 +1044,8 @@ async def upload(file: UploadFile = File(...)):
         "doc_id": doc.doc_id,
         "doc_type": doc.doc_type,
         "title": doc.title,
+        "language": doc.language,
+        "chunks_indexed": chunks_indexed,
     }
 
 

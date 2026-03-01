@@ -9,15 +9,16 @@ from __future__ import annotations
 
 import os
 import shutil
-from pathlib import Path
 
 from backend.config import (
     CHROMA_DIR,
     CHROMA_COLLECTION,
+    CHROMA_TELEMETRY_ENABLED,
     EMBEDDING_MODEL,
     WHOOSH_DIR,
 )
 from backend.models import Chunk
+from backend.search.text_normalize import char_ngrams, fold_text, normalize_numbers_in_text
 
 # ─── Whoosh: analizador con eliminación de acentos ────────────────
 # Permite buscar "reunion" y encontrar "reunión" y viceversa.
@@ -35,6 +36,24 @@ _embedding_model = None
 _chroma_client = None       # kept globally so it isn't GC'd while collection is live
 _chroma_collection = None
 _whoosh_index = None
+
+
+def _whoosh_has_folded_fields(ix) -> bool:
+    schema_names = set(ix.schema.names())
+    return {"content_folded", "title_folded"}.issubset(schema_names)
+
+
+def _whoosh_has_char3_field(ix) -> bool:
+    return "content_char3" in set(ix.schema.names())
+
+
+def _whoosh_has_num_norm_field(ix) -> bool:
+    return "content_num_norm" in set(ix.schema.names())
+
+
+def _whoosh_missing_lexical_fields(ix) -> set[str]:
+    required_fields = {"content_folded", "title_folded", "content_char3", "content_num_norm"}
+    return required_fields.difference(ix.schema.names())
 
 
 def _get_embedding_model():
@@ -55,8 +74,33 @@ def _get_chroma_collection():
     global _chroma_client, _chroma_collection
     if _chroma_collection is None:
         import chromadb
+        from chromadb.config import Settings
+
         CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-        _chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        os.environ.setdefault(
+            "ANONYMIZED_TELEMETRY",
+            "TRUE" if CHROMA_TELEMETRY_ENABLED else "FALSE",
+        )
+        print(
+            "🛰️ Chroma telemetry "
+            f"{'enabled' if CHROMA_TELEMETRY_ENABLED else 'disabled'}."
+        )
+        chroma_settings = {
+            "anonymized_telemetry": CHROMA_TELEMETRY_ENABLED,
+            "is_persistent": True,
+            "persist_directory": str(CHROMA_DIR),
+        }
+        if not CHROMA_TELEMETRY_ENABLED:
+            chroma_settings["chroma_product_telemetry_impl"] = (
+                "backend.search.chroma_telemetry.NoOpTelemetry"
+            )
+            chroma_settings["chroma_telemetry_impl"] = (
+                "backend.search.chroma_telemetry.NoOpTelemetry"
+            )
+        _chroma_client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=Settings(**chroma_settings),
+        )
         _chroma_collection = _chroma_client.get_or_create_collection(
             name=CHROMA_COLLECTION,
             metadata={"hnsw:space": "cosine"},
@@ -65,7 +109,12 @@ def _get_chroma_collection():
 
 
 def _get_whoosh_index(create: bool = False):
-    """Obtiene (o crea) el índice Whoosh."""
+    """
+    Obtiene (o crea) el índice Whoosh.
+
+    Note: changing the schema does not migrate an existing Whoosh index.
+    Rebuild from scratch with clear_indices()/full re-ingest after schema updates.
+    """
     global _whoosh_index
     from whoosh import index as whoosh_index
     from whoosh.fields import Schema, TEXT, ID, KEYWORD
@@ -77,7 +126,11 @@ def _get_whoosh_index(create: bool = False):
         chunk_id=ID(stored=True, unique=True),
         doc_id=ID(stored=True),
         title=TEXT(stored=True, **_ta),
+        title_folded=TEXT(**_ta),
         content=TEXT(stored=True, **_ta),
+        content_folded=TEXT(**_ta),
+        content_char3=TEXT(**_ta),
+        content_num_norm=TEXT(**_ta),
         doc_type=TEXT(stored=True),
         language=TEXT(stored=True),
         filename=TEXT(stored=True),
@@ -92,10 +145,19 @@ def _get_whoosh_index(create: bool = False):
 
     WHOOSH_DIR.mkdir(parents=True, exist_ok=True)
 
-    if create or not whoosh_index.exists_in(str(WHOOSH_DIR)):
-        _whoosh_index = whoosh_index.create_in(str(WHOOSH_DIR), schema)
-    else:
+    if whoosh_index.exists_in(str(WHOOSH_DIR)):
+        print(f"📖 Opening existing Whoosh index at {WHOOSH_DIR}")
         _whoosh_index = whoosh_index.open_dir(str(WHOOSH_DIR))
+        missing_fields = sorted(_whoosh_missing_lexical_fields(_whoosh_index))
+        if missing_fields:
+            print(
+                "⚠️  Existing Whoosh index uses an old schema missing fields "
+                f"{', '.join(missing_fields)}. "
+                "Run clear_indices() or a full re-ingest to rebuild lexical search."
+            )
+    else:
+        print(f"🆕 Creating Whoosh index at {WHOOSH_DIR}")
+        _whoosh_index = whoosh_index.create_in(str(WHOOSH_DIR), schema)
 
     return _whoosh_index
 
@@ -157,52 +219,94 @@ def _index_chroma(chunks: list[Chunk]) -> int:
 
 def _index_whoosh(chunks: list[Chunk]) -> int:
     """Indexa chunks en Whoosh (BM25 full-text search)."""
-    ix = _get_whoosh_index(create=True)
+    ix = _get_whoosh_index()
+    has_folded_fields = _whoosh_has_folded_fields(ix)
+    has_char3_field = _whoosh_has_char3_field(ix)
+    has_num_norm_field = _whoosh_has_num_norm_field(ix)
     writer = ix.writer()
+    committed = False
 
-    for chunk in chunks:
-        meta = chunk.metadata
-        writer.update_document(
-            chunk_id=chunk.chunk_id,
-            doc_id=meta["doc_id"],
-            title=meta["title"],
-            content=chunk.text,
-            doc_type=meta["doc_type"],
-            language=meta["language"],
-            filename=meta["filename"],
-            section=meta["section"],
-            level=meta["level"],
-            persons=meta["persons"],
-            organizations=meta["organizations"],
-            keywords=meta["keywords"],
-            dates=meta["dates"],
-            emails=meta.get("emails", ""),
-        )
+    try:
+        # Replace all chunks for each incoming document so stale chunk rows do not
+        # remain when a document is re-chunked with fewer fragments.
+        for doc_id in sorted({chunk.doc_id or chunk.metadata["doc_id"] for chunk in chunks}):
+            writer.delete_by_term("doc_id", doc_id)
 
-    writer.commit()
+        for chunk in chunks:
+            meta = chunk.metadata
+            payload = dict(
+                chunk_id=chunk.chunk_id,
+                doc_id=meta["doc_id"],
+                title=meta["title"],
+                content=chunk.text,
+                doc_type=meta["doc_type"],
+                language=meta["language"],
+                filename=meta["filename"],
+                section=meta["section"],
+                level=meta["level"],
+                persons=meta["persons"],
+                organizations=meta["organizations"],
+                keywords=meta["keywords"],
+                dates=meta["dates"],
+                emails=meta.get("emails", ""),
+            )
+            if has_folded_fields:
+                payload["title_folded"] = fold_text(meta["title"])
+                payload["content_folded"] = fold_text(chunk.text)
+            if has_char3_field:
+                payload["content_char3"] = " ".join(char_ngrams(fold_text(chunk.text), 3))
+            if has_num_norm_field:
+                payload["content_num_norm"] = normalize_numbers_in_text(
+                    chunk.text,
+                    language=chunk.language or meta.get("language"),
+                )
+            writer.update_document(**payload)
+
+        writer.commit()
+        committed = True
+    finally:
+        if not committed:
+            writer.cancel()
+
+    with ix.searcher() as searcher:
+        print(f"📚 Whoosh doc_count after batch: {searcher.doc_count()}")
     return len(chunks)
 
 
 def clear_indices():
-    """Borra ambos índices para reindexar desde cero."""
+    """
+    Borra ambos índices para reindexar desde cero.
+
+    ChromaDB: usa la API (delete_collection) en lugar de eliminar el directorio.
+    Esto evita la carrera entre el hilo WAL de SQLite y el nuevo PersistentClient
+    que causaba el error 'attempt to write a readonly database'.
+    Si no hay cliente activo, el directorio se elimina como fallback.
+    """
     global _chroma_client, _chroma_collection, _whoosh_index
 
-    # Release the ChromaDB client BEFORE deleting the directory so that
-    # the background SQLite writer thread shuts down cleanly. Otherwise
-    # the new PersistentClient can collide with the WAL left by the old one.
-    _chroma_collection = None
-    _chroma_client = None
+    # ── ChromaDB: limpiar via API para mantener la conexión SQLite activa ──
+    if _chroma_client is not None:
+        try:
+            _chroma_client.delete_collection(CHROMA_COLLECTION)
+            # Dejar el cliente vivo: el próximo _get_chroma_collection()
+            # llamará get_or_create sobre la misma conexión SQLite válida.
+        except Exception as exc:
+            print(f"  ⚠️  ChromaDB delete_collection fallido ({exc}). Borrando directorio.")
+            _chroma_client = None
+            import gc; gc.collect()
+            if CHROMA_DIR.exists():
+                shutil.rmtree(CHROMA_DIR)
+        _chroma_collection = None  # forzar re-create en el siguiente acceso
+    else:
+        # Sin cliente activo → borrado seguro de directorio
+        _chroma_collection = None
+        import gc; gc.collect()
+        if CHROMA_DIR.exists():
+            shutil.rmtree(CHROMA_DIR)
 
-    # Force CPython refcount GC to finalize the old client immediately
-    # (important if ChromaDB has an open background writer thread).
-    import gc
-    gc.collect()
-
-    if CHROMA_DIR.exists():
-        shutil.rmtree(CHROMA_DIR)
+    # ── Whoosh: siempre borrar directorio (safe, no background threads) ──
     if WHOOSH_DIR.exists():
         shutil.rmtree(WHOOSH_DIR)
-
     _whoosh_index = None
     print("🗑️  Índices borrados.")
 

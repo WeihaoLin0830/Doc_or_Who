@@ -1,0 +1,594 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import * as api from "@/lib/api";
+import type { SearchResult, SearchFacets, GroupedResult, DocListItem } from "@/lib/types";
+import type { SearchFilters } from "@/lib/api";
+import { formatScore, formatHighlight, formatDateFacet, langLabel, typeColor } from "@/lib/utils";
+import { DocumentModal } from "@/components/DocumentModal";
+
+interface Props {
+    documents: DocListItem[];
+}
+
+function groupResults(results: SearchResult[]): GroupedResult[] {
+    const map = new Map<string, GroupedResult>();
+    for (const r of results) {
+        if (!map.has(r.doc_id)) {
+            map.set(r.doc_id, {
+                doc_id: r.doc_id, title: r.title, filename: r.filename, doc_type: r.doc_type,
+                chunks: [], best_score: 0, best_lexical: 0, best_semantic: 0,
+                persons: [], organizations: [], expanded: false,
+            });
+        }
+        const g = map.get(r.doc_id)!;
+        g.chunks.push(r);
+        const fused = r.scores?.fused ?? r.score ?? 0;
+        if (fused > g.best_score) g.best_score = fused;
+        const lex = r.scores?.whoosh_component ?? r.scores?.whoosh_norm ?? r.scores?.whoosh ?? 0;
+        if (lex > g.best_lexical) g.best_lexical = lex;
+        const sem = r.scores?.chroma_component ?? r.scores?.chroma_norm ?? r.scores?.chroma ?? 0;
+        if (sem > g.best_semantic) g.best_semantic = sem;
+        for (const p of r.persons || []) if (!g.persons.includes(p)) g.persons.push(p);
+        for (const o of r.organizations || []) if (!g.organizations.includes(o)) g.organizations.push(o);
+    }
+    return Array.from(map.values());
+}
+
+export function SearchTab({ documents }: Props) {
+    const [query, setQuery] = useState("");
+    const [lastQuery, setLastQuery] = useState("");
+    const [results, setResults] = useState<SearchResult[]>([]);
+    const [facets, setFacets] = useState<SearchFacets | null>(null);
+    const [filters, setFilters] = useState<SearchFilters>({});
+    const [grouped, setGrouped] = useState<GroupedResult[]>([]);
+
+    // Document browser filters (always visible in sidebar)
+    const [browseType, setBrowseType] = useState("");
+    const [browseCategory, setBrowseCategory] = useState("");
+    const [browsePerson, setBrowsePerson] = useState("");
+    const [browseOrg, setBrowseOrg] = useState("");
+    const [browseDate, setBrowseDate] = useState("");
+
+    // Quick text filter (client-side, no API)
+    const [filterText, setFilterText] = useState("");
+
+    // Document modal
+    const [modalDocId, setModalDocId] = useState<string | null>(null);
+
+    const docTypes = useMemo(() => [...new Set(documents.map((d) => d.doc_type).filter(Boolean))].sort(), [documents]);
+    const categories = useMemo(() => [...new Set(documents.map((d) => d.category).filter(Boolean))].sort(), [documents]);
+    const allPersons = useMemo(() => {
+        const s = new Set<string>();
+        documents.forEach((d) => d.persons?.forEach((p) => p && s.add(p)));
+        return [...s].sort();
+    }, [documents]);
+    const allOrgs = useMemo(() => {
+        const s = new Set<string>();
+        documents.forEach((d) => d.organizations?.forEach((o) => o && s.add(o)));
+        return [...s].sort();
+    }, [documents]);
+    const allDates = useMemo(() => {
+        const s = new Set<string>();
+        documents.forEach((d) => d.dates?.forEach((dt) => dt && s.add(dt)));
+        return [...s].sort().reverse();
+    }, [documents]);
+
+    const isSearchMode = lastQuery.length > 0;
+
+    // Cascading filter helper: get the base set filtered by all active browse filters except one
+    function browseBase(except?: "type" | "category" | "person" | "org" | "date") {
+        let docs = [...documents];
+        if (except !== "type" && browseType) docs = docs.filter((d) => d.doc_type === browseType);
+        if (except !== "category" && browseCategory) docs = docs.filter((d) => d.category === browseCategory);
+        if (except !== "person" && browsePerson) docs = docs.filter((d) => d.persons?.includes(browsePerson));
+        if (except !== "org" && browseOrg) docs = docs.filter((d) => d.organizations?.includes(browseOrg));
+        if (except !== "date" && browseDate) docs = docs.filter((d) => d.dates?.includes(browseDate));
+        return docs;
+    }
+
+    // Cascading filter counts: computed from base excluding that group's own filter
+    const typeCountsForCascade = useMemo(() => {
+        const base = browseBase("type");
+        const counts: Record<string, number> = {};
+        for (const d of base) if (d.doc_type) counts[d.doc_type] = (counts[d.doc_type] || 0) + 1;
+        return counts;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseCategory, browsePerson, browseOrg, browseDate]);
+
+    const categoryCountsForCascade = useMemo(() => {
+        const base = browseBase("category");
+        const counts: Record<string, number> = {};
+        for (const d of base) if (d.category) counts[d.category] = (counts[d.category] || 0) + 1;
+        return counts;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browsePerson, browseOrg, browseDate]);
+
+    const personCountsForCascade = useMemo(() => {
+        const base = browseBase("person");
+        const counts: Record<string, number> = {};
+        base.forEach((d) => d.persons?.forEach((p) => p && (counts[p] = (counts[p] || 0) + 1)));
+        return counts;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browseCategory, browseOrg, browseDate]);
+
+    const orgCountsForCascade = useMemo(() => {
+        const base = browseBase("org");
+        const counts: Record<string, number> = {};
+        base.forEach((d) => d.organizations?.forEach((o) => o && (counts[o] = (counts[o] || 0) + 1)));
+        return counts;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browseCategory, browsePerson, browseDate]);
+
+    const dateCountsForCascade = useMemo(() => {
+        const base = browseBase("date");
+        const counts: Record<string, number> = {};
+        base.forEach((d) => d.dates?.forEach((dt) => dt && (counts[dt] = (counts[dt] || 0) + 1)));
+        return counts;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [documents, browseType, browseCategory, browsePerson, browseOrg]);
+
+    // Browsed docs when not searching (filtered by sidebar selections)
+    const browsed = useMemo(() => {
+        let docs = [...documents];
+        if (browseType) docs = docs.filter((d) => d.doc_type === browseType);
+        if (browseCategory) docs = docs.filter((d) => d.category === browseCategory);
+        if (browsePerson) docs = docs.filter((d) => d.persons?.includes(browsePerson));
+        if (browseOrg) docs = docs.filter((d) => d.organizations?.includes(browseOrg));
+        if (browseDate) docs = docs.filter((d) => d.dates?.includes(browseDate));
+        docs.sort((a, b) => (a.title || a.filename).localeCompare(b.title || b.filename));
+        return docs;
+    }, [documents, browseType, browseCategory, browsePerson, browseOrg, browseDate]);
+
+    // Quick-filtered variants
+    const filteredBrowsed = useMemo(() => {
+        if (!filterText.trim()) return browsed;
+        const q = filterText.toLowerCase();
+        return browsed.filter((d) =>
+            (d.title || d.filename).toLowerCase().includes(q) ||
+            d.filename.toLowerCase().includes(q) ||
+            (d.doc_type || "").toLowerCase().includes(q) ||
+            (d.category || "").toLowerCase().includes(q)
+        );
+    }, [browsed, filterText]);
+
+    const filteredGrouped = useMemo(() => {
+        if (!filterText.trim()) return grouped;
+        const q = filterText.toLowerCase();
+        return grouped.filter((g) =>
+            (g.title || g.filename).toLowerCase().includes(q) ||
+            g.filename.toLowerCase().includes(q) ||
+            (g.doc_type || "").toLowerCase().includes(q)
+        );
+    }, [grouped, filterText]);
+
+    async function doSearch(overrideFilters?: SearchFilters) {
+        const q = query.trim();
+        if (!q) return;
+        const f = overrideFilters ?? filters;
+        try {
+            const data = await api.search(q, f);
+            setResults(data.results || []);
+            setFacets(data.facets || null);
+            setLastQuery(q);
+            setGrouped(groupResults(data.results || []));
+        } catch {
+            setResults([]);
+            setFacets(null);
+            setGrouped([]);
+        }
+    }
+
+    function toggleFilter(key: keyof SearchFilters, value: string) {
+        const next = { ...filters, [key]: filters[key] === value ? "" : value };
+        setFilters(next);
+        doSearch(next);
+    }
+
+    function clearSearch() {
+        setLastQuery("");
+        setResults([]);
+        setGrouped([]);
+        setFacets(null);
+        setQuery("");
+        setFilters({});
+    }
+
+    const hasFilters = Object.values(filters).some(Boolean);
+
+    function toggleExpand(docId: string) {
+        setGrouped((prev) => prev.map((g) => (g.doc_id === docId ? { ...g, expanded: !g.expanded } : g)));
+    }
+
+    return (
+        <section className="fade-in">
+            <div className="max-w-6xl mx-auto">
+                {/* Search bar */}
+                <div className="mb-5">
+                    <form onSubmit={(e) => { e.preventDefault(); doSearch(); }} className="flex gap-2">
+                        <div className="flex-1 relative">
+                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input value={query} onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Buscar en documentos..."
+                                className="w-full pl-10 pr-4 py-2.5 text-sm border border-surface-3 rounded-lg bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-all" />
+                        </div>
+                        <button type="submit" disabled={!query.trim()}
+                            className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors">
+                            Buscar
+                        </button>
+                        {isSearchMode && (
+                            <button type="button" onClick={clearSearch}
+                                className="px-3 py-2.5 text-sm text-ink-2 hover:text-ink-0 border border-surface-3 rounded-lg hover:bg-surface-1 transition-colors">
+                                ✕
+                            </button>
+                        )}
+                    </form>
+
+                    {/* Active search filters */}
+                    {hasFilters && (
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                            <span className="text-xs text-ink-3">Filtros:</span>
+                            {filters.type && <FilterBadge label={`Tipo: ${filters.type}`} color="purple" onClear={() => toggleFilter("type", filters.type!)} />}
+                            {filters.language && <FilterBadge label={`Idioma: ${filters.language}`} color="cyan" onClear={() => toggleFilter("language", filters.language!)} />}
+                            {filters.person && <FilterBadge label={`Persona: ${filters.person}`} color="green" onClear={() => toggleFilter("person", filters.person!)} />}
+                            {filters.organization && <FilterBadge label={`Org: ${filters.organization}`} color="blue" onClear={() => toggleFilter("organization", filters.organization!)} />}
+                            {filters.date && <FilterBadge label={`Fecha: ${filters.date}`} color="amber" onClear={() => toggleFilter("date", filters.date!)} />}
+                            <button onClick={() => { setFilters({}); doSearch({}); }} className="text-xs text-red-500 hover:text-red-700 font-medium">Limpiar</button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Main layout: sidebar + content (always) */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+                    {/* ─── Sidebar (always visible) ──────────────── */}
+                    <div className="lg:col-span-1 space-y-3">
+                        {/* Status */}
+                        <div className="bg-white border border-surface-3 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-1">
+                                <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider">Documentos</h4>
+                                <span className="text-xs text-ink-3 tabular-nums">{documents.length}</span>
+                            </div>
+                            {isSearchMode && (
+                                <div className="text-xs text-brand-600 font-medium mt-1">
+                                    {grouped.length} resultado{grouped.length !== 1 ? "s" : ""} · {results.length} fragmento{results.length !== 1 ? "s" : ""}
+                                </div>
+                            )}
+                            {!isSearchMode && (browseType || browseCategory || browsePerson || browseOrg || browseDate) && (
+                                <div className="text-xs text-ink-2 mt-1">Mostrando {browsed.length} de {documents.length}</div>
+                            )}
+                        </div>
+
+                        {/* Dynamic facets from search results */}
+                        {isSearchMode && facets && (
+                            <>
+                                <FacetBlock title="Tipo" items={facets.doc_type} activeValue={filters.type}
+                                    onToggle={(v) => toggleFilter("type", v)}
+                                    renderLabel={(v) => <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(v)}`}>{v}</span>} />
+                                <FacetBlock title="Idioma" items={facets.language} activeValue={filters.language}
+                                    onToggle={(v) => toggleFilter("language", v)} renderLabel={(v) => <span>{langLabel(v)}</span>} />
+                                <FacetBlock title="Fecha" items={facets.dates} activeValue={filters.date}
+                                    onToggle={(v) => toggleFilter("date", v)} renderLabel={(v) => <span className="truncate">{formatDateFacet(v)}</span>} />
+                                <FacetBlock title="Personas" items={facets.persons} activeValue={filters.person}
+                                    onToggle={(v) => toggleFilter("person", v)} renderLabel={(v) => <span className="truncate">{v}</span>} />
+                                <FacetBlock title="Organizaciones" items={facets.organizations} activeValue={filters.organization}
+                                    onToggle={(v) => toggleFilter("organization", v)} renderLabel={(v) => <span className="truncate">{v}</span>} />
+                                {facets.keywords && facets.keywords.length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Palabras clave</h4>
+                                        <div className="flex flex-wrap gap-1">
+                                            {facets.keywords.map((f) => (
+                                                <span key={f.value} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-surface-2 text-ink-2">
+                                                    {f.value} ({f.count})
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* Static filters when browsing (no search) */}
+                        {!isSearchMode && (
+                            <>
+                                <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                    <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Tipo de documento</h4>
+                                    <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                        {docTypes.filter((t) => t === browseType || (typeCountsForCascade[t] || 0) > 0).map((t) => (
+                                            <button key={t} onClick={() => setBrowseType(browseType === t ? "" : t)}
+                                                className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseType === t ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                <span className={`inline-flex px-1.5 py-0.5 rounded text-xs ${typeColor(t)}`}>{t}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{typeCountsForCascade[t] || 0}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                    <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Categoría</h4>
+                                    <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                        {categories.filter((c) => c === browseCategory || (categoryCountsForCascade[c] || 0) > 0).map((c) => (
+                                            <button key={c} onClick={() => setBrowseCategory(browseCategory === c ? "" : c)}
+                                                className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseCategory === c ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                <span className="truncate">{c}</span>
+                                                <span className="text-xs text-ink-3 tabular-nums">{categoryCountsForCascade[c] || 0}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                {allPersons.filter((p) => p === browsePerson || (personCountsForCascade[p] || 0) > 0).length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Personas</h4>
+                                        <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                            {allPersons.filter((p) => p === browsePerson || (personCountsForCascade[p] || 0) > 0).map((p) => (
+                                                <button key={p} onClick={() => setBrowsePerson(browsePerson === p ? "" : p)}
+                                                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browsePerson === p ? "bg-green-50 text-green-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                    <span className="truncate text-xs">{p}</span>
+                                                    <span className="text-xs text-ink-3 tabular-nums shrink-0 ml-1">{personCountsForCascade[p] || 0}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {allOrgs.filter((o) => o === browseOrg || (orgCountsForCascade[o] || 0) > 0).length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Organizaciones</h4>
+                                        <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                            {allOrgs.filter((o) => o === browseOrg || (orgCountsForCascade[o] || 0) > 0).map((o) => (
+                                                <button key={o} onClick={() => setBrowseOrg(browseOrg === o ? "" : o)}
+                                                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseOrg === o ? "bg-blue-50 text-blue-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                    <span className="truncate text-xs">{o}</span>
+                                                    <span className="text-xs text-ink-3 tabular-nums shrink-0 ml-1">{orgCountsForCascade[o] || 0}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {allDates.filter((dt) => dt === browseDate || (dateCountsForCascade[dt] || 0) > 0).length > 0 && (
+                                    <div className="bg-white border border-surface-3 rounded-lg p-3">
+                                        <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">Fechas</h4>
+                                        <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                            {allDates.filter((dt) => dt === browseDate || (dateCountsForCascade[dt] || 0) > 0).map((dt) => (
+                                                <button key={dt} onClick={() => setBrowseDate(browseDate === dt ? "" : dt)}
+                                                    className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${browseDate === dt ? "bg-amber-50 text-amber-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                                                    <span className="truncate text-xs">{formatDateFacet(dt)}</span>
+                                                    <span className="text-xs text-ink-3 tabular-nums shrink-0 ml-1">{dateCountsForCascade[dt] || 0}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {(browseType || browseCategory || browsePerson || browseOrg || browseDate) && (
+                                    <button onClick={() => { setBrowseType(""); setBrowseCategory(""); setBrowsePerson(""); setBrowseOrg(""); setBrowseDate(""); }}
+                                        className="w-full text-xs text-red-500 hover:text-red-700 font-medium py-1 transition-colors">
+                                        Limpiar filtros
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {/* ─── Content area ───────────────────────────── */}
+                    <div className="lg:col-span-3">
+                        {/* Quick filter bar */}
+                        <div className="mb-3">
+                            <div className="relative">
+                                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 010 2H4a1 1 0 01-1-1zm3 6a1 1 0 011-1h10a1 1 0 010 2H7a1 1 0 01-1-1zm4 6a1 1 0 011-1h4a1 1 0 010 2h-4a1 1 0 01-1-1z" />
+                                </svg>
+                                <input
+                                    value={filterText}
+                                    onChange={(e) => setFilterText(e.target.value)}
+                                    placeholder="Filtrar por nombre, tipo..."
+                                    className="w-full pl-8 pr-8 py-1.5 text-xs border border-surface-3 rounded-lg bg-white focus:border-brand-300 focus:ring-1 focus:ring-brand-100 outline-none transition-all"
+                                />
+                                {filterText && (
+                                    <button onClick={() => setFilterText("")}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-0 transition-colors">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                            {filterText && (
+                                <p className="text-xs text-ink-3 mt-1 pl-1">
+                                    {isSearchMode ? filteredGrouped.length : filteredBrowsed.length} resultado{(isSearchMode ? filteredGrouped.length : filteredBrowsed.length) !== 1 ? "s" : ""}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Search results */}
+                        {isSearchMode && (
+                            <>
+                                {filteredGrouped.length > 0 && (
+                                    <div className="space-y-3">
+                                        {filteredGrouped.map((group) => (
+                                            <ResultCard key={group.doc_id} group={group} onView={setModalDocId} onToggle={toggleExpand} />
+                                        ))}
+                                    </div>
+                                )}
+                                {filteredGrouped.length === 0 && lastQuery && (
+                                    <div className="text-center py-16 text-ink-3 text-sm">
+                                        {filterText ? `Sin resultados para el filtro "${filterText}"` : `Sin resultados para "${lastQuery}"`}
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* Document listing (no search active) */}
+                        {!isSearchMode && (
+                            <div className="space-y-1.5">
+                                {filteredBrowsed.length > 0 ? filteredBrowsed.map((doc) => (
+                                    <div key={doc.doc_id} onClick={() => setModalDocId(doc.doc_id)}
+                                        className="flex items-center gap-3 px-4 py-3 bg-white border border-surface-3 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all cursor-pointer group">
+                                        <svg className="w-4 h-4 text-ink-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-ink-0 truncate group-hover:text-brand-700 transition-colors">
+                                                {doc.title || doc.filename}
+                                            </div>
+                                            <div className="text-xs text-ink-3 truncate">{doc.filename}</div>
+                                        </div>
+                                        <span className={`shrink-0 inline-flex px-2 py-0.5 rounded text-xs font-medium ${typeColor(doc.doc_type)}`}>
+                                            {doc.doc_type}
+                                        </span>
+                                        {doc.category && <span className="hidden sm:inline text-xs text-ink-3">{doc.category}</span>}
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-16 text-sm text-ink-3">
+                                        {filterText ? `Sin documentos que coincidan con "${filterText}"` : "Sin documentos."}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <DocumentModal docId={modalDocId} onClose={() => setModalDocId(null)} />
+        </section>
+    );
+}
+
+/* ─── Sub-components ────────────────────────────────────────────── */
+
+function FilterBadge({ label, color, onClear }: { label: string; color: string; onClear: () => void }) {
+    return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-${color}-50 text-${color}-700`}>
+            {label}
+            <button onClick={onClear} className={`hover:text-${color}-900`}>&times;</button>
+        </span>
+    );
+}
+
+function FacetBlock({ title, items, activeValue, onToggle, renderLabel }: {
+    title: string; items?: { value: string; count: number }[]; activeValue?: string;
+    onToggle: (v: string) => void; renderLabel: (v: string) => React.ReactNode;
+}) {
+    // Always include the active value so it can be deselected, even if backend didn't return it
+    const allItems = items ?? [];
+    const displayItems = activeValue && !allItems.find((i) => i.value === activeValue)
+        ? [{ value: activeValue, count: 0 }, ...allItems]
+        : allItems;
+
+    if (displayItems.length === 0) return null;
+    return (
+        <div className="bg-white border border-surface-3 rounded-lg p-3">
+            <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">{title}</h4>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+                {displayItems.map((f) => (
+                    <button key={f.value} onClick={() => onToggle(f.value)}
+                        className={`w-full flex items-center justify-between px-2 py-1 rounded text-sm transition-colors ${activeValue === f.value ? "bg-brand-50 text-brand-700 font-medium" : "text-ink-1 hover:bg-surface-2"}`}>
+                        <div className="flex items-center gap-2">{renderLabel(f.value)}</div>
+                        <span className="text-xs text-ink-3 font-mono">{f.count}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ResultCard({ group, onView, onToggle }: { group: GroupedResult; onView: (id: string) => void; onToggle: (id: string) => void }) {
+    const first = group.chunks[0];
+    return (
+        <div className="bg-white border border-surface-3 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all fade-in overflow-hidden">
+            <div className="p-4 cursor-pointer" onClick={() => onView(group.doc_id)}>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-ink-0 truncate">{group.title || group.filename}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${typeColor(group.doc_type)}`}>{group.doc_type}</span>
+                            <span className="text-xs text-ink-3">{group.filename}</span>
+                            <span className="text-xs text-ink-3">&middot; {group.chunks.length} coincidencia{group.chunks.length > 1 ? "s" : ""}</span>
+                        </div>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                        <div className="w-20 h-1.5 bg-surface-2 rounded-full overflow-hidden" title={`Relevancia: ${formatScore(group.best_score)}`}>
+                            <div className="h-full bg-brand-500 rounded-full" style={{ width: `${Math.min(group.best_score * 100, 100)}%` }} />
+                        </div>
+                        <span className="text-[11px] font-semibold text-brand-700 tabular-nums">{formatScore(group.best_score)}</span>
+                    </div>
+                </div>
+
+                {/* Score breakdown */}
+                <div className="mt-2 flex items-center gap-3">
+                    {group.best_lexical > 0 && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-ink-3 font-medium">Lex</span>
+                            <div className="w-12 h-1 bg-surface-2 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(group.best_lexical * 100 / 0.55, 100)}%` }} />
+                            </div>
+                            <span className="text-[10px] text-ink-3 tabular-nums">{formatScore(group.best_lexical)}</span>
+                        </div>
+                    )}
+                    {group.best_semantic > 0 && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-ink-3 font-medium">Sem</span>
+                            <div className="w-12 h-1 bg-surface-2 rounded-full overflow-hidden">
+                                <div className="h-full bg-violet-400 rounded-full" style={{ width: `${Math.min(group.best_semantic * 100 / 0.45, 100)}%` }} />
+                            </div>
+                            <span className="text-[10px] text-ink-3 tabular-nums">{formatScore(group.best_semantic)}</span>
+                        </div>
+                    )}
+                    {first?.source === "hybrid" && <span className="text-[10px] text-brand-600 font-medium">Híbrido</span>}
+                    {first?.source === "lexical" && <span className="text-[10px] text-emerald-600 font-medium">Léxico</span>}
+                    {first?.source === "semantic" && <span className="text-[10px] text-violet-600 font-medium">Semántico</span>}
+                </div>
+
+                <p className="mt-2 text-sm text-ink-1 leading-relaxed line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: formatHighlight(first?.highlight || first?.text || "") }} />
+
+                {/* Entity tags */}
+                {(group.persons.length > 0 || group.organizations.length > 0) && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {group.persons.slice(0, 3).map((p) => (
+                            <span key={p} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-700">{p}</span>
+                        ))}
+                        {group.organizations.slice(0, 3).map((o) => (
+                            <span key={o} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700">{o}</span>
+                        ))}
+                    </div>
+                )}
+                {first?.why_this_result && (
+                    <p className="mt-1 text-[11px] leading-relaxed text-ink-2">{first.why_this_result}</p>
+                )}
+            </div>
+
+            {/* Expandable chunks */}
+            <div className="border-t border-surface-3">
+                <button onClick={(e) => { e.stopPropagation(); onToggle(group.doc_id); }}
+                    className="w-full px-4 py-2 flex items-center justify-between text-xs text-brand-600 hover:bg-surface-1 transition-colors">
+                    <span>
+                        {group.expanded
+                            ? (group.chunks.length > 1 ? "Ocultar fragmentos" : "Ocultar texto completo")
+                            : (group.chunks.length > 1 ? `Ver ${group.chunks.length - 1} fragmento${group.chunks.length > 2 ? "s" : ""} más` : "Ver texto completo")}
+                    </span>
+                    <svg className={`w-3 h-3 transition-transform ${group.expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                {group.expanded && (
+                    <div className="px-4 pb-3 space-y-2">
+                        {group.chunks.length > 1
+                            ? group.chunks.slice(1).map((chunk, ci) => (
+                                <div key={chunk.chunk_id} className="bg-surface-1 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[10px] font-mono text-ink-3">#{ci + 2}</span>
+                                        {chunk.section && <span className="text-xs text-ink-2">{chunk.section}</span>}
+                                        <span className="text-[10px] text-ink-3 ml-auto tabular-nums">{formatScore(chunk.scores?.fused ?? chunk.score)}</span>
+                                    </div>
+                                    <p className="text-sm text-ink-1 leading-relaxed line-clamp-3"
+                                        dangerouslySetInnerHTML={{ __html: formatHighlight(chunk.highlight || chunk.text) }} />
+                                </div>
+                            ))
+                            : <p className="text-sm text-ink-1 leading-relaxed whitespace-pre-wrap">{first?.text}</p>
+                        }
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

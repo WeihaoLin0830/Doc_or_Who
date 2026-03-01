@@ -42,6 +42,9 @@ def build_graph(documents: list[Document]) -> None:
             "filename": doc.filename,
             "doc_type": doc.doc_type,
             "category": doc.category,
+            "persons": list(doc.persons or []),
+            "organizations": list(doc.organizations or []),
+            "dates": list(doc.dates or []),
         }
 
         # Recoger todas las entidades del documento
@@ -81,6 +84,55 @@ def build_graph(documents: list[Document]) -> None:
     _save_graph()
     print(f"🕸️  Grafo construido: {len(_entity_nodes)} entidades, "
           f"{sum(sum(v.values()) for v in _edges.values()) // 2} aristas.")
+
+
+def add_document_to_graph(doc: Document) -> None:
+    """
+    Añade un único documento al grafo existente de forma incremental.
+    No reconstruye el grafo entero — solo agrega las entidades nuevas y aristas
+    del documento. Persiste el resultado en disco.
+    Usar tras subir un fichero vía /api/upload.
+    """
+    # Registrar el documento
+    _documents[doc.doc_id] = {
+        "doc_id": doc.doc_id,
+        "title": doc.title,
+        "filename": doc.filename,
+        "doc_type": doc.doc_type,
+        "category": getattr(doc, "category", ""),
+        "persons": list(doc.persons or []),
+        "organizations": list(doc.organizations or []),
+        "dates": list(doc.dates or []),
+    }
+
+    entities: list[tuple[str, str]] = []
+    for person in (doc.persons or []):
+        entities.append((person, "person"))
+    for org in (doc.organizations or []):
+        entities.append((org, "organization"))
+
+    # Crear/actualizar nodos
+    for name, etype in entities:
+        key = _normalize_key(name)
+        if key not in _entity_nodes:
+            _entity_nodes[key] = EntityNode(name=name, entity_type=etype)
+        node = _entity_nodes[key]
+        if doc.doc_id not in node.doc_ids:
+            node.doc_ids.append(doc.doc_id)
+        node.mentions += 1
+
+    # Crear aristas por co-ocurrencia dentro del documento
+    for i, (name_a, _) in enumerate(entities):
+        for name_b, _ in entities[i + 1:]:
+            key_a = _normalize_key(name_a)
+            key_b = _normalize_key(name_b)
+            if key_a != key_b:
+                _edges[key_a][key_b] += 1
+                _edges[key_b][key_a] += 1
+
+    _save_graph()
+    print(f"📄 Documento añadido al grafo: {doc.filename} "
+          f"({len(entities)} entidades). Total nodos: {len(_entity_nodes)}.")
 
 
 def get_entity(name: str) -> EntityNode | None:
@@ -627,3 +679,61 @@ def load_graph():
         for k2, w in v.items():
             _edges[k][k2] = w
     _documents = data.get("documents", {})
+
+    # Backfill persons/organizations/dates from Whoosh for docs that were
+    # indexed before these fields were added to the graph JSON.
+    needs_backfill = any(
+        "persons" not in doc for doc in _documents.values()
+    )
+    if needs_backfill:
+        _backfill_entities_from_whoosh()
+
+
+def _backfill_entities_from_whoosh() -> None:
+    """
+    Lee el último chunk de cada documento almacenado en Whoosh
+    y rellena persons/organizations/dates en _documents si faltan.
+    Opera en silencio si Whoosh no está disponible.
+    """
+    try:
+        from whoosh import index as whoosh_index
+        from backend.config import WHOOSH_DIR
+
+        if not whoosh_index.exists_in(str(WHOOSH_DIR)):
+            return
+
+        ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+        # Accumulate entities per doc_id
+        persons_map: dict[str, set[str]] = {}
+        orgs_map: dict[str, set[str]] = {}
+        dates_map: dict[str, set[str]] = {}
+
+        with ix.searcher() as searcher:
+            for stored in searcher.all_stored_fields():
+                doc_id = stored.get("doc_id", "")
+                if not doc_id:
+                    continue
+                for p in stored.get("persons", "").split(","):
+                    p = p.strip()
+                    if p:
+                        persons_map.setdefault(doc_id, set()).add(p)
+                for o in stored.get("organizations", "").split(","):
+                    o = o.strip()
+                    if o:
+                        orgs_map.setdefault(doc_id, set()).add(o)
+                for d in stored.get("dates", "").split(","):
+                    d = d.strip()
+                    if d:
+                        dates_map.setdefault(doc_id, set()).add(d)
+
+        for doc_id, doc in _documents.items():
+            if "persons" not in doc:
+                doc["persons"] = sorted(persons_map.get(doc_id, set()))
+            if "organizations" not in doc:
+                doc["organizations"] = sorted(orgs_map.get(doc_id, set()))
+            if "dates" not in doc:
+                doc["dates"] = sorted(dates_map.get(doc_id, set()))
+
+        print(f"🔄 Backfill de entidades completado para {len(_documents)} documentos.")
+    except Exception as e:
+        print(f"⚠️  Backfill de entidades falló (no crítico): {e}")
