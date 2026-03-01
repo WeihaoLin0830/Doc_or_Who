@@ -6,6 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
+/data
 # Distribution / packaging
 .Python
 build/
@@ -16,6 +17,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# Do NOT ignore frontend source directories
+!frontend/src/lib/
 parts/
 sdist/
 var/
@@ -205,3 +208,17 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# fastText word vectors cache (96MB — se descarga automáticamente)
+data/fasttext_es.npz
+# Índices y bases de datos (se regeneran automáticamente en ingestion)
+data/chroma_db/
+data/tables.duckdb
+data/tables.duckdb.wal
+data/whoosh_index/
+data/entity_graph.json
+
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/

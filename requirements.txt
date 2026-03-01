@@ -1,0 +1,39 @@
+# DocumentWho — Dependencies
+# pip install -r requirements.txt
+
+# --- API ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# --- Parsing ---
+PyMuPDF==1.24.10
+python-docx==1.1.2
+
+# --- OCR ---
+easyocr>=1.7
+
+# --- NLP / Embeddings ---
+sentence-transformers==3.1.0
+chromadb==0.5.7
+spacy==3.7.6
+scikit-learn>=1.3
+
+# --- Full-text search ---
+whoosh==2.7.4
+
+# --- Enrichment ---
+yake==0.4.8
+langdetect==1.0.9
+ftfy==6.2.3
+
+# --- LLM ---
+groq>=0.9
+python-dotenv>=1.0
+
+# --- Data ---
+pandas==2.2.3
+duckdb>=1.0
+openpyxl>=3.1
+
+# --- Utils ---
+python-multipart==0.0.12
