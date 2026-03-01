@@ -1,8 +1,8 @@
-# DocumentWho — Plataforma Inteligente de Búsqueda Documental
+# Doc or Who — Plataforma Inteligente de Búsqueda Documental
 
 **Busca, localiza y comprende documentación corporativa en segundos.**
 
-DocumentWho es una plataforma web que permite importar documentos empresariales (PDF, TXT, CSV, DOCX, XLSX), indexarlos automáticamente y buscarlos de forma inteligente combinando búsqueda tradicional por palabras clave con búsqueda semántica por contexto.
+Doc or Who es una plataforma web que permite importar documentos empresariales (PDF, TXT, CSV, DOCX, XLSX), indexarlos automáticamente y buscarlos de forma inteligente combinando búsqueda tradicional por palabras clave con búsqueda semántica por contexto.
 
 ---
 
@@ -191,5 +191,8 @@ actas de reunión, emails, memos, contratos, inventarios, informes de ventas e i
 ---
 
 ## Equipo
+Sergi Flores 
+Weihao Lin 
+Paula Esteve 
 
-**Fantasmada** — Hackathon 2025
+HackUDC 2026 - Universidade da Coruña 
