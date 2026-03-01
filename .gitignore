@@ -221,4 +221,4 @@ data/entity_graph.json
 # Frontend (Next.js)
 frontend/node_modules/
 frontend/.next/
-frontend/out/
+frontend/out/uploads/*
