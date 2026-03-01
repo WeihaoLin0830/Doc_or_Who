@@ -93,7 +93,7 @@ export function SearchTab({ documents }: Props) {
         const counts: Record<string, number> = {};
         for (const d of base) if (d.doc_type) counts[d.doc_type] = (counts[d.doc_type] || 0) + 1;
         return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [documents, browseCategory, browsePerson, browseOrg, browseDate]);
 
     const categoryCountsForCascade = useMemo(() => {
@@ -101,7 +101,7 @@ export function SearchTab({ documents }: Props) {
         const counts: Record<string, number> = {};
         for (const d of base) if (d.category) counts[d.category] = (counts[d.category] || 0) + 1;
         return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [documents, browseType, browsePerson, browseOrg, browseDate]);
 
     const personCountsForCascade = useMemo(() => {
@@ -109,7 +109,7 @@ export function SearchTab({ documents }: Props) {
         const counts: Record<string, number> = {};
         base.forEach((d) => d.persons?.forEach((p) => p && (counts[p] = (counts[p] || 0) + 1)));
         return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [documents, browseType, browseCategory, browseOrg, browseDate]);
 
     const orgCountsForCascade = useMemo(() => {
@@ -117,7 +117,7 @@ export function SearchTab({ documents }: Props) {
         const counts: Record<string, number> = {};
         base.forEach((d) => d.organizations?.forEach((o) => o && (counts[o] = (counts[o] || 0) + 1)));
         return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [documents, browseType, browseCategory, browsePerson, browseDate]);
 
     const dateCountsForCascade = useMemo(() => {
@@ -125,7 +125,7 @@ export function SearchTab({ documents }: Props) {
         const counts: Record<string, number> = {};
         base.forEach((d) => d.dates?.forEach((dt) => dt && (counts[dt] = (counts[dt] || 0) + 1)));
         return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [documents, browseType, browseCategory, browsePerson, browseOrg]);
 
     // Browsed docs when not searching (filtered by sidebar selections)

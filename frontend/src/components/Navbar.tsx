@@ -45,7 +45,6 @@ export function Navbar({ activeTab, setActiveTab, onUpload, onIngest, ingesting,
                         </svg>
                     </div>
                     <span className="text-lg font-semibold tracking-tight text-ink-0">DocumentWho</span>
-                    <span className="text-xs font-medium text-ink-3 bg-surface-2 rounded px-1.5 py-0.5 ml-1">v2.0</span>
                 </div>
 
                 {/* Tabs */}

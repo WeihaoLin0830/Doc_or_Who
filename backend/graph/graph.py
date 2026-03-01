@@ -679,3 +679,61 @@ def load_graph():
         for k2, w in v.items():
             _edges[k][k2] = w
     _documents = data.get("documents", {})
+
+    # Backfill persons/organizations/dates from Whoosh for docs that were
+    # indexed before these fields were added to the graph JSON.
+    needs_backfill = any(
+        "persons" not in doc for doc in _documents.values()
+    )
+    if needs_backfill:
+        _backfill_entities_from_whoosh()
+
+
+def _backfill_entities_from_whoosh() -> None:
+    """
+    Lee el último chunk de cada documento almacenado en Whoosh
+    y rellena persons/organizations/dates en _documents si faltan.
+    Opera en silencio si Whoosh no está disponible.
+    """
+    try:
+        from whoosh import index as whoosh_index
+        from backend.config import WHOOSH_DIR
+
+        if not whoosh_index.exists_in(str(WHOOSH_DIR)):
+            return
+
+        ix = whoosh_index.open_dir(str(WHOOSH_DIR))
+        # Accumulate entities per doc_id
+        persons_map: dict[str, set[str]] = {}
+        orgs_map: dict[str, set[str]] = {}
+        dates_map: dict[str, set[str]] = {}
+
+        with ix.searcher() as searcher:
+            for stored in searcher.all_stored_fields():
+                doc_id = stored.get("doc_id", "")
+                if not doc_id:
+                    continue
+                for p in stored.get("persons", "").split(","):
+                    p = p.strip()
+                    if p:
+                        persons_map.setdefault(doc_id, set()).add(p)
+                for o in stored.get("organizations", "").split(","):
+                    o = o.strip()
+                    if o:
+                        orgs_map.setdefault(doc_id, set()).add(o)
+                for d in stored.get("dates", "").split(","):
+                    d = d.strip()
+                    if d:
+                        dates_map.setdefault(doc_id, set()).add(d)
+
+        for doc_id, doc in _documents.items():
+            if "persons" not in doc:
+                doc["persons"] = sorted(persons_map.get(doc_id, set()))
+            if "organizations" not in doc:
+                doc["organizations"] = sorted(orgs_map.get(doc_id, set()))
+            if "dates" not in doc:
+                doc["dates"] = sorted(dates_map.get(doc_id, set()))
+
+        print(f"🔄 Backfill de entidades completado para {len(_documents)} documentos.")
+    except Exception as e:
+        print(f"⚠️  Backfill de entidades falló (no crítico): {e}")

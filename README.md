@@ -34,7 +34,9 @@ Abre **http://localhost:3000** en el navegador. Pulsa **"Re-indexar todo"** para
 ### Búsqueda Híbrida (Léxica + Semántica)
 - **BM25** (Whoosh) para coincidencias exactas por palabras clave
 - **Embeddings vectoriales** (ChromaDB + MiniLM multilingual) para búsqueda por significado
-- **Fusión ponderada** que combina ambos sistemas de forma transparente
+- **Fusión ponderada** (Reciprocal Rank Fusion) que combina ambos sistemas de forma transparente
+- **Stopwords en español** filtradas automáticamente (preposiciones, conjunciones, artículos) para evitar resultados irrelevantes
+- **Sinónimos corporativos** y expansión de vocabulario para mejorar el recall
 - Buscar *"acuerdos de teletrabajo"* encuentra documentos que digan *"política de trabajo remoto"*
 
 ### Resultados agrupados por documento
@@ -42,15 +44,16 @@ Abre **http://localhost:3000** en el navegador. Pulsa **"Re-indexar todo"** para
 - Score visual con barras: componente léxica (verde) y semántica (violeta)
 - Cada resultado explica **por qué** apareció: campos coincidentes, tipo de match, entidades del grafo
 
-### Filtros dinámicos (Facets)
-- Tipo de documento, idioma, persona, organización, fecha
-- Los conteos se actualizan en tiempo real según la búsqueda
-- Click para filtrar, click de nuevo para quitar
+### Filtros dinámicos en cascada (Facets)
+- **En modo búsqueda**: Tipo, Idioma, Fecha, Personas y Organizaciones — los conteos se recalculan según los filtros activos
+- **En modo navegación** (sin búsqueda activa): idénticos filtros disponibles con conteos en tiempo real
+- Los filtros son en cascada: marcar una fecha solo muestra personas/organizaciones presentes en esos documentos
+- Click para filtrar, click de nuevo para quitar; botón "Limpiar filtros"
 
 ### Vista completa de documento
 - Click en cualquier resultado → modal con todos los chunks del documento
-- Previsualización del archivo original (PDF inline, tablas CSV/XLSX, texto TXT)
-- Resumen automático con IA (LLM)
+- Previsualización inline del archivo original: PDF en iframe, tablas CSV/XLSX, texto TXT, extracción DOCX
+- Botón **"Generar resumen"** por demanda (IA)
 
 ### Chat con documentos (Agente IA)
 - Pregunta en lenguaje natural sobre tu base documental
@@ -69,11 +72,24 @@ Abre **http://localhost:3000** en el navegador. Pulsa **"Re-indexar todo"** para
 - Extracción automática de personas y organizaciones (spaCy NER)
 - Visualización interactiva de relaciones (vis-network)
 - Detección de comunidades y brokers de información
+- Click en entidad → detalle, documentos relacionados y entidades conectadas
+- Click en documento desde el grafo → abre el visor completo de documento
 - Buscador de conexiones: *"¿Qué conecta a Ana García con NovatechSolutions?"*
 
-### Detección de duplicados
-- Identifica documentos near-duplicados por similitud de embeddings
-- Umbral configurable (por defecto 85%)
+### Gestión de Documentos (carpetas inteligentes)
+- **Clustering automático** en 2 niveles: carpetas temáticas → subcarpetas más específicas
+- Etiquetas generadas por IA basadas en contenido (no solo tipo de documento)
+- **Resúmenes de carpeta y subcarpeta** generados bajo demanda por LLM
+- **Drag & drop** de documentos entre carpetas para reorganización manual
+- **Drag & drop** de carpetas para reordenar grupos
+- **Crear carpeta nueva** con nombre personalizado
+- Vista árbol o vista carpetas
+- Detección de **duplicados** por similitud de embeddings
+
+### Subida de documentos
+- Drag & drop o selector de archivo
+- Procesamiento automático: parsing → chunks → embeddings → grafo
+- Soporte para múltiples formatos simultáneos
 
 ---
 
@@ -83,12 +99,13 @@ Abre **http://localhost:3000** en el navegador. Pulsa **"Re-indexar todo"** para
 Frontend (Next.js + TypeScript + Tailwind CSS)     ← http://localhost:3000
     │  (proxy /api/* → backend)
     │
-    ├── /api/search       → Búsqueda híbrida BM25 + semántica
-    ├── /api/agent/ask    → Agente IA con tool-calling
-    ├── /api/sql/ask      → Lenguaje natural → SQL → resultado
-    ├── /api/documents    → CRUD de documentos
-    ├── /api/graph        → Grafo de entidades (vis-network)
-    └── /api/upload       → Subir y procesar nuevos documentos
+    ├── /api/search          → Búsqueda híbrida BM25 + semántica
+    ├── /api/agent/ask       → Agente IA con tool-calling
+    ├── /api/sql/ask         → Lenguaje natural → SQL → resultado
+    ├── /api/documents       → Lista y detalle de documentos
+    ├── /api/documents/clusters → Clustering jerárquico
+    ├── /api/graph           → Grafo de entidades (vis-network)
+    └── /api/upload          → Subir y procesar nuevos documentos
     │
 Backend (FastAPI + Python)                          ← http://localhost:8000
     │
@@ -123,26 +140,32 @@ Backend (FastAPI + Python)                          ← http://localhost:8000
 ```
 ├── backend/                 # FastAPI — lógica de negocio
 │   ├── api.py               # Endpoints REST
-│   ├── config.py             # Constantes y umbrales
-│   ├── models.py             # Modelos Pydantic
-│   ├── ingest.py             # Pipeline de ingestión
-│   ├── llm.py                # Integración con Groq LLM
-│   ├── search/               # Módulo de búsqueda
-│   │   ├── searcher.py       # Fusión híbrida BM25 + semántica
-│   │   ├── indexer.py        # Indexación Whoosh + ChromaDB
-│   │   └── text_normalize.py # Normalización de texto
-│   ├── graph/                # Módulo de grafo
-│   │   └── graph.py          # Entidades, comunidades, brokers
-│   └── sql_engine.py         # DuckDB sobre CSV/XLSX
+│   ├── config.py            # Constantes y umbrales
+│   ├── models.py            # Modelos de datos
+│   ├── search/              # Módulo de búsqueda
+│   │   ├── searcher.py      # Fusión híbrida BM25 + semántica + stopwords
+│   │   ├── indexer.py       # Indexación Whoosh + ChromaDB
+│   │   └── text_normalize.py# Normalización de texto
+│   ├── graph/               # Módulo de grafo
+│   │   └── graph.py         # Entidades, comunidades, brokers
+│   ├── ai/                  # Módulo IA
+│   │   └── llm.py           # Integración con Groq LLM
+│   └── ingestion/           # Pipeline de ingestión
 ├── frontend/                # Next.js — interfaz de usuario
-│   ├── src/app/              # App Router (layout, page)
-│   ├── src/components/       # Componentes React (tabs, modales)
-│   ├── src/lib/              # API client, tipos, utilities
-│   └── next.config.ts        # Proxy /api/* → backend
-├── dataset_default/          # Documentos de ejemplo
-├── uploads/                  # Documentos subidos por el usuario
-├── data/                     # Índices generados (gitignored)
-├── requirements.txt          # Dependencias Python
+│   ├── src/app/             # App Router (layout, page)
+│   ├── src/components/      # Componentes React (tabs, modales)
+│   │   ├── SearchTab.tsx    # Búsqueda + filtros siempre visibles
+│   │   ├── DocumentsTab.tsx # Carpetas, clustering, resúmenes
+│   │   ├── GraphTab.tsx     # Grafo de entidades interactivo
+│   │   ├── AskTab.tsx       # Chat con documentos
+│   │   ├── DocumentModal.tsx# Visor de documento (PDF/CSV/DOCX)
+│   │   └── Navbar.tsx       # Navegación + ingestión
+│   ├── src/lib/             # API client, tipos, utilities
+│   └── next.config.ts       # Proxy /api/* → backend
+├── dataset_default/         # Documentos de ejemplo
+├── uploads/                 # Documentos subidos por el usuario
+├── data/                    # Índices generados (gitignored)
+├── requirements.txt         # Dependencias Python
 └── README.md
 ```
 
@@ -154,16 +177,16 @@ Backend (FastAPI + Python)                          ← http://localhost:8000
 |---|---|
 | PDF | Extracción de texto + OCR para escaneados |
 | TXT | Directo |
-| CSV | Búsqueda + motor SQL |
-| XLSX / XLS | Búsqueda + motor SQL |
+| CSV | Búsqueda + motor SQL + vista tabla |
+| XLSX / XLS | Búsqueda + motor SQL + vista tabla |
 | DOCX | Extracción con python-docx |
 
 ---
 
 ## Dataset de ejemplo
 
-El repositorio incluye 25 documentos corporativos de ejemplo en `dataset_default/`:
-actas de reunión, emails, memos, contratos, facturas, informes financieros, inventarios, fichas técnicas, presupuestos y más.
+El repositorio incluye documentos corporativos de ejemplo en `dataset_default/`:
+actas de reunión, emails, memos, contratos, inventarios, informes de ventas e incidencias de soporte.
 
 ---
 
