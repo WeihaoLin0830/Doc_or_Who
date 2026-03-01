@@ -15,12 +15,45 @@ Flujo:
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from backend.config import GROQ_API_KEY, AGENT_MODEL, GROQ_MODEL
 from backend.ai.agent_tools import TOOLS, execute_tool
+
+
+# ─── Logger del agente ───────────────────────────────────────────
+def _setup_agent_logger() -> logging.Logger:
+    log_dir = Path(__file__).resolve().parents[2] / "data"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "agent.log"
+
+    logger = logging.getLogger("documentwho.agent")
+    if logger.handlers:           # evitar duplicar handlers al recargar en --reload
+        return logger
+
+    logger.setLevel(logging.DEBUG)
+    fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    # Fichero (DEBUG+)
+    fh = logging.FileHandler(log_path, encoding="utf-8")
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(fmt)
+    # Consola (WARNING+)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.WARNING)
+    ch.setFormatter(fmt)
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+    return logger
+
+log = _setup_agent_logger()
 
 
 # ─── Configuración ───────────────────────────────────────────────
@@ -233,6 +266,11 @@ def _call_with_retry(client, model, messages, tools=None, tool_choice=None,
                 else:
                     total_wait = 5 * (attempt + 1)
 
+                log.warning(
+                    "[RATE_LIMIT] modelo=%s intento=%d/%d espera=%.1fs msg=%s",
+                    model, attempt + 1, max_retries, total_wait, err[:200],
+                )
+
                 # Si la espera es corta (<= 10s), esperar y reintentar
                 if total_wait <= 10:
                     time.sleep(total_wait + 0.5)
@@ -240,16 +278,19 @@ def _call_with_retry(client, model, messages, tools=None, tool_choice=None,
 
                 # Si la espera es larga, caer al modelo rápido (8b)
                 if model != GROQ_MODEL:
+                    log.warning("[RATE_LIMIT] Cambiando a modelo rápido fallback: %s", GROQ_MODEL)
                     kwargs["model"] = GROQ_MODEL
                     try:
                         return client.chat.completions.create(**kwargs)
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        log.error("[RATE_LIMIT] Fallback también falló: %s", e2)
                 # Si también falla el fallback, esperar un poco y reintentar
                 time.sleep(min(total_wait, 15))
                 continue
+            log.error("[LLM_ERROR] modelo=%s intento=%d error=%s", model, attempt + 1, err)
             raise  # re-raise si no es rate limit
     # Último intento sin catch
+    log.debug("[LLM_CALL] último intento sin catch, modelo=%s", kwargs.get('model', model))
     return client.chat.completions.create(**kwargs)
 
 
@@ -266,7 +307,10 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
     Returns:
         AgentResult con respuesta, fuentes y pasos intermedios.
     """
+    log.info("[AGENT_START] session=%s pregunta=%r", session_id, question[:200])
+
     if not GROQ_API_KEY:
+        log.error("[AGENT_ERROR] GROQ_API_KEY no configurada")
         return AgentResult(
             answer="Error: GROQ_API_KEY no configurada en .env",
             model=AGENT_MODEL,
@@ -290,6 +334,7 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
 
     # ── ReAct loop ───────────────────────────────────────────────
     for iteration in range(MAX_ITERATIONS):
+        log.debug("[ITER_%d] tool_choice=%s mensajes_en_contexto=%d", iteration, 'required' if iteration == 0 else 'auto', len(messages))
         # Primera iteración: forzar uso de herramienta (el agente no tiene
         # conocimiento propio, SIEMPRE debe buscar/consultar primero).
         # Iteraciones siguientes: auto (puede responder o seguir con tools).
@@ -301,16 +346,19 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
             )
         except Exception as e:
             err_str = str(e)
+            log.error("[ITER_%d] Excepción en LLM call: %s", iteration, err_str[:500])
             # Groq a veces genera tool calls malformadas (args embebidos en el nombre).
             # En ese caso llamamos de nuevo SIN tools para forzar una respuesta textual
             # con el contexto que ya se ha recopilado.
             if "tool_use_failed" in err_str or "Failed to call a function" in err_str:
+                log.warning("[ITER_%d] tool_use_failed detectado, intentando fallback sin tools", iteration)
                 try:
                     fallback = _call_with_retry(
                         client, AGENT_MODEL, messages,
                         tools=None, tool_choice=None, temperature=0.15,
                     )
                     answer = fallback.choices[0].message.content or "No se pudo completar la respuesta."
+                    log.info("[ITER_%d] Fallback exitoso, respuesta=%r", iteration, answer[:200])
                     _save_turn(session_id, question, answer)
                     return AgentResult(
                         answer=answer,
@@ -318,8 +366,8 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
                         steps=steps,
                         model=AGENT_MODEL,
                     )
-                except Exception:
-                    pass  # cae al return de error genérico
+                except Exception as e2:
+                    log.error("[ITER_%d] Fallback sin tools también falló: %s", iteration, e2)
             return AgentResult(
                 answer=f"Error al llamar al LLM: {e}",
                 steps=steps,
@@ -337,6 +385,7 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
             # Detectar si el modelo simuló tool calls como texto en vez de invocarlas.
             # En ese caso añadimos una corrección y continuamos el loop.
             if _contains_simulated_tool_call(answer) and iteration < MAX_ITERATIONS - 1:
+                log.warning("[ITER_%d] Simulación de tool call detectada en texto. Corrigiendo. Respuesta=%r", iteration, answer[:300])
                 messages.append(msg.to_dict())
                 messages.append({
                     "role": "user",
@@ -351,6 +400,7 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
                 continue
 
             answer = answer or "No se pudo generar una respuesta."
+            log.info("[AGENT_END] iter=%d fuentes=%d pasos=%d respuesta=%r", iteration, len(collected_sources), len(steps), answer[:200])
             _save_turn(session_id, question, answer)
             return AgentResult(
                 answer=answer,
@@ -381,6 +431,7 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
                 if s.tool_name in _BLOCK_IF_REPEATED and "error" in s.result_preview
             }
             if fn_name in _BLOCK_IF_REPEATED and call_key in prev_failed_keys:
+                log.warning("[TOOL_BLOCKED] %s args=%s (llamada repetida que ya falló)", fn_name, json.dumps(fn_args)[:200])
                 observation = json.dumps({
                     "error": (
                         f"Ya llamaste a {fn_name} con estos mismos argumentos y falló. "
@@ -390,7 +441,21 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
                 })
             else:
                 # Ejecutar la herramienta
+                log.debug("[TOOL_CALL] %s args=%s", fn_name, json.dumps(fn_args)[:300])
+                t0 = time.time()
                 observation = execute_tool(fn_name, fn_args)
+                elapsed = time.time() - t0
+                try:
+                    obs_parsed = json.loads(observation)
+                    has_error = "error" in obs_parsed
+                    result_count = len(obs_parsed.get("chunks", obs_parsed.get("rows", [])))
+                except Exception:
+                    has_error = False
+                    result_count = -1
+                if has_error:
+                    log.warning("[TOOL_ERROR] %s args=%s error=%s", fn_name, json.dumps(fn_args)[:200], observation[:400])
+                else:
+                    log.debug("[TOOL_OK] %s resultados=%d tiempo=%.2fs preview=%s", fn_name, result_count, elapsed, observation[:200])
 
             # Registrar el paso
             steps.append(AgentStep(
@@ -411,6 +476,7 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
             })
 
     # Se agotaron las iteraciones: pedir al LLM que sintetice con lo recopilado
+    log.warning("[MAX_ITER] Se agotaron %d iteraciones. pasos=%d fuentes=%d", MAX_ITERATIONS, len(steps), len(collected_sources))
     try:
         synthesis = _call_with_retry(
             client, AGENT_MODEL,
@@ -427,6 +493,7 @@ def run_agent(question: str, session_id: str | None = None) -> AgentResult:
         )
         answer = synthesis.choices[0].message.content or "No se encontró información suficiente."
     except Exception:
+        log.error("[MAX_ITER] Síntesis final también falló", exc_info=True)
         answer = (
             "No se pudo completar la búsqueda en el número de pasos permitidos. "
             "Intenta reformular la pregunta o descomponerla en partes."
